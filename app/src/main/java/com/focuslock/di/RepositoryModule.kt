@@ -66,6 +66,12 @@ abstract class RepositoryModule {
 
     @Binds
     @Singleton
+    abstract fun bindUnlockWorkerScheduler(
+        impl: com.focuslock.data.worker.UnlockWorkerSchedulerImpl
+    ): com.focuslock.domain.worker.UnlockWorkerScheduler
+
+    @Binds
+    @Singleton
     abstract fun bindSessionRuntimeController(
         impl: AndroidSessionRuntimeController
     ): SessionRuntimeController

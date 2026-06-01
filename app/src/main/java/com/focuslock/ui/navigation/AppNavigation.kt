@@ -149,19 +149,49 @@ fun AppNavigation(
         // ── Phase 6 — Unlock flow (Placeholder) ──────────────────────────────
 
         composable(Screen.UnlockRequest.route) {
-            PlaceholderScreen(name = "Unlock Request")
+            com.focuslock.ui.session.UnlockRequestScreen(
+                onNavigateBack = { navController.popBackStack() },
+                onNavigateToOtp = { 
+                    navController.navigate(Screen.OtpEntry.route) {
+                        popUpTo(Screen.UnlockRequest.route) { inclusive = true }
+                    }
+                },
+                onNavigateToEmergency = {
+                    navController.navigate(Screen.EmergencyBypass.route)
+                }
+            )
         }
 
         composable(Screen.OtpEntry.route) {
-            PlaceholderScreen(name = "OTP Entry")
+            com.focuslock.ui.session.OtpEntryScreen(
+                onNavigateBack = { navController.popBackStack() },
+                onNavigateToCooldown = {
+                    navController.navigate(Screen.UnlockCooldown.route) {
+                        popUpTo(Screen.ActiveSession.route) { inclusive = false }
+                    }
+                }
+            )
         }
 
         composable(Screen.UnlockCooldown.route) {
-            PlaceholderScreen(name = "Unlock Cooldown")
+            com.focuslock.ui.session.UnlockCooldownScreen(
+                onNavigateToHome = {
+                    navController.navigate(Screen.Onboarding.route) {
+                        popUpTo(0) { inclusive = true }
+                    }
+                }
+            )
         }
 
         composable(Screen.EmergencyBypass.route) {
-            PlaceholderScreen(name = "Emergency Bypass")
+            com.focuslock.ui.session.EmergencyBypassScreen(
+                onNavigateBack = { navController.popBackStack() },
+                onNavigateToHome = {
+                    navController.navigate(Screen.Onboarding.route) {
+                        popUpTo(0) { inclusive = true }
+                    }
+                }
+            )
         }
 
         composable(Screen.SessionComplete.route) {
