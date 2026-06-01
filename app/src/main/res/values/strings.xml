@@ -1,0 +1,141 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">FocusLock</string>
+    
+    <!-- Accessibility Service -->
+    <string name="accessibility_service_description">FocusLock monitors browser URLs to block distracting content during active focus sessions. This service only reads browser address bars and does not access any other app data.</string>
+    
+    <!-- Device Admin -->
+    <string name="device_admin_description">FocusLock requires Device Admin permission to prevent uninstallation during active focus sessions. This ensures you cannot bypass your own commitment.</string>
+    <string name="device_admin_disable_blocked">You cannot disable FocusLock device admin while a focus session is active. Please complete or unlock your session first.</string>
+    
+    <!-- Permissions -->
+    <string name="permission_accessibility_title">Accessibility Service</string>
+    <string name="permission_accessibility_description">Required to detect and block keywords in browser URLs across all browsers</string>
+    
+    <string name="permission_vpn_title">VPN Service</string>
+    <string name="permission_vpn_description">Required to block entire domains by category. This is a local VPN - no data leaves your device</string>
+    
+    <string name="permission_device_admin_title">Device Administrator</string>
+    <string name="permission_device_admin_description">Required to prevent app uninstallation during active sessions</string>
+    
+    <string name="permission_overlay_title">Display Over Other Apps</string>
+    <string name="permission_overlay_description">Required to show blocking screens when restricted content is detected</string>
+    
+    <string name="permission_battery_title">Battery Settings</string>
+    <string name="permission_battery_description">Recommended: review battery settings if your device stops FocusLock in the background</string>
+
+    <string name="permission_notification_title">Session Notifications</string>
+    <string name="permission_notification_description">Recommended so the active session countdown remains visible while FocusLock is running</string>
+    
+    <!-- Notification -->
+    <string name="notification_channel_name">Active Session</string>
+    <string name="notification_channel_description">Shows when a focus session is active</string>
+    <string name="notification_title">Focus Session Active</string>
+    <string name="notification_text">Time remaining: %s</string>
+    <string name="notification_remaining_hours">%1$d h %2$d m</string>
+    <string name="notification_remaining_minutes">%1$d m</string>
+    <string name="notification_remaining_less_than_minute">less than a minute</string>
+    <string name="notification_expired">session expired</string>
+
+    <!-- Onboarding screen -->
+    <string name="onboarding_title">Take back control of your focus</string>
+    <string name="onboarding_subtitle">Block distracting content for a set time — and genuinely stick to it.</string>
+    <string name="onboarding_description">Once a session starts, you cannot stop it alone. Your trusted contact holds the key.</string>
+    <string name="onboarding_get_started">Get Started</string>
+
+    <!-- Permission setup screen -->
+    <string name="permission_setup_title">Grant Permissions</string>
+    <string name="permission_setup_subtitle">FocusLock needs these permissions to block content reliably. Each one is explained below.</string>
+    <string name="permission_required_badge">Required</string>
+    <string name="permission_grant_button">Grant</string>
+    <string name="permission_continue">Continue</string>
+    <string name="permission_grant_required">Grant required permissions to continue</string>
+
+    <!-- Trusted contact setup screen -->
+    <string name="trusted_contact_title">Register Your Trusted Contact</string>
+    <string name="trusted_contact_description">This person will receive an OTP when you request early unlock. Choose someone who will hold you accountable.</string>
+    <string name="trusted_contact_phone_label">Phone Number</string>
+    <string name="trusted_contact_phone_placeholder">+91 98765 43210</string>
+    <string name="trusted_contact_phone_hint">Include country code (e.g. +91 for India)</string>
+    <string name="trusted_contact_send_otp">Send Verification OTP</string>
+    <string name="trusted_contact_privacy_note">This number is only used to send unlock OTPs. It is never stored on our servers permanently.</string>
+
+    <!-- Verify contact screen -->
+    <string name="verify_contact_title">Verify Phone Number</string>
+    <string name="verify_contact_sent_to">OTP sent to %s</string>
+    <string name="verify_contact_otp_label">Enter 6-digit OTP</string>
+    <string name="verify_contact_verify_button">Verify</string>
+    <string name="verify_contact_no_otp">Didn\'t receive it?</string>
+    <string name="verify_contact_resend">Resend OTP</string>
+    <string name="verify_contact_resend_success">OTP resent successfully</string>
+
+    <!-- Common -->
+    <string name="dismiss">Dismiss</string>
+
+    <!-- Session complete screen -->
+    <string name="session_complete_title">Focus session complete</string>
+    <string name="session_complete_description">Your blocking services have stopped. You completed the commitment you set for yourself.</string>
+    <string name="session_complete_start_another">Start another session</string>
+
+    <!-- Phase 4 setup screens -->
+    <string name="category_selection_title">Select Categories to Block</string>
+    <string name="category_example_domains">e.g., %1$s</string>
+    <string name="keyword_selection_title">Custom Keywords</string>
+    <string name="keyword_input_label">Enter a keyword</string>
+    <string name="keyword_add">Add</string>
+    <plurals name="keyword_counter">
+        <item quantity="one">%1$d / %2$d keyword used</item>
+        <item quantity="other">%1$d / %2$d keywords used</item>
+    </plurals>
+    <string name="keyword_delete">Delete keyword</string>
+    <string name="timer_setup_title">Set Timer</string>
+    <string name="timer_setup_prompt">How long do you want to focus?</string>
+    <string name="timer_review">Review &amp; Lock In</string>
+    <string name="timer_hours">Hours</string>
+    <string name="timer_minutes">Minutes</string>
+    <string name="timer_invalid">Timer must be between 15 minutes and 72 hours.</string>
+    <string name="number_picker_increase">Increase %1$s</string>
+    <string name="number_picker_decrease">Decrease %1$s</string>
+    <string name="session_confirmation_title">Confirm Session</string>
+    <string name="session_lock_in">Lock In</string>
+    <string name="session_confirmation_description">Review your focus session settings. Once locked in, you cannot stop this session early without your trusted contact.</string>
+    <string name="session_duration">Duration</string>
+    <string name="session_duration_value">%1$s, %2$s</string>
+    <plurals name="session_duration_hours">
+        <item quantity="one">%d hour</item>
+        <item quantity="other">%d hours</item>
+    </plurals>
+    <plurals name="session_duration_minutes">
+        <item quantity="one">%d minute</item>
+        <item quantity="other">%d minutes</item>
+    </plurals>
+    <string name="session_blocked_categories">Blocked Categories</string>
+    <string name="session_custom_keywords">Custom Keywords</string>
+    <string name="session_trusted_contact">Trusted Contact</string>
+    <string name="session_none_selected">None selected</string>
+    <string name="session_none_added">None added</string>
+    <string name="session_not_set">Not set</string>
+    <string name="next">Next</string>
+
+    <!-- Active session and overlay -->
+    <string name="active_session_title">Focus Session Active</string>
+    <string name="active_session_time_remaining">Time Remaining</string>
+    <string name="active_session_vpn_permission">VPN Permission</string>
+    <string name="active_session_accessibility">Accessibility Monitoring</string>
+    <string name="active_session_uninstall_protection">Uninstall Protection</string>
+    <string name="active_session_request_unlock">Request Early Unlock</string>
+    <string name="status_active">Active</string>
+    <string name="status_inactive">Inactive</string>
+    <string name="overlay_title">Focus Mode Active</string>
+    <string name="overlay_blocked_term">Blocked content detected: %1$s</string>
+    <string name="overlay_reason">Reason: %1$s</string>
+    <string name="overlay_return">Return to Safety</string>
+    <string name="vpn_notification_channel">FocusLock VPN Service</string>
+    <string name="vpn_notification_title">FocusLock is active</string>
+    <string name="vpn_notification_text">Blocking distracting websites</string>
+    <string name="overlay_notification_channel">Blocking Overlay Service</string>
+    <string name="overlay_notification_channel_description">Shows the blocking screen when restricted content is accessed</string>
+    <string name="overlay_notification_title">FocusLock Active</string>
+    <string name="overlay_notification_text">Monitoring for blocked content.</string>
+</resources>

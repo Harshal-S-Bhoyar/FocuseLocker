@@ -1,0 +1,33 @@
+package com.focuslock.data.local.entity
+
+import androidx.room.ColumnInfo
+import androidx.room.Entity
+import androidx.room.ForeignKey
+import androidx.room.Index
+import androidx.room.PrimaryKey
+
+@Entity(
+    tableName = "blocked_domains",
+    indices = [
+        Index(value = ["domain"], unique = true),
+        Index(value = ["category_key"])
+    ],
+    foreignKeys = [
+        ForeignKey(
+            entity = BlockedCategoryEntity::class,
+            parentColumns = ["category_key"],
+            childColumns = ["category_key"],
+            onDelete = ForeignKey.CASCADE
+        )
+    ]
+)
+data class BlockedDomainEntity(
+    @PrimaryKey(autoGenerate = true)
+    val id: Long = 0,
+    
+    @ColumnInfo(name = "domain")
+    val domain: String,
+    
+    @ColumnInfo(name = "category_key")
+    val categoryKey: String
+)

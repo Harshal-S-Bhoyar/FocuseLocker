@@ -1,0 +1,54 @@
+# ==========================================
+# FocusLocker Root Git Ignore Configuration
+# ==========================================
+
+# --- Sensitive Files & Credentials ---
+# NEVER commit these. They contain secret passwords, API keys, or private signing keys.
+*.jks
+*.keystore
+.env
+backend/.env
+
+# --- Android / Gradle Build Outputs ---
+# These are generated automatically when you build the app.
+.gradle/
+.gradle-local/
+build/
+app/build/
+local.properties
+.navigation/
+captures/
+.externalNativeBuild/
+.cxx/
+*.apk
+*.aar
+*.ap_
+
+# --- Node.js Backend Dependencies & Builds ---
+# These are generated when you run npm install or compile your backend.
+backend/node_modules/
+backend/dist/
+node_modules/
+dist/
+
+# --- IDEs & Editor Configuration ---
+# Your personal editor settings should not be shared with others.
+.idea/
+.vscode/
+.cursor/
+*.iml
+.DS_Store
+Thumbs.db
+
+# --- Jetro & AI Agent Context folders ---
+# These are folders used by local AI tools and analysis databases.
+.jetro/
+.code-review-graph/
+.codex/
+.agents/
+.kotlin/
+graphify-out/
+.graphify_python
+.mcp.json
+chat_vault/
+backend/tests/*.js

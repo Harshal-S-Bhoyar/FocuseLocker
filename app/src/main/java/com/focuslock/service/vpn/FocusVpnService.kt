@@ -1,0 +1,163 @@
+package com.focuslock.service.vpn
+
+import android.app.Notification
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.content.Context
+import android.content.Intent
+import android.net.VpnService
+import android.os.ParcelFileDescriptor
+import android.util.Log
+import androidx.core.app.NotificationCompat
+import com.focuslock.R
+import com.focuslock.di.BlockingServiceEntryPoint
+import com.focuslock.domain.repository.SessionRepository
+import com.focuslock.domain.usecase.GetActiveBlockedDomainsUseCase
+import dagger.hilt.android.EntryPointAccessors
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.launch
+
+class FocusVpnService : VpnService() {
+
+    private val TAG = "FocusVpnService"
+    private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    
+    private var vpnInterface: ParcelFileDescriptor? = null
+    private var packetLoopJob: Job? = null
+    private var sessionMonitorJob: Job? = null
+    
+    private lateinit var getActiveBlockedDomainsUseCase: GetActiveBlockedDomainsUseCase
+    private lateinit var sessionRepository: SessionRepository
+    
+    private val activeDomains = mutableSetOf<String>()
+    private val dnsConfig = DnsConfig.DEFAULT
+
+    override fun onCreate() {
+        super.onCreate()
+        val entryPoint = EntryPointAccessors.fromApplication(
+            applicationContext,
+            BlockingServiceEntryPoint::class.java
+        )
+        getActiveBlockedDomainsUseCase = entryPoint.getActiveBlockedDomainsUseCase()
+        sessionRepository = entryPoint.sessionRepository()
+        
+        createNotificationChannel()
+    }
+
+    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        Log.d(TAG, "VPN Service starting")
+        
+        val notification = createNotification()
+        startForeground(NOTIFICATION_ID, notification)
+        
+        serviceScope.launch {
+            // Load blocked domains into memory for O(1) lookup
+            val domains = getActiveBlockedDomainsUseCase()
+            activeDomains.clear()
+            activeDomains.addAll(domains)
+            
+            // Monitor session status
+            sessionMonitorJob?.cancel()
+            sessionMonitorJob = launch {
+                sessionRepository.getActiveSession().collectLatest { session ->
+                    if (session == null) {
+                        stopVpn()
+                    }
+                }
+            }
+            
+            startVpn()
+        }
+        
+        return START_STICKY
+    }
+
+    private fun startVpn() {
+        if (vpnInterface != null) return
+        
+        try {
+            val builder = Builder()
+            builder.addAddress("10.0.0.2", 32)
+            // Only DNS is routed through the TUN. Routing all traffic would require
+            // a userspace TCP/IP stack and would otherwise drop normal internet access.
+            dnsConfig.resolvers.forEach { resolver ->
+                builder.addRoute(resolver, 32)
+            }
+            builder.addDnsServer(dnsConfig.primaryResolver)
+            builder.setSession("FocusLock VPN")
+            builder.setMtu(1500)
+            
+            vpnInterface = builder.establish()
+            
+            vpnInterface?.let { activeInterface ->
+                Log.d(TAG, "TUN interface established")
+                packetLoopJob = serviceScope.launch {
+                    val packetLoop = VpnPacketLoop(
+                        this@FocusVpnService,
+                        activeInterface,
+                        dnsConfig = dnsConfig,
+                        isDomainBlocked = { domain -> 
+                            activeDomains.any { blockedDomain ->
+                                domain.equals(blockedDomain, ignoreCase = true) ||
+                                    domain.endsWith(".$blockedDomain", ignoreCase = true)
+                            }
+                        }
+                    )
+                    packetLoop.runLoop()
+                }
+            } ?: run {
+                Log.e(TAG, "Failed to establish TUN interface")
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error starting VPN", e)
+        }
+    }
+
+    private fun stopVpn() {
+        packetLoopJob?.cancel()
+        sessionMonitorJob?.cancel()
+        vpnInterface?.close()
+        vpnInterface = null
+        stopSelf()
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        stopVpn()
+        serviceScope.cancel()
+    }
+
+    override fun onRevoke() {
+        stopVpn()
+        super.onRevoke()
+    }
+    
+    private fun createNotificationChannel() {
+        val channel = NotificationChannel(
+            CHANNEL_ID,
+            getString(R.string.vpn_notification_channel),
+            NotificationManager.IMPORTANCE_LOW
+        )
+        val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        manager.createNotificationChannel(channel)
+    }
+
+    private fun createNotification(): Notification {
+        return NotificationCompat.Builder(this, CHANNEL_ID)
+            .setContentTitle(getString(R.string.vpn_notification_title))
+            .setContentText(getString(R.string.vpn_notification_text))
+            .setSmallIcon(R.drawable.ic_focuslock_secure)
+            .setPriority(NotificationCompat.PRIORITY_LOW)
+            .build()
+    }
+
+    companion object {
+        private const val CHANNEL_ID = "vpn_service_channel"
+        private const val NOTIFICATION_ID = 2
+    }
+}

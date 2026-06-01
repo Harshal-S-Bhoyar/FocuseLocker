@@ -1,0 +1,236 @@
+# FocusLock: Project Dependency Graph & Structural Map
+
+This document provides a **Graph-Aware Architectural Analysis** of the FocusLock codebase. It maps the dependencies, data flows, and structural relationships across the Clean Architecture layers, highlighting the completed elements and integrating the upcoming Phase 3 services.
+
+---
+
+## 1. High-Level Architectural Layers
+
+The FocusLock Android app follows **Clean Architecture** combined with **MVVM**. The dependencies flow inward towards the Domain layer (which holds the pure business logic).
+
+```mermaid
+graph TD
+    subgraph UI ["UI & Presentation Layer (Jetpack Compose)"]
+        Screens[Screens & Composables] --> VM[ViewModels]
+    end
+
+    subgraph Domain ["Domain Layer (Business Logic & Rules)"]
+        VM --> UseCases[Use Cases]
+        UseCases --> RepoInterfaces[Repository Interfaces]
+        UseCases --> DomModels[Domain Models]
+    end
+
+    subgraph Data ["Data Layer (Data Source & Persistence)"]
+        RepoImpls[Repository Implementations] -.->|Implements| RepoInterfaces
+        RepoImpls --> LocalDS[Local Data Source - Room DB]
+        RepoImpls --> RemoteDS[Remote Data Source - Retrofit API]
+    end
+
+    subgraph DI ["Dependency Injection (Hilt)"]
+        HiltModules[Hilt Modules] -->|Provides/Binds| RepoImpls
+        HiltModules -->|Injects| VM
+        HiltModules -->|Injects| UseCases
+    end
+
+    style UI fill:#2c3e50,stroke:#34495e,stroke-width:2px,color:#fff
+    style Domain fill:#27ae60,stroke:#2ecc71,stroke-width:2px,color:#fff
+    style Data fill:#8e44ad,stroke:#9b59b6,stroke-width:2px,color:#fff
+    style DI fill:#d35400,stroke:#e67e22,stroke-width:2px,color:#fff
+```
+
+---
+
+## 2. Complete Phase 2 Data Flow (Onboarding & Verification)
+
+This graph traces the exact data flow during the onboarding and trusted contact registration phases.
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor User as User
+    participant Screen as TrustedContactSetupScreen
+    participant VM as TrustedContactSetupViewModel
+    participant UC as SaveTrustedContactUseCase
+    participant Repo as TrustedContactRepositoryImpl
+    participant API as FocusLockApi (Retrofit)
+    participant DB as FocusDatabase (Room)
+
+    User->>Screen: Enters Phone Number
+    Screen->>VM: onSendOtpClicked(phone)
+    VM->>UC: execute(phone)
+    Note over UC: Trims, normalizes &<br/>validates E.164 phone format
+    UC->>API: verifyContact(VerifyContactRequest)
+    API-->>UC: Return Success (OTP Sent)
+    UC->>Repo: saveTrustedContact(phone)
+    Repo->>DB: Insert TrustedContactEntity
+    Note over DB: Enforces max 1 row constraint
+    Repo-->>UC: Done
+    UC-->>VM: Success State
+    VM-->>Screen: Navigate to VerifyContactScreen
+```
+
+---
+
+## 3. Detailed Component & File Relationships
+
+The following graph maps all physical Kotlin files in the repository and their explicit dependencies:
+
+```mermaid
+classDiagram
+    class MainActivity {
+        +onCreate()
+    }
+    class AppNavigation {
+        <<navigation>>
+        +NavHost()
+    }
+    
+    class OnboardingScreen {
+        <<ui>>
+    }
+    class OnboardingViewModel {
+        -checkOnboardingStatusUseCase
+    }
+    
+    class PermissionSetupScreen {
+        <<ui>>
+    }
+    class PermissionSetupViewModel {
+        -permissionChecker
+    }
+    
+    class TrustedContactSetupScreen {
+        <<ui>>
+    }
+    class TrustedContactSetupViewModel {
+        -saveTrustedContactUseCase
+    }
+    
+    class VerifyContactScreen {
+        <<ui>>
+    }
+    class VerifyContactViewModel {
+        -verifyContactOtpUseCase
+    }
+
+    class InitializeAppUseCase {
+        -appSettingsRepository
+        -blockingRepository
+        +execute()
+    }
+    class CheckOnboardingStatusUseCase {
+        -appSettingsRepository
+        +execute()
+    }
+    class SaveTrustedContactUseCase {
+        -trustedContactRepository
+        -api
+        +execute()
+    }
+    class VerifyContactOtpUseCase {
+        -trustedContactRepository
+        -api
+        +execute()
+    }
+
+    class SessionRepository {
+        <<interface>>
+    }
+    class BlockingRepository {
+        <<interface>>
+    }
+    class TrustedContactRepository {
+        <<interface>>
+    }
+    class UnlockRepository {
+        <<interface>>
+    }
+    class AppSettingsRepository {
+        <<interface>>
+    }
+
+    class SessionRepositoryImpl {
+        -sessionDao
+    }
+    class BlockingRepositoryImpl {
+        -blockedDomainDao
+        -blockedKeywordDao
+    }
+    class TrustedContactRepositoryImpl {
+        -trustedContactDao
+    }
+    class UnlockRepositoryImpl {
+        -unlockRequestDao
+    }
+    class AppSettingsRepositoryImpl {
+        -appSettingDao
+    }
+
+    MainActivity --> AppNavigation
+    AppNavigation --> OnboardingScreen
+    AppNavigation --> PermissionSetupScreen
+    AppNavigation --> TrustedContactSetupScreen
+    AppNavigation --> VerifyContactScreen
+
+    OnboardingScreen --> OnboardingViewModel
+    PermissionSetupScreen --> PermissionSetupViewModel
+    TrustedContactSetupScreen --> TrustedContactSetupViewModel
+    VerifyContactScreen --> VerifyContactViewModel
+
+    OnboardingViewModel --> CheckOnboardingStatusUseCase
+    TrustedContactSetupViewModel --> SaveTrustedContactUseCase
+    VerifyContactViewModel --> VerifyContactOtpUseCase
+
+    CheckOnboardingStatusUseCase --> AppSettingsRepository
+    SaveTrustedContactUseCase --> TrustedContactRepository
+    VerifyContactOtpUseCase --> TrustedContactRepository
+
+    SessionRepositoryImpl ..|> SessionRepository
+    BlockingRepositoryImpl ..|> BlockingRepository
+    TrustedContactRepositoryImpl ..|> TrustedContactRepository
+    UnlockRepositoryImpl ..|> UnlockRepository
+    AppSettingsRepositoryImpl ..|> AppSettingsRepository
+
+    RepositoryModule --> SessionRepositoryImpl : binds
+    RepositoryModule --> BlockingRepositoryImpl : binds
+    RepositoryModule --> TrustedContactRepositoryImpl : binds
+    RepositoryModule --> UnlockRepositoryImpl : binds
+    RepositoryModule --> AppSettingsRepositoryImpl : binds
+```
+
+---
+
+## 4. Phase 3 Integration Blueprint (Next to Build)
+
+This diagram shows how the new core blocking services (Accessibility, VPN, and Overlay) integrate into the existing architectural map:
+
+```mermaid
+graph LR
+    subgraph Services ["Core Blocking Services (Phase 3)"]
+        AccService[FocusAccessibilityService]
+        VpnService[FocusVpnService]
+        OverlayService[BlockingOverlayService]
+    end
+
+    subgraph Repos ["Repositories (Phase 1/2)"]
+        BlockRepo[BlockingRepository]
+        SessionRepo[SessionRepository]
+    end
+
+    subgraph OS ["Android Operating System"]
+        Browser[Browser URL Bar] -->|Read by| AccService
+        DNS[On-Device DNS Intercept] -->|Interceded by| VpnService
+        SystemUI[System Settings Screens] -->|Monitored by| AccService
+    end
+
+    AccService -->|Checks active session| SessionRepo
+    AccService -->|Checks keywords| BlockRepo
+    VpnService -->|Checks domain category| BlockRepo
+    
+    AccService -->|Triggers overlay| OverlayService
+    VpnService -->|Redirects DNS block to| OverlayService
+
+    style Services fill:#1abc9c,stroke:#16a085,stroke-width:2px,color:#fff
+    style Repos fill:#8e44ad,stroke:#9b59b6,stroke-width:2px,color:#fff
+    style OS fill:#7f8c8d,stroke:#95a5a6,stroke-width:2px,color:#fff
+```
