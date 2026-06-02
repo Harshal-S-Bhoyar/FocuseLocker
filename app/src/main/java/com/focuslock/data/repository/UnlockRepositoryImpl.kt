@@ -8,12 +8,15 @@ import com.focuslock.domain.model.UnlockRequestStatus
 import com.focuslock.domain.repository.UnlockRepository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import com.focuslock.data.remote.api.FocusLockApi
+import com.focuslock.data.remote.dto.VerifyUnlockOtpRequest
 import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
 class UnlockRepositoryImpl @Inject constructor(
-    private val unlockRequestDao: UnlockRequestDao
+    private val unlockRequestDao: UnlockRequestDao,
+    private val api: FocusLockApi
 ) : UnlockRepository {
 
     override fun getLatestRequest(sessionId: Long): Flow<UnlockRequest?> {
@@ -77,5 +80,13 @@ class UnlockRepositoryImpl @Inject constructor(
         UnlockRequestStatus.COMPLETED    -> EntityStatus.COMPLETED
         UnlockRequestStatus.FAILED       -> EntityStatus.FAILED
         UnlockRequestStatus.EMERGENCY    -> EntityStatus.EMERGENCY
+    }
+
+    override suspend fun verifyOtp(trustedContactNumber: String, otp: String): Boolean {
+        val request = VerifyUnlockOtpRequest(
+            trustedContactNumber = trustedContactNumber,
+            otp = otp
+        )
+        return api.verifyUnlockOtp(request).valid
     }
 }

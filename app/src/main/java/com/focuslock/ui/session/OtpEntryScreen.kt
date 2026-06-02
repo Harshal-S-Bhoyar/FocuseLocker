@@ -12,6 +12,8 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.compose.ui.res.stringResource
+import com.focuslock.R
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -54,7 +56,7 @@ fun OtpEntryScreen(
             Spacer(modifier = Modifier.height(24.dp))
             
             Text(
-                text = "We sent a code to your trusted contact.",
+                text = stringResource(R.string.otp_entry_sent_message),
                 style = MaterialTheme.typography.headlineSmall,
                 textAlign = TextAlign.Center
             )
@@ -62,7 +64,7 @@ fun OtpEntryScreen(
             Spacer(modifier = Modifier.height(16.dp))
             
             Text(
-                text = "Enter the 6-digit code below to approve the early unlock.",
+                text = stringResource(R.string.otp_entry_instruction),
                 style = MaterialTheme.typography.bodyLarge,
                 textAlign = TextAlign.Center,
                 color = MaterialTheme.colorScheme.onSurfaceVariant

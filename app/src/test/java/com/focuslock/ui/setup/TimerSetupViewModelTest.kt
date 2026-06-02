@@ -5,12 +5,15 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.setMain
+import io.mockk.coEvery
+import io.mockk.mockk
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
+import com.focuslock.domain.usecase.HasVerifiedContactUseCase
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class TimerSetupViewModelTest {
@@ -18,10 +21,14 @@ class TimerSetupViewModelTest {
     private lateinit var viewModel: TimerSetupViewModel
     private val testDispatcher = UnconfinedTestDispatcher()
 
+    private lateinit var hasVerifiedContactUseCase: HasVerifiedContactUseCase
+
     @Before
     fun setup() {
         Dispatchers.setMain(testDispatcher)
-        viewModel = TimerSetupViewModel()
+        hasVerifiedContactUseCase = mockk()
+        coEvery { hasVerifiedContactUseCase() } returns true
+        viewModel = TimerSetupViewModel(hasVerifiedContactUseCase)
     }
 
     @After

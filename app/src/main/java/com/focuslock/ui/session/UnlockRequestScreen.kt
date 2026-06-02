@@ -13,6 +13,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.compose.ui.res.stringResource
+import com.focuslock.R
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -55,7 +57,7 @@ fun UnlockRequestScreen(
             Spacer(modifier = Modifier.height(24.dp))
             
             Text(
-                text = "Are you sure you want to unlock early?",
+                text = stringResource(R.string.unlock_request_title),
                 style = MaterialTheme.typography.headlineSmall,
                 textAlign = TextAlign.Center
             )
@@ -63,7 +65,7 @@ fun UnlockRequestScreen(
             Spacer(modifier = Modifier.height(16.dp))
             
             Text(
-                text = "Ending your session early requires approval from your trusted contact. A 10-minute cooldown will apply after they approve.",
+                text = stringResource(R.string.unlock_request_description),
                 style = MaterialTheme.typography.bodyLarge,
                 textAlign = TextAlign.Center,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
