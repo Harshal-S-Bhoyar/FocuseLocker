@@ -11,6 +11,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import kotlinx.coroutines.delay
+import androidx.compose.ui.res.stringResource
+import com.focuslock.R
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -56,7 +58,7 @@ fun EmergencyBypassScreen(
             Spacer(modifier = Modifier.height(16.dp))
             
             Text(
-                text = "Emergency bypass allows you to end the session without your trusted contact's approval. However, it enforces a strict 24-hour waiting period.",
+                text = stringResource(R.string.emergency_bypass_description),
                 style = MaterialTheme.typography.bodyLarge,
                 textAlign = TextAlign.Center,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -80,9 +82,9 @@ fun EmergencyBypassScreen(
                         .format(java.util.Date(endsAt))
                     
                     Text(
-                        text = "Unlocks at: $expiryTimeStr",
+                        text = stringResource(R.string.emergency_bypass_unlocks_at, expiryTimeStr),
                         style = MaterialTheme.typography.titleMedium,
-                        color = MaterialTheme.colorScheme.error
+                        color = MaterialTheme.colorScheme.primary
                     )
                 }
                 

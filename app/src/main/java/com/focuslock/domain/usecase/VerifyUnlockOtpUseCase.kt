@@ -1,7 +1,5 @@
 package com.focuslock.domain.usecase
 
-import com.focuslock.data.remote.api.FocusLockApi
-import com.focuslock.data.remote.dto.VerifyUnlockOtpRequest
 import com.focuslock.domain.model.UnlockRequestStatus
 import com.focuslock.domain.repository.UnlockRepository
 import com.focuslock.domain.worker.UnlockWorkerScheduler
@@ -18,7 +16,6 @@ sealed class VerifyUnlockResult {
 
 class VerifyUnlockOtpUseCase @Inject constructor(
     private val unlockRepository: UnlockRepository,
-    private val api: FocusLockApi,
     private val unlockWorkerScheduler: UnlockWorkerScheduler
 ) {
     suspend operator fun invoke(
@@ -37,13 +34,9 @@ class VerifyUnlockOtpUseCase @Inject constructor(
                 return@withContext VerifyUnlockResult.MaxAttemptsReached
             }
 
-            val request = VerifyUnlockOtpRequest(
-                trustedContactNumber = trustedContactNumber,
-                otp = otp
-            )
-            val response = api.verifyUnlockOtp(request)
+            val isValid = unlockRepository.verifyOtp(trustedContactNumber, otp)
 
-            if (response.valid) {
+            if (isValid) {
                 val endsAt = System.currentTimeMillis() + 10 * 60 * 1000L
                 unlockRepository.updateStatus(requestId, UnlockRequestStatus.COOLDOWN)
                 unlockRepository.setCooldownEndsAt(requestId, endsAt)

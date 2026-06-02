@@ -68,26 +68,34 @@ fun AppNavigation(
 
         composable(Screen.PermissionSetup.route) {
             PermissionSetupScreen(
-                onNavigateToTrustedContact = {
-                    navController.navigate(Screen.TrustedContactSetup.route)
+                onNavigateNext = {
+                    navController.navigate(Screen.CategorySelection.route)
                 }
             )
         }
 
-        composable(Screen.TrustedContactSetup.route) {
+        composable(
+            route = Screen.TrustedContactSetup.route + "/{durationMillis}",
+            arguments = listOf(androidx.navigation.navArgument("durationMillis") { type = androidx.navigation.NavType.LongType })
+        ) { backStackEntry ->
+            val durationMillis = backStackEntry.arguments?.getLong("durationMillis") ?: 0L
             TrustedContactSetupScreen(
                 onNavigateToVerify = {
-                    navController.navigate(Screen.VerifyContact.route)
+                    navController.navigate(Screen.VerifyContact.route + "/$durationMillis")
                 }
             )
         }
 
-        composable(Screen.VerifyContact.route) {
+        composable(
+            route = Screen.VerifyContact.route + "/{durationMillis}",
+            arguments = listOf(androidx.navigation.navArgument("durationMillis") { type = androidx.navigation.NavType.LongType })
+        ) { backStackEntry ->
+            val durationMillis = backStackEntry.arguments?.getLong("durationMillis") ?: 0L
             VerifyContactScreen(
                 onNavigateToSetup = {
-                    // Onboarding complete — go to category selection
-                    navController.navigate(Screen.CategorySelection.route) {
-                        popUpTo(Screen.Onboarding.route) { inclusive = true }
+                    // Onboarding complete — go to session confirmation
+                    navController.navigate(Screen.SessionConfirmation.route + "/$durationMillis") {
+                        popUpTo(Screen.CategorySelection.route) { inclusive = true }
                     }
                 }
             )
@@ -113,8 +121,12 @@ fun AppNavigation(
 
         composable(Screen.TimerSetup.route) {
             com.focuslock.ui.setup.TimerSetupScreen(
-                onNavigateNext = { durationMillis ->
-                    navController.navigate(Screen.SessionConfirmation.route + "/$durationMillis")
+                onNavigateNext = { durationMillis, hasVerifiedContact ->
+                    if (hasVerifiedContact) {
+                        navController.navigate(Screen.SessionConfirmation.route + "/$durationMillis")
+                    } else {
+                        navController.navigate(Screen.TrustedContactSetup.route + "/$durationMillis")
+                    }
                 }
             )
         }

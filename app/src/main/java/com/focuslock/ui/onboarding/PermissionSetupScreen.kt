@@ -5,8 +5,8 @@ import android.app.admin.DevicePolicyManager
 import android.content.ComponentName
 import android.content.Intent
 import android.net.Uri
-import android.os.Build
 import android.net.VpnService
+import android.os.Build
 import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -46,7 +46,7 @@ import com.focuslock.service.admin.FocusDeviceAdminReceiver
 
 @Composable
 fun PermissionSetupScreen(
-    onNavigateToTrustedContact: () -> Unit,
+    onNavigateNext: () -> Unit,
     viewModel: PermissionSetupViewModel = hiltViewModel()
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
@@ -58,7 +58,7 @@ fun PermissionSetupScreen(
     LaunchedEffect(state.navigateToTrustedContact) {
         if (state.navigateToTrustedContact) {
             viewModel.onNavigationConsumed()
-            onNavigateToTrustedContact()
+            onNavigateNext()
         }
     }
 

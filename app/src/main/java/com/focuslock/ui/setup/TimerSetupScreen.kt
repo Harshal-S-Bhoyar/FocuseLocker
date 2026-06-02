@@ -38,11 +38,12 @@ import com.focuslock.R
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TimerSetupScreen(
-    onNavigateNext: (Long) -> Unit,
+    onNavigateNext: (Long, Boolean) -> Unit,
     viewModel: TimerSetupViewModel = hiltViewModel()
 ) {
     val hours by viewModel.hours.collectAsStateWithLifecycle()
     val minutes by viewModel.minutes.collectAsStateWithLifecycle()
+    val hasVerifiedContact by viewModel.hasVerifiedContact.collectAsStateWithLifecycle()
 
     Scaffold(
         topBar = {
@@ -52,7 +53,7 @@ fun TimerSetupScreen(
         },
         bottomBar = {
             Button(
-                onClick = { onNavigateNext(viewModel.getDurationMillis()) },
+                onClick = { onNavigateNext(viewModel.getDurationMillis(), hasVerifiedContact) },
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(dimensionResource(R.dimen.spacing_lg)),

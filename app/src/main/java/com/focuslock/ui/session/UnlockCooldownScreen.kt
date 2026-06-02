@@ -11,6 +11,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import kotlinx.coroutines.delay
+import androidx.compose.ui.res.stringResource
+import com.focuslock.R
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -47,7 +49,7 @@ fun UnlockCooldownScreen(
             Spacer(modifier = Modifier.height(24.dp))
             
             Text(
-                text = "Unlock Approved",
+                text = stringResource(R.string.unlock_cooldown_title),
                 style = MaterialTheme.typography.headlineSmall,
                 textAlign = TextAlign.Center
             )
@@ -55,7 +57,7 @@ fun UnlockCooldownScreen(
             Spacer(modifier = Modifier.height(16.dp))
             
             Text(
-                text = "A 10-minute cooldown period is now active. Your session will end automatically once the time is up.",
+                text = stringResource(R.string.unlock_cooldown_description),
                 style = MaterialTheme.typography.bodyLarge,
                 textAlign = TextAlign.Center,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -70,7 +72,7 @@ fun UnlockCooldownScreen(
                     .format(java.util.Date(endsAt))
                 
                 Text(
-                    text = "Unlocks at: $expiryTimeStr",
+                    text = stringResource(R.string.unlock_cooldown_unlocks_at, expiryTimeStr),
                     style = MaterialTheme.typography.titleMedium,
                     color = MaterialTheme.colorScheme.primary
                 )
