@@ -1,7 +1,5 @@
 package com.focuslock.domain.usecase
 
-import com.focuslock.data.remote.api.FocusLockApi
-import com.focuslock.data.remote.dto.ConfirmContactRequest
 import com.focuslock.domain.repository.TrustedContactRepository
 import javax.inject.Inject
 
@@ -16,28 +14,29 @@ sealed class VerifyOtpResult {
  * On success, marks the contact as verified in Room.
  */
 class VerifyContactOtpUseCase @Inject constructor(
-    private val trustedContactRepository: TrustedContactRepository,
-    private val api: FocusLockApi
+    private val trustedContactRepository: TrustedContactRepository
 ) {
-    suspend operator fun invoke(phoneNumber: String, otp: String): VerifyOtpResult {
+    suspend operator fun invoke(email: String, otp: String): VerifyOtpResult {
         if (otp.length != 6 || !otp.all { it.isDigit() }) {
             return VerifyOtpResult.InvalidOtp
         }
 
         return try {
-            val response = api.confirmContact(
-                ConfirmContactRequest(phoneNumber = phoneNumber, otp = otp)
-            )
+            val verified = trustedContactRepository.confirmOtp(email, otp)
 
-            if (response.verified) {
+            if (verified) {
                 val contact = trustedContactRepository.getContactSync()
                 contact?.let { trustedContactRepository.markVerified(it.id) }
                 VerifyOtpResult.Verified
             } else {
                 VerifyOtpResult.InvalidOtp
             }
+        } catch (e: java.io.IOException) {
+            VerifyOtpResult.Error("Network error. Check your connection and try again.")
+        } catch (e: retrofit2.HttpException) {
+            VerifyOtpResult.Error("Server error (${e.code()}). Verification failed.")
         } catch (e: Exception) {
-            VerifyOtpResult.Error("Verification failed. Check your connection and try again.")
+            VerifyOtpResult.Error("An unexpected error occurred.")
         }
     }
 }

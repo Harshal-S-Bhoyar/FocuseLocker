@@ -68,7 +68,7 @@ class VerifyUnlockOtpUseCaseTest {
         val otp = "123456"
         
         coEvery { unlockRepository.incrementOtpAttempts(requestId) } returns 1
-        coEvery { unlockRepository.verifyOtp(contactNumber, otp) } returns true
+        coEvery { unlockRepository.verifyOtp(contactNumber, otp) } returns Result.success(true)
 
         // Act
         val result = useCase(requestId, contactNumber, otp)
@@ -88,7 +88,7 @@ class VerifyUnlockOtpUseCaseTest {
         val otp = "123456"
         
         coEvery { unlockRepository.incrementOtpAttempts(requestId) } returns 2
-        coEvery { unlockRepository.verifyOtp(contactNumber, otp) } returns false
+        coEvery { unlockRepository.verifyOtp(contactNumber, otp) } returns Result.success(false)
 
         // Act
         val result = useCase(requestId, contactNumber, otp)
@@ -106,7 +106,7 @@ class VerifyUnlockOtpUseCaseTest {
         val otp = "123456"
         
         coEvery { unlockRepository.incrementOtpAttempts(requestId) } returns 3
-        coEvery { unlockRepository.verifyOtp(contactNumber, otp) } returns false
+        coEvery { unlockRepository.verifyOtp(contactNumber, otp) } returns Result.success(false)
 
         // Act
         val result = useCase(requestId, contactNumber, otp)
@@ -142,7 +142,7 @@ class VerifyUnlockOtpUseCaseTest {
         val otp = "123456"
         
         coEvery { unlockRepository.incrementOtpAttempts(requestId) } returns 1
-        coEvery { unlockRepository.verifyOtp(contactNumber, otp) } throws Exception("Network timeout")
+        coEvery { unlockRepository.verifyOtp(contactNumber, otp) } returns Result.failure(java.io.IOException("Network timeout"))
 
         // Act
         val result = useCase(requestId, contactNumber, otp)

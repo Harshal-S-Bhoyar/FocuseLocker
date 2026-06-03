@@ -76,9 +76,9 @@ private fun VerifyContactContent(
 
         Spacer(modifier = Modifier.height(12.dp))
 
-        if (state.phoneNumber.isNotBlank()) {
+        if (state.email.isNotBlank()) {
             Text(
-                text = stringResource(R.string.verify_contact_sent_to, state.phoneNumber),
+                text = stringResource(R.string.verify_contact_sent_to, state.email),
                 style = MaterialTheme.typography.bodyMedium,
                 textAlign = TextAlign.Center,
                 color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f)

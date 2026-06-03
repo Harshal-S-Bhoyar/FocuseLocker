@@ -1,4 +1,4 @@
-import { OtpStore } from "../src/store/otp.store";
+import { OtpStore, otpStore } from "../src/store/otp.store";
 
 describe("OtpStore", () => {
   let store: OtpStore;
@@ -9,6 +9,10 @@ describe("OtpStore", () => {
 
   afterEach(() => {
     store.destroy();
+  });
+
+  afterAll(() => {
+    otpStore.destroy();
   });
 
   it("should store and retrieve an entry", () => {

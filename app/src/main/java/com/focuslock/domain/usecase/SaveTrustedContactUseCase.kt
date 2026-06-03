@@ -1,7 +1,5 @@
 package com.focuslock.domain.usecase
 
-import com.focuslock.data.remote.api.FocusLockApi
-import com.focuslock.data.remote.dto.VerifyContactRequest
 import com.focuslock.domain.repository.SessionRepository
 import com.focuslock.domain.repository.TrustedContactRepository
 import javax.inject.Inject
@@ -12,19 +10,18 @@ sealed class SaveContactResult {
 }
 
 /**
- * Saves a phone number and triggers OTP send to that number.
+ * Saves an email address and triggers OTP send to that address.
  * Only allowed when no session is ACTIVE (US-02 acceptance criteria).
  */
 class SaveTrustedContactUseCase @Inject constructor(
     private val trustedContactRepository: TrustedContactRepository,
-    private val sessionRepository: SessionRepository,
-    private val api: FocusLockApi
+    private val sessionRepository: SessionRepository
 ) {
-    suspend operator fun invoke(phoneNumber: String): SaveContactResult {
-        val trimmed = phoneNumber.trim()
+    suspend operator fun invoke(email: String): SaveContactResult {
+        val trimmed = email.trim()
 
         if (trimmed.isBlank()) {
-            return SaveContactResult.Error("Phone number cannot be empty")
+            return SaveContactResult.Error("Email cannot be empty")
         }
 
         // Block update during active session — US-02 acceptance criteria
@@ -37,11 +34,15 @@ class SaveTrustedContactUseCase @Inject constructor(
             trustedContactRepository.saveContact(trimmed)
 
             // Send OTP via backend
-            api.verifyContact(VerifyContactRequest(phoneNumber = trimmed))
-
-            SaveContactResult.OtpSent
+            val sent = trustedContactRepository.sendVerificationOtp(trimmed)
+            if (sent) SaveContactResult.OtpSent
+            else SaveContactResult.Error("Failed to send verification email.")
+        } catch (e: java.io.IOException) {
+            SaveContactResult.Error("Failed to connect to the server. Check your internet connection.")
+        } catch (e: retrofit2.HttpException) {
+            SaveContactResult.Error("Server error (${e.code()}). Failed to send OTP.")
         } catch (e: Exception) {
-            SaveContactResult.Error("Failed to send OTP. Check your internet connection and try again.")
+            SaveContactResult.Error("An unexpected error occurred.")
         }
     }
 }

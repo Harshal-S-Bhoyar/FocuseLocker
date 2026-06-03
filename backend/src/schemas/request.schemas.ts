@@ -1,24 +1,23 @@
 import { z } from "zod";
 
-const e164PhoneRegex = /^\+[1-9]\d{1,14}$/;
 const otpRegex = /^\d{6}$/;
 
 export const verifyContactSchema = z.object({
   body: z.object({
-    phoneNumber: z.string().regex(e164PhoneRegex, "Invalid E.164 phone number"),
+    email: z.string().email("Invalid email address"),
   }),
 });
 
 export const confirmContactSchema = z.object({
   body: z.object({
-    phoneNumber: z.string().regex(e164PhoneRegex, "Invalid E.164 phone number"),
+    email: z.string().email("Invalid email address"),
     otp: z.string().regex(otpRegex, "OTP must be exactly 6 digits"),
   }),
 });
 
 export const requestUnlockSchema = z.object({
   body: z.object({
-    trustedContactNumber: z.string().regex(e164PhoneRegex, "Invalid E.164 phone number"),
+    trustedContactEmail: z.string().email("Invalid email address"),
     blockedCategories: z.array(z.string()),
     blockedKeywords: z.array(z.string()),
     timeRemaining: z.string(),
@@ -28,7 +27,7 @@ export const requestUnlockSchema = z.object({
 
 export const verifyUnlockOtpSchema = z.object({
   body: z.object({
-    trustedContactNumber: z.string().regex(e164PhoneRegex, "Invalid E.164 phone number"),
+    trustedContactEmail: z.string().email("Invalid email address"),
     otp: z.string().regex(otpRegex, "OTP must be exactly 6 digits"),
   }),
 });

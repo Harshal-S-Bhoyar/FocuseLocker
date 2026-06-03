@@ -2,7 +2,7 @@ import { Router, Request, Response } from "express";
 import { validate } from "../middleware/validate";
 import { requestUnlockSchema, verifyUnlockOtpSchema } from "../schemas/request.schemas";
 import { otpService } from "../services/otp.service";
-import { smsService } from "../services/sms.service";
+import { emailService } from "../services/email.service";
 import { asyncErrorWrapper } from "../utils/asyncErrorWrapper";
 
 const router = Router();
@@ -11,11 +11,11 @@ router.post(
   "/request-unlock",
   validate(requestUnlockSchema),
   asyncErrorWrapper(async (req: Request, res: Response) => {
-    const { trustedContactNumber, blockedCategories, blockedKeywords, timeRemaining } = req.body;
+    const { trustedContactEmail, blockedCategories, blockedKeywords, timeRemaining } = req.body;
 
-    const otp = await otpService.generateAndStore(trustedContactNumber, "SESSION_UNLOCK");
+    const otp = await otpService.generateAndStore(trustedContactEmail, "SESSION_UNLOCK");
     
-    // Format categories/keywords for SMS
+    // Format categories/keywords for Email
     const blockedItems = [
       ...blockedCategories,
       ...blockedKeywords
@@ -23,13 +23,13 @@ router.post(
 
     const categoriesStr = blockedItems.length > 0 ? blockedItems : "Custom list";
 
-    const sent = await smsService.sendUnlockOtp(trustedContactNumber, otp, {
+    const sent = await emailService.sendUnlockOtp(trustedContactEmail, otp, {
       timeRemaining,
       categories: categoriesStr,
     });
 
     if (!sent) {
-      res.status(500).json({ success: false, message: "Failed to send SMS" });
+      res.status(500).json({ success: false, message: "Failed to send Email" });
       return;
     }
 
@@ -41,9 +41,9 @@ router.post(
   "/verify-unlock-otp",
   validate(verifyUnlockOtpSchema),
   asyncErrorWrapper(async (req: Request, res: Response) => {
-    const { trustedContactNumber, otp } = req.body;
+    const { trustedContactEmail, otp } = req.body;
 
-    const result = await otpService.verify(trustedContactNumber, otp, "SESSION_UNLOCK");
+    const result = await otpService.verify(trustedContactEmail, otp, "SESSION_UNLOCK");
 
     if (!result.valid) {
       res.status(400).json({ valid: false, reason: result.reason });

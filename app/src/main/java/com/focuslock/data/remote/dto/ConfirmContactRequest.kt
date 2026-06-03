@@ -4,7 +4,7 @@ import kotlinx.serialization.Serializable
 
 @Serializable
 data class ConfirmContactRequest(
-    val phoneNumber: String,
+    val email: String,
     val otp: String
 )
 

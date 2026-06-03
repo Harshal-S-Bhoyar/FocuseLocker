@@ -9,6 +9,7 @@ import com.focuslock.domain.repository.UnlockRepository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import com.focuslock.data.remote.api.FocusLockApi
+import com.focuslock.data.remote.dto.RequestUnlockRequest
 import com.focuslock.data.remote.dto.VerifyUnlockOtpRequest
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -40,10 +41,8 @@ class UnlockRepositoryImpl @Inject constructor(
     }
 
     override suspend fun incrementOtpAttempts(requestId: Long): Int {
-        val current = unlockRequestDao.getLatestRequestBySessionSync(requestId)
-        val newCount = (current?.otpAttempts ?: 0) + 1
-        unlockRequestDao.updateOtpAttempts(requestId, newCount)
-        return newCount
+        unlockRequestDao.incrementOtpAttempts(requestId)
+        return unlockRequestDao.getOtpAttempts(requestId)
     }
 
     override suspend fun setCooldownEndsAt(requestId: Long, endsAt: Long) {
@@ -82,11 +81,32 @@ class UnlockRepositoryImpl @Inject constructor(
         UnlockRequestStatus.EMERGENCY    -> EntityStatus.EMERGENCY
     }
 
-    override suspend fun verifyOtp(trustedContactNumber: String, otp: String): Boolean {
-        val request = VerifyUnlockOtpRequest(
-            trustedContactNumber = trustedContactNumber,
-            otp = otp
-        )
-        return api.verifyUnlockOtp(request).valid
+    override suspend fun verifyOtp(trustedContactEmail: String, otp: String): Result<Boolean> {
+        return try {
+            val request = VerifyUnlockOtpRequest(
+                trustedContactEmail = trustedContactEmail,
+                otp = otp
+            )
+            val response = api.verifyUnlockOtp(request)
+            Result.success(response.valid)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    override suspend fun requestUnlock(trustedContactEmail: String, blockedCategories: List<String>, blockedKeywords: List<String>, timeRemaining: String): Result<Boolean> {
+        return try {
+            val request = RequestUnlockRequest(
+                trustedContactEmail = trustedContactEmail,
+                blockedCategories = blockedCategories,
+                blockedKeywords = blockedKeywords,
+                timeRemaining = timeRemaining,
+                requestTimestamp = System.currentTimeMillis()
+            )
+            val response = api.requestUnlock(request)
+            Result.success(response.success)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
     }
 }

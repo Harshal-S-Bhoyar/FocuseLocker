@@ -20,6 +20,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
+import java.util.concurrent.atomic.AtomicReference
 
 /**
  * FocusAccessibilityService reads browser URL bars to detect and block keyword matches
@@ -51,8 +52,8 @@ class FocusAccessibilityService : AccessibilityService() {
 
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     @Volatile private var isSessionActive = false
-    @Volatile private var activeKeywords: List<String> = emptyList()
-    @Volatile private var activeDomains: List<String> = emptyList()
+    private val activeKeywords = AtomicReference<List<String>>(emptyList())
+    private val activeDomains = AtomicReference<List<String>>(emptyList())
     @Volatile private var activeSessionExpiresAt: Long? = null
     private var lastProcessedUrl: String? = null
     private var lastProcessedAtMillis = 0L
@@ -87,9 +88,9 @@ class FocusAccessibilityService : AccessibilityService() {
                 activeSessionExpiresAt = session?.expiresAt
                 if (isSessionActive) {
                     // Fetch blocked domains when session becomes active
-                    activeDomains = getActiveBlockedDomainsUseCase()
+                    activeDomains.set(getActiveBlockedDomainsUseCase())
                 } else {
-                    activeDomains = emptyList()
+                    activeDomains.set(emptyList())
                 }
             }
         }
@@ -97,7 +98,7 @@ class FocusAccessibilityService : AccessibilityService() {
         // Observe active keywords
         serviceScope.launch {
             getActiveKeywordsUseCase().collect { keywords ->
-                activeKeywords = keywords
+                activeKeywords.set(keywords)
             }
         }
     }
@@ -138,12 +139,16 @@ class FocusAccessibilityService : AccessibilityService() {
         for (keyword in sensitiveKeywords) {
             val nodes = source.findAccessibilityNodeInfosByText(keyword)
             if (nodes.isNotEmpty()) {
+                nodes.forEach { it.recycle() }
+                source.recycle()
                 performGlobalAction(GLOBAL_ACTION_BACK)
                 launchOverlayService("Protected settings", "SETTINGS_PROTECTED")
                 
                 return
             }
+            nodes.forEach { it.recycle() }
         }
+        source.recycle()
     }
 
     private fun handleBrowserEvent(event: AccessibilityEvent, packageName: String) {
@@ -152,11 +157,13 @@ class FocusAccessibilityService : AccessibilityService() {
         
         val urlNode = findUrlNode(source, packageName)
         val url = urlNode?.text?.toString()
+        urlNode?.recycle()
+        source.recycle()
         
         if (!url.isNullOrBlank()) {
             if (isDuplicateUrlEvent(url)) return
 
-            val result = checkUrlForBlockedContentUseCase(url, activeKeywords, activeDomains)
+            val result = checkUrlForBlockedContentUseCase(url, activeKeywords.get(), activeDomains.get())
             if (result is BlockCheckResult.Blocked) {
                 // Perform BACK action on the browser
                 performGlobalAction(GLOBAL_ACTION_BACK)
@@ -179,7 +186,9 @@ class FocusAccessibilityService : AccessibilityService() {
         }
         
         val nodes = root.findAccessibilityNodeInfosByViewId(urlBarId)
-        return nodes.firstOrNull()
+        val firstNode = nodes.firstOrNull()
+        nodes.drop(1).forEach { it.recycle() }
+        return firstNode
     }
 
     private fun launchOverlayService(matchedTerm: String, blockReason: String) {

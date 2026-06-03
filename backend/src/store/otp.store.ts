@@ -12,34 +12,35 @@ export class OtpStore {
   constructor() {
     // Run cleanup every 60 seconds
     this.cleanupInterval = setInterval(() => this.cleanup(), 60 * 1000);
+    this.cleanupInterval.unref();
   }
 
-  set(phone: string, entry: OtpEntry): void {
-    this.store.set(phone, entry);
+  set(email: string, entry: OtpEntry): void {
+    this.store.set(email, entry);
   }
 
-  get(phone: string): OtpEntry | undefined {
-    return this.store.get(phone);
+  get(email: string): OtpEntry | undefined {
+    return this.store.get(email);
   }
 
-  incrementAttempts(phone: string): number {
-    const entry = this.store.get(phone);
+  incrementAttempts(email: string): number {
+    const entry = this.store.get(email);
     if (!entry) return 0;
     
     entry.attempts += 1;
-    this.store.set(phone, entry);
+    this.store.set(email, entry);
     return entry.attempts;
   }
 
-  delete(phone: string): void {
-    this.store.delete(phone);
+  delete(email: string): void {
+    this.store.delete(email);
   }
 
   cleanup(): void {
     const now = Date.now();
-    for (const [phone, entry] of this.store.entries()) {
-      if (entry.expiresAt <= now) {
-        this.store.delete(phone);
+    for (const [email, entry] of this.store.entries()) {
+      if (now >= entry.expiresAt) {
+        this.store.delete(email);
       }
     }
   }

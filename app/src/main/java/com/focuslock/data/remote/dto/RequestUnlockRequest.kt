@@ -4,7 +4,7 @@ import kotlinx.serialization.Serializable
 
 @Serializable
 data class RequestUnlockRequest(
-    val trustedContactNumber: String,
+    val trustedContactEmail: String,
     val blockedCategories: List<String>,
     val blockedKeywords: List<String>,
     val timeRemaining: String,

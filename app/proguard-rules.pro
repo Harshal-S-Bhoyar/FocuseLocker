@@ -33,3 +33,12 @@
 -keep class * extends android.accessibilityservice.AccessibilityService
 -keep class * extends android.net.VpnService
 -keep class * extends android.app.admin.DeviceAdminReceiver
+
+# Keep all network DTOs — R8 must not rename JSON field names
+-keep class com.focuslock.data.remote.dto.** { *; }
+
+# Strip debug/verbose log calls in release builds (H-04)
+-assumenosideeffects class android.util.Log {
+    public static *** d(...);
+    public static *** v(...);
+}

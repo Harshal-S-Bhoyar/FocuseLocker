@@ -1,18 +1,30 @@
 import dotenv from "dotenv";
+import { z } from "zod";
 
 dotenv.config();
 
+const envSchema = z.object({
+  BREVO_API_KEY: z.string().min(1, "BREVO_API_KEY is required"),
+  BREVO_SENDER_EMAIL: z.string().email().default("noreply@focuslock.app"),
+  BREVO_SENDER_NAME: z.string().default("FocusLock"),
+  OTP_EXPIRY_MINUTES: z.coerce.number().default(10),
+  OTP_MAX_ATTEMPTS: z.coerce.number().default(3),
+  PORT: z.coerce.number().default(3000),
+});
+
+const envVars = envSchema.parse(process.env);
+
 export const config = {
-  twilio: {
-    accountSid: process.env.TWILIO_ACCOUNT_SID || "",
-    authToken: process.env.TWILIO_AUTH_TOKEN || "",
-    phoneNumber: process.env.TWILIO_PHONE_NUMBER || "",
+  brevo: {
+    apiKey: envVars.BREVO_API_KEY,
+    senderEmail: envVars.BREVO_SENDER_EMAIL,
+    senderName: envVars.BREVO_SENDER_NAME,
   },
   otp: {
-    expiryMinutes: parseInt(process.env.OTP_EXPIRY_MINUTES || "10", 10),
-    maxAttempts: parseInt(process.env.OTP_MAX_ATTEMPTS || "3", 10),
+    expiryMinutes: envVars.OTP_EXPIRY_MINUTES,
+    maxAttempts: envVars.OTP_MAX_ATTEMPTS,
   },
   server: {
-    port: parseInt(process.env.PORT || "3000", 10),
+    port: envVars.PORT,
   },
 };

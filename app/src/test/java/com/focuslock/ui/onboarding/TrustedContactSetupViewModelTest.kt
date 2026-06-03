@@ -38,22 +38,22 @@ class TrustedContactSetupViewModelTest {
     }
 
     @Test
-    fun `phone number change filters non-phone characters`() {
-        viewModel.onPhoneNumberChanged("+91abc98765")
-        assertEquals("+9198765", viewModel.uiState.value.phoneNumber)
+    fun `email change updates state`() {
+        viewModel.onEmailChanged("test@example.com")
+        assertEquals("test@example.com", viewModel.uiState.value.email)
     }
 
     @Test
-    fun `phone number change clears error`() {
-        // Trigger an error first by clicking send with short number
+    fun `email change clears error`() {
+        // Trigger an error first by clicking send with invalid email
         viewModel.onSendOtpClicked()
-        viewModel.onPhoneNumberChanged("+91")
+        viewModel.onEmailChanged("test@example")
         assertNull(viewModel.uiState.value.errorMessage)
     }
 
     @Test
-    fun `send otp with short number sets error`() {
-        viewModel.onPhoneNumberChanged("+91")
+    fun `send otp with empty email sets error`() {
+        viewModel.onEmailChanged("")
         viewModel.onSendOtpClicked()
         assertNotNull(viewModel.uiState.value.errorMessage)
         assertFalse(viewModel.uiState.value.navigateToVerify)
@@ -62,7 +62,7 @@ class TrustedContactSetupViewModelTest {
     @Test
     fun `successful send navigates to verify`() = runTest {
         coEvery { saveTrustedContactUseCase(any()) } returns SaveContactResult.OtpSent
-        viewModel.onPhoneNumberChanged("+919876543210")
+        viewModel.onEmailChanged("test@example.com")
         viewModel.onSendOtpClicked()
         testDispatcher.scheduler.advanceUntilIdle()
         assertTrue(viewModel.uiState.value.navigateToVerify)
@@ -71,7 +71,7 @@ class TrustedContactSetupViewModelTest {
     @Test
     fun `failed send shows error message`() = runTest {
         coEvery { saveTrustedContactUseCase(any()) } returns SaveContactResult.Error("Network error")
-        viewModel.onPhoneNumberChanged("+919876543210")
+        viewModel.onEmailChanged("test@example.com")
         viewModel.onSendOtpClicked()
         testDispatcher.scheduler.advanceUntilIdle()
         assertNotNull(viewModel.uiState.value.errorMessage)
@@ -81,7 +81,7 @@ class TrustedContactSetupViewModelTest {
     @Test
     fun `navigation consumed resets flag`() = runTest {
         coEvery { saveTrustedContactUseCase(any()) } returns SaveContactResult.OtpSent
-        viewModel.onPhoneNumberChanged("+919876543210")
+        viewModel.onEmailChanged("test@example.com")
         viewModel.onSendOtpClicked()
         testDispatcher.scheduler.advanceUntilIdle()
         viewModel.onNavigationConsumed()

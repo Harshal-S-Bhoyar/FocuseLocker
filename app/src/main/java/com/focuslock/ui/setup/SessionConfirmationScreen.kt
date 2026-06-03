@@ -122,7 +122,7 @@ fun SessionConfirmationScreen(
 
             SummaryCard(stringResource(R.string.session_trusted_contact)) {
                 Text(
-                    text = trustedContact?.phoneNumber ?: stringResource(R.string.session_not_set),
+                    text = trustedContact?.email ?: stringResource(R.string.session_not_set),
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold
                 )

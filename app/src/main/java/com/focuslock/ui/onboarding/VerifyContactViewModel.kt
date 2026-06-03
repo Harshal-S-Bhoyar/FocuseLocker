@@ -18,7 +18,7 @@ import javax.inject.Inject
 
 data class VerifyContactUiState(
     val otp: String = "",
-    val phoneNumber: String = "",
+    val email: String = "",
     val isLoading: Boolean = false,
     val errorMessage: String? = null,
     val attemptsRemaining: Int = 3,
@@ -46,7 +46,7 @@ class VerifyContactViewModel @Inject constructor(
         viewModelScope.launch {
             val contact = trustedContactRepository.getContact().first()
             _uiState.value = _uiState.value.copy(
-                phoneNumber = contact?.phoneNumber ?: ""
+                email = contact?.email ?: ""
             )
         }
     }
@@ -67,7 +67,7 @@ class VerifyContactViewModel @Inject constructor(
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoading = true, errorMessage = null)
 
-            when (verifyContactOtpUseCase(state.phoneNumber, state.otp)) {
+            when (verifyContactOtpUseCase(state.email, state.otp)) {
                 is VerifyOtpResult.Verified -> {
                     appSettingsRepository.setOnboardingComplete()
                     _uiState.value = _uiState.value.copy(
@@ -98,13 +98,13 @@ class VerifyContactViewModel @Inject constructor(
     }
 
     fun onResendOtpClicked() {
-        val phone = _uiState.value.phoneNumber
-        if (phone.isBlank()) return
+        val email = _uiState.value.email
+        if (email.isBlank()) return
 
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isResending = true, errorMessage = null)
 
-            when (saveTrustedContactUseCase(phone)) {
+            when (saveTrustedContactUseCase(email)) {
                 is SaveContactResult.OtpSent -> {
                     _uiState.value = _uiState.value.copy(
                         isResending = false,

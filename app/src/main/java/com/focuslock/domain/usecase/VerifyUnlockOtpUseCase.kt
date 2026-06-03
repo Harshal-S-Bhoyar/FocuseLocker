@@ -20,7 +20,7 @@ class VerifyUnlockOtpUseCase @Inject constructor(
 ) {
     suspend operator fun invoke(
         requestId: Long,
-        trustedContactNumber: String,
+        trustedContactEmail: String,
         otp: String
     ): VerifyUnlockResult = withContext(Dispatchers.IO) {
         if (otp.length != 6 || !otp.all { it.isDigit() }) {
@@ -34,24 +34,36 @@ class VerifyUnlockOtpUseCase @Inject constructor(
                 return@withContext VerifyUnlockResult.MaxAttemptsReached
             }
 
-            val isValid = unlockRepository.verifyOtp(trustedContactNumber, otp)
+            val result = unlockRepository.verifyOtp(trustedContactEmail, otp)
 
-            if (isValid) {
-                val endsAt = System.currentTimeMillis() + 10 * 60 * 1000L
-                unlockRepository.updateStatus(requestId, UnlockRequestStatus.COOLDOWN)
-                unlockRepository.setCooldownEndsAt(requestId, endsAt)
-                unlockWorkerScheduler.scheduleCooldownTimer(endsAt)
-                VerifyUnlockResult.Valid
-            } else {
-                if (attempts >= 3) {
-                    unlockRepository.updateStatus(requestId, UnlockRequestStatus.FAILED)
-                    VerifyUnlockResult.MaxAttemptsReached
+            if (result.isSuccess) {
+                val isValid = result.getOrNull() == true
+                if (isValid) {
+                    val endsAt = System.currentTimeMillis() + 10 * 60 * 1000L
+                    unlockRepository.updateStatus(requestId, UnlockRequestStatus.COOLDOWN)
+                    unlockRepository.setCooldownEndsAt(requestId, endsAt)
+                    unlockWorkerScheduler.scheduleCooldownTimer(endsAt)
+                    VerifyUnlockResult.Valid
                 } else {
-                    VerifyUnlockResult.Invalid
+                    if (attempts >= 3) {
+                        unlockRepository.updateStatus(requestId, UnlockRequestStatus.FAILED)
+                        VerifyUnlockResult.MaxAttemptsReached
+                    } else {
+                        VerifyUnlockResult.Invalid
+                    }
+                }
+            } else {
+                val e = result.exceptionOrNull()
+                if (e is java.io.IOException) {
+                    VerifyUnlockResult.Error("Network error. Please try again.")
+                } else if (e is retrofit2.HttpException) {
+                    VerifyUnlockResult.Error("Server error (${e.code()}). Please try again.")
+                } else {
+                    VerifyUnlockResult.Error("An unexpected error occurred.")
                 }
             }
         } catch (e: Exception) {
-            VerifyUnlockResult.Error("Network error. Please try again.")
+            VerifyUnlockResult.Error("An unexpected error occurred.")
         }
     }
 }

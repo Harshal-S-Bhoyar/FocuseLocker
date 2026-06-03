@@ -13,6 +13,10 @@ describe("OtpService", () => {
     otpStore.delete(phone);
   });
 
+  afterAll(() => {
+    otpStore.destroy();
+  });
+
   it("should generate a 6-digit OTP and store its hash", async () => {
     const otp = await otpService.generateAndStore(phone, "CONTACT_VERIFY");
     

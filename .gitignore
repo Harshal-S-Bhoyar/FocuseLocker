@@ -52,3 +52,4 @@ graphify-out/
 .mcp.json
 chat_vault/
 backend/tests/*.js
+otp_architecture.md

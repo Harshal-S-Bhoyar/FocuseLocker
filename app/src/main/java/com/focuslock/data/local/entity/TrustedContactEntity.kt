@@ -4,13 +4,18 @@ import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 
-@Entity(tableName = "trusted_contacts")
+import androidx.room.Index
+
+@Entity(
+    tableName = "trusted_contacts",
+    indices = [Index(value = ["email"], unique = true)]
+)
 data class TrustedContactEntity(
     @PrimaryKey(autoGenerate = true)
     val id: Long = 0,
     
-    @ColumnInfo(name = "phone_number")
-    val phoneNumber: String,
+    @ColumnInfo(name = "email")
+    val email: String,
     
     @ColumnInfo(name = "is_verified")
     val isVerified: Boolean = false,

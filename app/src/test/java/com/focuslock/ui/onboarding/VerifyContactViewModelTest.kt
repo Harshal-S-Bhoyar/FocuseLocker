@@ -39,7 +39,7 @@ class VerifyContactViewModelTest {
     private val testPhone = "+919876543210"
     private val testContact = TrustedContact(
         id = 1L,
-        phoneNumber = testPhone,
+        email = testPhone,
         isVerified = false,
         verifiedAt = null,
         createdAt = System.currentTimeMillis()
@@ -66,7 +66,7 @@ class VerifyContactViewModelTest {
         )
         testDispatcher.scheduler.advanceUntilIdle()
 
-        assertEquals(testPhone, viewModel.uiState.value.phoneNumber)
+        assertEquals(testPhone, viewModel.uiState.value.email)
         assertEquals(3, viewModel.uiState.value.attemptsRemaining)
         assertFalse(viewModel.uiState.value.isLoading)
         assertNull(viewModel.uiState.value.errorMessage)
@@ -83,7 +83,7 @@ class VerifyContactViewModelTest {
         )
         testDispatcher.scheduler.advanceUntilIdle()
 
-        assertEquals("", viewModel.uiState.value.phoneNumber)
+        assertEquals("", viewModel.uiState.value.email)
     }
 
     @Test
