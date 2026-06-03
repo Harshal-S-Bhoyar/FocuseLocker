@@ -36,7 +36,7 @@ interface UnlockRequestDao {
     suspend fun incrementOtpAttempts(requestId: Long)
 
     @Query("SELECT otp_attempts FROM unlock_requests WHERE id = :requestId")
-    suspend fun getOtpAttempts(requestId: Long): Int
+    suspend fun getOtpAttempts(requestId: Long): Int?
     
     @Query("UPDATE unlock_requests SET cooldown_ends_at = :endsAt WHERE id = :requestId")
     suspend fun updateCooldownEndsAt(requestId: Long, endsAt: Long)
