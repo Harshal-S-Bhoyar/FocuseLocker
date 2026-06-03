@@ -11,5 +11,6 @@ interface UnlockRepository {
     suspend fun incrementOtpAttempts(requestId: Long): Int
     suspend fun setCooldownEndsAt(requestId: Long, endsAt: Long)
     suspend fun getLatestRequestSync(sessionId: Long): UnlockRequest?
-    suspend fun verifyOtp(trustedContactNumber: String, otp: String): Boolean
+    suspend fun verifyOtp(trustedContactEmail: String, otp: String): Result<Boolean>
+    suspend fun requestUnlock(trustedContactEmail: String, blockedCategories: List<String>, blockedKeywords: List<String>, timeRemaining: String): Result<Boolean>
 }

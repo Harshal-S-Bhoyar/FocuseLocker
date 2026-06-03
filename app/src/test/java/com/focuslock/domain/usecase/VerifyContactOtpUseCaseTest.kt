@@ -1,7 +1,6 @@
 package com.focuslock.domain.usecase
 
-import com.focuslock.data.remote.api.FocusLockApi
-import com.focuslock.data.remote.dto.ConfirmContactResponse
+
 import com.focuslock.domain.model.TrustedContact
 import com.focuslock.domain.repository.TrustedContactRepository
 import io.mockk.coEvery
@@ -16,11 +15,10 @@ class VerifyContactOtpUseCaseTest {
 
     private lateinit var useCase: VerifyContactOtpUseCase
     private val trustedContactRepository: TrustedContactRepository = mockk(relaxed = true)
-    private val api: FocusLockApi = mockk()
 
     @Before
     fun setUp() {
-        useCase = VerifyContactOtpUseCase(trustedContactRepository, api)
+        useCase = VerifyContactOtpUseCase(trustedContactRepository)
     }
 
     @Test
@@ -39,12 +37,12 @@ class VerifyContactOtpUseCaseTest {
     fun `valid otp verified by backend marks contact verified`() = runTest {
         val contact = TrustedContact(
             id = 1L,
-            phoneNumber = "+919876543210",
+            email = "+919876543210",
             isVerified = false,
             verifiedAt = null,
             createdAt = 0L
         )
-        coEvery { api.confirmContact(any()) } returns ConfirmContactResponse(verified = true)
+        coEvery { trustedContactRepository.confirmOtp(any(), any()) } returns true
         coEvery { trustedContactRepository.getContactSync() } returns contact
 
         val result = useCase("+919876543210", "123456")
@@ -55,7 +53,7 @@ class VerifyContactOtpUseCaseTest {
 
     @Test
     fun `backend returns not verified gives InvalidOtp`() = runTest {
-        coEvery { api.confirmContact(any()) } returns ConfirmContactResponse(verified = false)
+        coEvery { trustedContactRepository.confirmOtp(any(), any()) } returns false
 
         val result = useCase("+919876543210", "123456")
 
@@ -64,7 +62,7 @@ class VerifyContactOtpUseCaseTest {
 
     @Test
     fun `api exception returns Error`() = runTest {
-        coEvery { api.confirmContact(any()) } throws RuntimeException("timeout")
+        coEvery { trustedContactRepository.confirmOtp(any(), any()) } throws RuntimeException("timeout")
 
         val result = useCase("+919876543210", "123456")
 

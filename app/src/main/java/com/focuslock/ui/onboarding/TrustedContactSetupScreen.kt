@@ -25,6 +25,10 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.focuslock.R
+import androidx.compose.ui.ExperimentalComposeUiApi
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.text.input.ImeAction
 
 @Composable
 fun TrustedContactSetupScreen(
@@ -41,22 +45,25 @@ fun TrustedContactSetupScreen(
     }
 
     TrustedContactSetupContent(
-        phoneNumber = state.phoneNumber,
+        email = state.email,
         isLoading = state.isLoading,
         errorMessage = state.errorMessage,
-        onPhoneNumberChanged = viewModel::onPhoneNumberChanged,
+        onEmailChanged = viewModel::onEmailChanged,
         onSendOtpClicked = viewModel::onSendOtpClicked
     )
 }
 
+@OptIn(ExperimentalComposeUiApi::class)
 @Composable
 private fun TrustedContactSetupContent(
-    phoneNumber: String,
+    email: String,
     isLoading: Boolean,
     errorMessage: String?,
-    onPhoneNumberChanged: (String) -> Unit,
+    onEmailChanged: (String) -> Unit,
     onSendOtpClicked: () -> Unit
 ) {
+    val keyboardController = LocalSoftwareKeyboardController.current
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -83,12 +90,22 @@ private fun TrustedContactSetupContent(
         Spacer(modifier = Modifier.height(32.dp))
 
         OutlinedTextField(
-            value = phoneNumber,
-            onValueChange = onPhoneNumberChanged,
-            label = { Text(stringResource(R.string.trusted_contact_phone_label)) },
-            placeholder = { Text(stringResource(R.string.trusted_contact_phone_placeholder)) },
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
+            value = email,
+            onValueChange = onEmailChanged,
+            label = { Text(stringResource(R.string.trusted_contact_email_label)) },
+            placeholder = { Text(stringResource(R.string.trusted_contact_email_placeholder)) },
+            singleLine = true,
             isError = errorMessage != null,
+            keyboardOptions = KeyboardOptions(
+                keyboardType = KeyboardType.Email,
+                imeAction = ImeAction.Done
+            ),
+            keyboardActions = KeyboardActions(
+                onDone = {
+                    keyboardController?.hide()
+                    onSendOtpClicked()
+                }
+            ),
             supportingText = {
                 if (errorMessage != null) {
                     Text(
@@ -98,13 +115,12 @@ private fun TrustedContactSetupContent(
                     )
                 } else {
                     Text(
-                        text = stringResource(R.string.trusted_contact_phone_hint),
+                        text = stringResource(R.string.trusted_contact_email_hint),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                     )
                 }
             },
-            singleLine = true,
             modifier = Modifier.fillMaxWidth()
         )
 
@@ -112,7 +128,7 @@ private fun TrustedContactSetupContent(
 
         Button(
             onClick = onSendOtpClicked,
-            enabled = !isLoading && phoneNumber.length >= 8,
+            enabled = !isLoading && android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches(),
             modifier = Modifier
                 .fillMaxWidth()
                 .height(52.dp)

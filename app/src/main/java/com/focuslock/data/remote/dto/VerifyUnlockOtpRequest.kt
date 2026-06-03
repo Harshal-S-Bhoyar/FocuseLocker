@@ -4,7 +4,7 @@ import kotlinx.serialization.Serializable
 
 @Serializable
 data class VerifyUnlockOtpRequest(
-    val trustedContactNumber: String,
+    val trustedContactEmail: String,
     val otp: String
 )
 

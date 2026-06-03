@@ -12,7 +12,7 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 data class TrustedContactSetupUiState(
-    val phoneNumber: String = "",
+    val email: String = "",
     val isLoading: Boolean = false,
     val errorMessage: String? = null,
     val navigateToVerify: Boolean = false
@@ -26,20 +26,20 @@ class TrustedContactSetupViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(TrustedContactSetupUiState())
     val uiState: StateFlow<TrustedContactSetupUiState> = _uiState.asStateFlow()
 
-    fun onPhoneNumberChanged(value: String) {
-        // Only allow digits, +, spaces, dashes — no letters
-        val filtered = value.filter { it.isDigit() || it == '+' || it == ' ' || it == '-' }
+    fun onEmailChanged(value: String) {
+        // Accept any character — this is an email field now
         _uiState.value = _uiState.value.copy(
-            phoneNumber = filtered,
+            email = value,
             errorMessage = null
         )
     }
 
     fun onSendOtpClicked() {
-        val phone = _uiState.value.phoneNumber.trim()
-        if (phone.length < 8) {
+        val email = _uiState.value.email.trim()
+        val emailRegex = "^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+\$".toRegex()
+        if (email.isBlank() || !emailRegex.matches(email)) {
             _uiState.value = _uiState.value.copy(
-                errorMessage = "Enter a valid phone number with country code (e.g. +91...)"
+                errorMessage = "Enter a valid email address (e.g. contact@example.com)"
             )
             return
         }
@@ -47,7 +47,7 @@ class TrustedContactSetupViewModel @Inject constructor(
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoading = true, errorMessage = null)
 
-            when (val result = saveTrustedContactUseCase(phone)) {
+            when (val result = saveTrustedContactUseCase(email)) {
                 is SaveContactResult.OtpSent -> {
                     _uiState.value = _uiState.value.copy(
                         isLoading = false,

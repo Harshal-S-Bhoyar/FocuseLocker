@@ -55,7 +55,7 @@ class UnlockViewModelTest {
 
         coEvery { trustedContactRepository.getContactSync() } returns com.focuslock.domain.model.TrustedContact(
             id = 1L,
-            phoneNumber = "+1234567890",
+            email = "+1234567890",
             isVerified = true,
             verifiedAt = System.currentTimeMillis(),
             createdAt = System.currentTimeMillis()

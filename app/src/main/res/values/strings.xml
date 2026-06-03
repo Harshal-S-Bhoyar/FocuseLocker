@@ -55,14 +55,14 @@
     <!-- Trusted contact setup screen -->
     <string name="trusted_contact_title">Register Your Trusted Contact</string>
     <string name="trusted_contact_description">This person will receive an OTP when you request early unlock. Choose someone who will hold you accountable.</string>
-    <string name="trusted_contact_phone_label">Phone Number</string>
-    <string name="trusted_contact_phone_placeholder">+91 98765 43210</string>
-    <string name="trusted_contact_phone_hint">Include country code (e.g. +91 for India)</string>
+    <string name="trusted_contact_email_label">Email Address</string>
+    <string name="trusted_contact_email_placeholder">trusted@example.com</string>
+    <string name="trusted_contact_email_hint">Must be a valid email address</string>
     <string name="trusted_contact_send_otp">Send Verification OTP</string>
-    <string name="trusted_contact_privacy_note">This number is only used to send unlock OTPs. It is never stored on our servers permanently.</string>
+    <string name="trusted_contact_privacy_note">This email is only used to send unlock OTPs. It is never stored on our servers permanently.</string>
 
     <!-- Verify contact screen -->
-    <string name="verify_contact_title">Verify Phone Number</string>
+    <string name="verify_contact_title">Verify Email Address</string>
     <string name="verify_contact_sent_to">OTP sent to %s</string>
     <string name="verify_contact_otp_label">Enter 6-digit OTP</string>
     <string name="verify_contact_verify_button">Verify</string>

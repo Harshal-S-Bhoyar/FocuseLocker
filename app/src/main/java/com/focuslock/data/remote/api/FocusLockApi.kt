@@ -13,22 +13,22 @@ import retrofit2.http.POST
 
 interface FocusLockApi {
     
-    @POST("/verify-contact")
+    @POST("/api/verify-contact")
     suspend fun verifyContact(
         @Body request: VerifyContactRequest
     ): VerifyContactResponse
     
-    @POST("/confirm-contact")
+    @POST("/api/confirm-contact")
     suspend fun confirmContact(
         @Body request: ConfirmContactRequest
     ): ConfirmContactResponse
     
-    @POST("/request-unlock")
+    @POST("/api/request-unlock")
     suspend fun requestUnlock(
         @Body request: RequestUnlockRequest
     ): RequestUnlockResponse
     
-    @POST("/verify-unlock-otp")
+    @POST("/api/verify-unlock-otp")
     suspend fun verifyUnlockOtp(
         @Body request: VerifyUnlockOtpRequest
     ): VerifyUnlockOtpResponse

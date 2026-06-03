@@ -46,8 +46,8 @@ class UnlockViewModel @Inject constructor(
     private val _uiState = MutableStateFlow<UnlockUiState>(UnlockUiState.Idle)
     val uiState: StateFlow<UnlockUiState> = _uiState.asStateFlow()
 
-    private val _trustedContactNumber = MutableStateFlow("")
-    val trustedContactNumber: StateFlow<String> = _trustedContactNumber.asStateFlow()
+    private val _trustedContactEmail = MutableStateFlow("")
+    val trustedContactEmail: StateFlow<String> = _trustedContactEmail.asStateFlow()
 
     private val _timeRemainingFormatted = MutableStateFlow("")
     val timeRemainingFormatted: StateFlow<String> = _timeRemainingFormatted.asStateFlow()
@@ -55,7 +55,7 @@ class UnlockViewModel @Inject constructor(
     init {
         viewModelScope.launch {
             val contact = trustedContactRepository.getContactSync()
-            _trustedContactNumber.value = contact?.phoneNumber ?: ""
+            _trustedContactEmail.value = contact?.email ?: ""
 
             sessionRepository.getActiveSession().collect { session ->
                 if (session == null) {
@@ -118,7 +118,7 @@ class UnlockViewModel @Inject constructor(
             
             val result = requestUnlockUseCase(
                 sessionId = session.id,
-                trustedContactNumber = contact.phoneNumber,
+                trustedContactEmail = contact.email,
                 blockedCategories = categories,
                 blockedKeywords = keywords,
                 timeRemaining = _timeRemainingFormatted.value
@@ -141,7 +141,7 @@ class UnlockViewModel @Inject constructor(
             
             val result = verifyUnlockOtpUseCase(
                 requestId = currentState.requestId,
-                trustedContactNumber = contact.phoneNumber,
+                trustedContactEmail = contact.email,
                 otp = otp
             )
             

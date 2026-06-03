@@ -8,7 +8,7 @@ export type OtpType = "CONTACT_VERIFY" | "SESSION_UNLOCK";
 export class OtpService {
   private readonly saltRounds = 10;
 
-  async generateAndStore(phone: string, type: OtpType): Promise<string> {
+  async generateAndStore(email: string, type: OtpType): Promise<string> {
     // Generate secure 6-digit OTP
     const plainOtp = crypto.randomInt(100000, 999999).toString();
     
@@ -25,18 +25,18 @@ export class OtpService {
       attempts: 0,
     };
 
-    otpStore.set(phone, entry);
+    otpStore.set(email, entry);
 
     // Return the plain OTP so it can be sent via SMS
     return plainOtp;
   }
 
   async verify(
-    phone: string,
+    email: string,
     plainOtp: string,
     expectedType: OtpType
   ): Promise<{ valid: boolean; reason?: string }> {
-    const entry = otpStore.get(phone);
+    const entry = otpStore.get(email);
 
     if (!entry) {
       return { valid: false, reason: "not_found" };
@@ -47,13 +47,13 @@ export class OtpService {
     }
 
     if (Date.now() > entry.expiresAt) {
-      otpStore.delete(phone);
+      otpStore.delete(email);
       return { valid: false, reason: "expired" };
     }
 
-    const attempts = otpStore.incrementAttempts(phone);
+    const attempts = otpStore.incrementAttempts(email);
     if (attempts > config.otp.maxAttempts) {
-      otpStore.delete(phone);
+      otpStore.delete(email);
       return { valid: false, reason: "max_attempts" };
     }
 
@@ -61,13 +61,13 @@ export class OtpService {
     
     if (isValid) {
       // Delete entry after successful verification
-      otpStore.delete(phone);
+      otpStore.delete(email);
       return { valid: true };
     }
 
     if (attempts === config.otp.maxAttempts) {
       // Reached max attempts on this check, delete it immediately
-      otpStore.delete(phone);
+      otpStore.delete(email);
       return { valid: false, reason: "max_attempts" };
     }
 

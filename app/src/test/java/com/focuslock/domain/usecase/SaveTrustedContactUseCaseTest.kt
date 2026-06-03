@@ -1,7 +1,6 @@
 package com.focuslock.domain.usecase
 
-import com.focuslock.data.remote.api.FocusLockApi
-import com.focuslock.data.remote.dto.VerifyContactResponse
+
 import com.focuslock.domain.repository.SessionRepository
 import com.focuslock.domain.repository.TrustedContactRepository
 import io.mockk.coEvery
@@ -18,11 +17,10 @@ class SaveTrustedContactUseCaseTest {
     private lateinit var useCase: SaveTrustedContactUseCase
     private val trustedContactRepository: TrustedContactRepository = mockk(relaxed = true)
     private val sessionRepository: SessionRepository = mockk()
-    private val api: FocusLockApi = mockk()
 
     @Before
     fun setUp() {
-        useCase = SaveTrustedContactUseCase(trustedContactRepository, sessionRepository, api)
+        useCase = SaveTrustedContactUseCase(trustedContactRepository, sessionRepository)
     }
 
     @Test
@@ -46,7 +44,7 @@ class SaveTrustedContactUseCaseTest {
     fun `successful OTP send returns OtpSent`() = runTest {
         coEvery { sessionRepository.hasActiveSession() } returns false
         coEvery { trustedContactRepository.saveContact(any()) } returns 1L
-        coEvery { api.verifyContact(any()) } returns VerifyContactResponse(success = true)
+        coEvery { trustedContactRepository.sendVerificationOtp(any()) } returns true
 
         val result = useCase("+919876543210")
 
@@ -58,7 +56,7 @@ class SaveTrustedContactUseCaseTest {
     fun `api exception returns error`() = runTest {
         coEvery { sessionRepository.hasActiveSession() } returns false
         coEvery { trustedContactRepository.saveContact(any()) } returns 1L
-        coEvery { api.verifyContact(any()) } throws RuntimeException("Network error")
+        coEvery { trustedContactRepository.sendVerificationOtp(any()) } throws RuntimeException("Network error")
 
         val result = useCase("+919876543210")
 
@@ -69,7 +67,7 @@ class SaveTrustedContactUseCaseTest {
     fun `phone number is trimmed before saving`() = runTest {
         coEvery { sessionRepository.hasActiveSession() } returns false
         coEvery { trustedContactRepository.saveContact(any()) } returns 1L
-        coEvery { api.verifyContact(any()) } returns VerifyContactResponse(success = true)
+        coEvery { trustedContactRepository.sendVerificationOtp(any()) } returns true
 
         useCase("  +919876543210  ")
 

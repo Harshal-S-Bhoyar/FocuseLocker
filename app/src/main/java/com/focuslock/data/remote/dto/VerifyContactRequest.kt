@@ -4,7 +4,7 @@ import kotlinx.serialization.Serializable
 
 @Serializable
 data class VerifyContactRequest(
-    val phoneNumber: String
+    val email: String
 )
 
 @Serializable

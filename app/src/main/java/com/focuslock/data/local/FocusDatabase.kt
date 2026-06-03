@@ -27,7 +27,7 @@ import com.focuslock.data.local.entity.UnlockRequestEntity
         UnlockRequestEntity::class,
         AppSettingEntity::class
     ],
-    version = 1,
+    version = 4,
     exportSchema = true
 )
 abstract class FocusDatabase : RoomDatabase() {

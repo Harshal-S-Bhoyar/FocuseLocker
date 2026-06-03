@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
@@ -11,6 +13,14 @@ val releaseStoreFile = providers.environmentVariable("FOCUSLOCK_RELEASE_STORE_FI
 val releaseStorePassword = providers.environmentVariable("FOCUSLOCK_RELEASE_STORE_PASSWORD").orNull
 val releaseKeyAlias = providers.environmentVariable("FOCUSLOCK_RELEASE_KEY_ALIAS").orNull
 val releaseKeyPassword = providers.environmentVariable("FOCUSLOCK_RELEASE_KEY_PASSWORD").orNull
+
+val localProperties = Properties().apply {
+    val localPropertiesFile = rootProject.file("local.properties")
+    if (localPropertiesFile.exists()) {
+        load(localPropertiesFile.inputStream())
+    }
+}
+val debugBackendUrl = localProperties.getProperty("DEBUG_BACKEND_URL", "\"http://10.0.2.2:3000\"")
 
 android {
     namespace = "com.focuslock"
@@ -62,7 +72,7 @@ android {
         }
         debug {
             isMinifyEnabled = false
-            buildConfigField("String", "BACKEND_URL", "\"http://10.0.2.2:3000\"")
+            buildConfigField("String", "BACKEND_URL", debugBackendUrl)
         }
     }
 
