@@ -63,7 +63,7 @@ Block browser content at two levels:
 The only way to end a session early:
 
 1. You tap **"Request Early Unlock"** during an active session
-2. An **OTP + context message** is sent via SMS to your pre-registered trusted contact
+2. An **OTP + context message** is sent via email to your pre-registered trusted contact
 3. The message tells your contact: **what you blocked**, **how much time remains**, and **when you asked**
 4. Your trusted contact decides whether to share the OTP with you
 5. After entering the correct OTP, a **10-minute mandatory cooldown** applies before the session unlocks
@@ -100,7 +100,7 @@ A **full-screen overlay** covers the screen if you navigate to those settings.
  │     └── 15 minutes to 72 hours
  │
  ├─ 4. Register Trusted Contact
- │     ├── Enter trusted person's phone number
+ │     ├── Enter trusted person's email address
  │     └── Verify via OTP (one-time setup)
  │
  ├─ 5. Confirm & Lock In
@@ -165,6 +165,15 @@ FocusLock follows **MVVM + Clean Architecture** with strict layer separation:
 └──────────────────────────────────────────────────────────┘
 ```
 
+### Architectural Hotspots (Codebase Graph Analysis)
+
+Based on structural graph analysis, the codebase is tightly coupled around several core entities. The most critical abstractions ("God Nodes") with the highest blast radius are:
+1. **`BlockingRepositoryImpl`** - Core implementation of blocked keywords/domains loading.
+2. **`BlockingRepository`** - Domain boundary contract for blocking capabilities.
+3. **`SessionDao` & `UnlockRequestDao`** - Core Room database queries for state and OTP requests.
+
+*Note: Modifying these files requires careful impact analysis due to their high coupling and cross-module dependencies.*
+
 ### Data Flow — Blocking a Search
 
 ```
@@ -182,7 +191,7 @@ User types "gambling tips" in Chrome
 ```
 User taps "Request Early Unlock"
   → App calls POST /request-unlock on backend
-    → Backend sends SMS to trusted contact:
+    → Backend sends an email to trusted contact:
       "FocusLock: [User] wants to end their session early.
        Time remaining: 1h 23m. Blocked: Gambling, Adult.
        OTP: 847291. Share only if you think it's justified."
@@ -219,7 +228,7 @@ User taps "Request Early Unlock"
 | **Runtime** | Node.js 20 LTS | Low overhead for simple API |
 | **Framework** | Express 5 | Minimal HTTP framework |
 | **Language** | TypeScript 6 | Type safety |
-| **SMS** | Twilio SMS API | Reliable global SMS delivery |
+| **Email API** | Brevo API | Reliable global email delivery |
 | **OTP Hashing** | bcrypt | Secure — never stores plain OTPs |
 | **OTP Generation** | `crypto.randomInt` | Cryptographically secure 6-digit codes |
 | **Validation** | Zod | Schema-based request validation |
@@ -325,20 +334,20 @@ trusted_contacts (1) ──── referenced by unlock_requests
 
 ## 🔌 Backend API Endpoints
 
-The backend does **one thing only**: generate and verify OTPs via SMS. It stores nothing permanently.
+The backend does **one thing only**: generate and verify OTPs via email. It stores nothing permanently.
 
 | Endpoint | Method | Purpose | Input |
 |---|---|---|---|
-| `/verify-contact` | POST | Send OTP to verify trusted contact number | `{ phoneNumber }` |
-| `/confirm-contact` | POST | Verify the contact OTP | `{ phoneNumber, otp }` |
-| `/request-unlock` | POST | Send unlock OTP + context to trusted contact | `{ trustedContactNumber, blockedCategories, blockedKeywords, timeRemaining }` |
-| `/verify-unlock-otp` | POST | Verify the unlock OTP | `{ trustedContactNumber, otp }` |
+| `/verify-contact` | POST | Send OTP to verify trusted contact email | `{ email }` |
+| `/confirm-contact` | POST | Verify the contact OTP | `{ email, otp }` |
+| `/request-unlock` | POST | Send unlock OTP + context to trusted contact | `{ trustedContactEmail, blockedCategories, blockedKeywords, timeRemaining }` |
+| `/verify-unlock-otp` | POST | Verify the unlock OTP | `{ trustedContactEmail, otp }` |
 
 **Privacy guarantee:**
 - ❌ No user accounts
 - ❌ No browsing history stored
 - ❌ No keywords or categories stored on server
-- ✅ Phone numbers held only during OTP verification, then discarded
+- ✅ Email addresses held only during OTP verification, then discarded
 - ✅ OTPs hashed with bcrypt, expire in 10 minutes
 
 ---
@@ -354,7 +363,7 @@ The backend does **one thing only**: generate and verify OTPs via SMS. It stores
 | `FOREGROUND_SERVICE` | Keep blocking services alive | Services killed by OS |
 | `SYSTEM_ALERT_WINDOW` | Full-screen blocking overlay | Overlay won't show |
 | `REQUEST_IGNORE_BATTERY_OPTIMIZATIONS` | Prevent OS from killing services | Services may be killed |
-| `INTERNET` | OTP via backend SMS API | Trusted contact feature disabled |
+| `INTERNET` | OTP via backend API | Trusted contact feature disabled |
 
 ---
 
@@ -365,7 +374,7 @@ The backend does **one thing only**: generate and verify OTPs via SMS. It stores
 - **Android SDK** (API 26+) — [Download CLI tools](https://developer.android.com/studio#command-line-tools-only)
 - **Node.js 20 LTS** — for the backend server
 - **Physical Android device** — emulators cannot reliably test VPN, Accessibility Service, or Device Admin
-- **Twilio account** — for SMS delivery ([sign up](https://www.twilio.com/try-twilio))
+- **Brevo account** — for email delivery ([sign up](https://www.brevo.com/))
 
 ### 1. Clone the Repository
 
@@ -402,12 +411,11 @@ npm install
 cp .env.example .env
 ```
 
-Edit `.env` with your Twilio credentials:
+Edit `.env` with your Brevo credentials:
 
 ```env
-TWILIO_ACCOUNT_SID=your_account_sid_here
-TWILIO_AUTH_TOKEN=your_auth_token_here
-TWILIO_PHONE_NUMBER=+1234567890
+BREVO_API_KEY=your_key_here
+BREVO_SENDER_EMAIL=your_email@example.com
 OTP_EXPIRY_MINUTES=10
 OTP_MAX_ATTEMPTS=3
 PORT=3000
@@ -431,16 +439,20 @@ The app reads the backend URL from `BuildConfig`:
 
 | Build Type | URL | Source |
 |---|---|---|
-| **Debug** | `http://10.0.2.2:3000` | Emulator localhost proxy |
+| **Debug** | `http://127.0.0.1:3000` | via ADB reverse proxy |
 | **Release** | `https://focuslock-backend.railway.app` | Production server |
 
-For physical device debugging, update the debug URL in `app/build.gradle.kts` to your machine's local IP:
+For physical device debugging over USB, you must use an ADB reverse tunnel to route device traffic to your PC's localhost. We provide a script for this:
 
-```kotlin
-debug {
-    buildConfigField("String", "BACKEND_URL", "\"http://192.168.x.x:3000\"")
-}
+```powershell
+# Run this from the project root whenever your USB disconnects/reconnects
+.\start_dev.ps1
 ```
+
+Or manually: `adb reverse tcp:3000 tcp:3000`. The debug URL in `app/build.gradle.kts` is already set to `http://127.0.0.1:3000`.
+
+> [!WARNING]
+> **Troubleshooting "Failed to connect to server"**: If you receive this error when requesting an OTP on a physical device via USB, your ADB reverse tunnel has likely died. Run `adb reverse --list` to verify. Re-run `.\start_dev.ps1` or `adb reverse tcp:3000 tcp:3000` to restore the tunnel.
 
 ---
 
@@ -484,8 +496,8 @@ npm test
 | **OTP Generation** | `crypto.randomInt(100000, 999999)` — cryptographically secure |
 | **OTP Storage** | Hashed with `bcrypt` — never stored in plain text |
 | **OTP Lifetime** | 10 minutes max, deleted after use or max attempts |
-| **Phone Numbers** | Stored locally on device only, never in server logs |
-| **Logging** | Phone numbers and OTPs never logged, even in debug builds |
+| **Contact Info** | Emails stored locally on device only, never in server logs |
+| **Logging** | Emails and OTPs never logged, even in debug builds |
 | **Network** | All API calls over HTTPS |
 | **Backend URL** | Read from `BuildConfig`, never hardcoded |
 | **Backend Storage** | In-memory only — nothing written to disk |
@@ -501,10 +513,10 @@ npm test
 |---|---|---|
 | Factory reset bypasses everything | High | Cannot be prevented on Android — accepted trade-off |
 | Force stop kills services temporarily | Medium | Foreground service with persistent notification reduces this |
-| Trusted contact can share OTP without thinking | High | Context message in SMS encourages responsible decision |
+| Trusted contact can share OTP without thinking | High | Context message in email encourages responsible decision |
 | Accessibility Service killed by battery optimization | Medium | App requests battery optimization exemption |
 | Domain blocking only (no keyword matching) for non-browser apps | Low | Out of scope for MVP |
-| SMS delivery not guaranteed in all regions | Medium | Retry option available; 24-hour emergency bypass as fallback |
+| Email delivery could occasionally go to spam | Medium | Check spam folder; 24-hour emergency bypass as fallback |
 
 ---
 
@@ -519,7 +531,7 @@ The project is built in **6 phases**, each with a detailed implementation plan:
 | **Phase 3** | Category/keyword selection, timer setup, session activation | ✅ Complete |
 | **Phase 4** | Accessibility Service, VPN Service, blocking overlay | ✅ Complete |
 | **Phase 5** | Device Admin, boot recovery, settings protection | ✅ Complete |
-| **Phase 6** | Unlock flow, OTP entry, cooldown, emergency bypass | 🔧 In Progress |
+| **Phase 6** | Unlock flow, OTP entry, cooldown, emergency bypass | ✅ Complete |
 
 ---
 
@@ -542,7 +554,7 @@ This is currently a **personal project** in active development. If you'd like to
 - **No business logic in ViewModels** — delegate to UseCases
 - **All DAO reads return `Flow<T>`** — reactive, not one-shot
 - **No `runBlocking`** in production code
-- **Never log phone numbers or OTPs** — not even in debug builds
+- **Never log emails or OTPs** — not even in debug builds
 - **Hilt for all DI** — no manual dependency passing
 
 ---
