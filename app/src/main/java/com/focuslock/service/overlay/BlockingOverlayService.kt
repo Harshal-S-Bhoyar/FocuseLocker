@@ -8,7 +8,7 @@ import android.content.Context
 import android.content.Intent
 import android.graphics.PixelFormat
 import android.os.IBinder
-import android.util.Log
+import timber.log.Timber
 import android.view.Gravity
 import android.view.KeyEvent
 import android.view.WindowManager
@@ -156,7 +156,7 @@ class BlockingOverlayService : Service(), LifecycleOwner, ViewModelStoreOwner, S
         try {
             windowManager.addView(composeView, params)
         } catch (e: Exception) {
-            Log.e(TAG, "Unable to show blocking overlay", e)
+            Timber.tag(TAG).e(e, "Unable to show blocking overlay")
         }
     }
 
@@ -165,7 +165,7 @@ class BlockingOverlayService : Service(), LifecycleOwner, ViewModelStoreOwner, S
             try {
                 windowManager.removeView(it)
             } catch (e: Exception) {
-                Log.e(TAG, "Unable to remove blocking overlay", e)
+                Timber.tag(TAG).e(e, "Unable to remove blocking overlay")
             }
             composeView = null
         }

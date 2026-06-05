@@ -188,7 +188,17 @@ fun AppNavigation(
         composable(Screen.UnlockCooldown.route) {
             com.focuslock.ui.session.UnlockCooldownScreen(
                 onNavigateToHome = {
-                    navController.navigate(Screen.Onboarding.route) {
+                    // Navigate to ActiveSession — session is still running during cooldown.
+                    // Use popUpTo(UnlockCooldown) inclusive=true so back button
+                    // doesn't return to this screen.
+                    navController.navigate(Screen.ActiveSession.route) {
+                        popUpTo(Screen.UnlockCooldown.route) { inclusive = true }
+                    }
+                },
+                onCooldownExpired = {
+                    // Cooldown timer reached zero — session is deactivated by CooldownTimerWorker.
+                    // Navigate to SessionComplete and clear entire stack.
+                    navController.navigate(Screen.SessionComplete.route) {
                         popUpTo(0) { inclusive = true }
                     }
                 }

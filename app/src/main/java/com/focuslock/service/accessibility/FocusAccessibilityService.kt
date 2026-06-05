@@ -3,7 +3,7 @@ package com.focuslock.service.accessibility
 import android.accessibilityservice.AccessibilityService
 import android.content.Intent
 import android.os.SystemClock
-import android.util.Log
+import timber.log.Timber
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
 import com.focuslock.di.BlockingServiceEntryPoint
@@ -69,7 +69,7 @@ class FocusAccessibilityService : AccessibilityService() {
      */
     override fun onServiceConnected() {
         super.onServiceConnected()
-        Log.d(TAG, "Accessibility Service successfully connected.")
+        Timber.tag(TAG).d("Accessibility Service successfully connected.")
 
         val entryPoint = EntryPointAccessors.fromApplication(
             applicationContext,
@@ -214,7 +214,7 @@ class FocusAccessibilityService : AccessibilityService() {
      * Called when the system wants to interrupt the accessibility feedback.
      */
     override fun onInterrupt() {
-        Log.d(TAG, "Accessibility Service interrupted.")
+        Timber.tag(TAG).d("Accessibility Service interrupted.")
     }
 
     override fun onDestroy() {

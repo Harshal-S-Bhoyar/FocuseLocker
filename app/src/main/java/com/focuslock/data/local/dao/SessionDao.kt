@@ -15,10 +15,9 @@ interface SessionDao {
     @Query("SELECT * FROM sessions WHERE status = :status LIMIT 1")
     fun getSessionByStatus(status: String = SessionStatus.ACTIVE): Flow<SessionEntity?>
     
-    @Query("SELECT * FROM sessions WHERE status = :status AND expires_at > :currentTime LIMIT 1")
+    @Query("SELECT * FROM sessions WHERE status = :status LIMIT 1")
     suspend fun getActiveSessionSync(
-        status: String = SessionStatus.ACTIVE,
-        currentTime: Long = System.currentTimeMillis()
+        status: String = SessionStatus.ACTIVE
     ): SessionEntity?
     
     @Query("SELECT * FROM sessions WHERE id = :sessionId")

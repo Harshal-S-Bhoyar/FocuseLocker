@@ -16,29 +16,46 @@ class RequestUnlockUseCase @Inject constructor(
         blockedKeywords: List<String>,
         timeRemaining: String
     ): Result<Long> = withContext(Dispatchers.IO) {
-        var requestId: Long? = null
+
+        // Step 1: Create the local DB record to track this request.
+        // If this fails, there is nothing to clean up — return immediately.
+        val requestId: Long = try {
+            unlockRepository.createRequest(sessionId)
+        } catch (e: Exception) {
+            return@withContext Result.failure(
+                Exception("Failed to record unlock request in local database: ${e.message}", e)
+            )
+        }
+
+        // Step 2: Call the backend to generate and send the OTP email.
         try {
-            requestId = unlockRepository.createRequest(sessionId)
-            
             val result = unlockRepository.requestUnlock(
                 trustedContactEmail = trustedContactEmail,
                 blockedCategories = blockedCategories,
                 blockedKeywords = blockedKeywords,
                 timeRemaining = timeRemaining
             )
-            
+
             if (result.isSuccess && result.getOrNull() == true) {
+                // Step 3a: Backend confirmed email was sent — mark as OTP_SENT.
                 unlockRepository.updateStatus(requestId, UnlockRequestStatus.OTP_SENT)
                 Result.success(requestId)
             } else {
+                // Step 3b: Backend responded but reported failure (e.g., Brevo error).
                 unlockRepository.updateStatus(requestId, UnlockRequestStatus.FAILED)
-                Result.failure(result.exceptionOrNull() ?: Exception("Backend request failed"))
+                Result.failure(
+                    result.exceptionOrNull() ?: Exception("Backend failed to send OTP email.")
+                )
             }
         } catch (e: Exception) {
-            requestId?.let {
-                unlockRepository.updateStatus(it, UnlockRequestStatus.FAILED)
+            // Step 3c: Network exception (connection refused, timeout, etc.).
+            // requestId is guaranteed non-null here — safe to update.
+            try {
+                unlockRepository.updateStatus(requestId, UnlockRequestStatus.FAILED)
+            } catch (cleanupError: Exception) {
+                // Log only — original exception is what the caller needs.
             }
-            Result.failure(Exception("An unexpected error occurred.", e))
+            Result.failure(Exception("Network error sending OTP: ${e.message}", e))
         }
     }
 }

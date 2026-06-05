@@ -13,5 +13,7 @@
         <domain includeSubdomains="false">10.0.2.2</domain>
         <!-- localhost as a plain hostname -->
         <domain includeSubdomains="false">localhost</domain>
+        <!-- Local Wi-Fi IP for physical device testing -->
+        <domain includeSubdomains="false">192.168.41.113</domain>
     </domain-config>
 </network-security-config>

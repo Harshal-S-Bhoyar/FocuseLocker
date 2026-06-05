@@ -16,7 +16,8 @@ class ActivateSessionUseCaseTest {
     private val sessionRepository = mockk<SessionRepository>(relaxed = true)
     private val workerScheduler = mockk<SessionWorkerScheduler>(relaxed = true)
     private val runtimeController = mockk<SessionRuntimeController>(relaxed = true)
-    private val useCase = ActivateSessionUseCase(sessionRepository, workerScheduler, runtimeController)
+    private val cleanupStaleSessionUseCase = mockk<CleanupStaleSessionUseCase>(relaxed = true)
+    private val useCase = ActivateSessionUseCase(sessionRepository, workerScheduler, runtimeController, cleanupStaleSessionUseCase)
 
     @Test
     fun `invoke fails if duration is outside supported range`() = runTest {

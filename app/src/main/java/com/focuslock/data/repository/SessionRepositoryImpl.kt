@@ -47,7 +47,8 @@ class SessionRepositoryImpl @Inject constructor(
     }
 
     override suspend fun hasActiveSession(): Boolean {
-        return sessionDao.countSessionsByStatus(EntityStatus.ACTIVE) > 0
+        val activeSession = getActiveSessionSync() ?: return false
+        return activeSession.expiresAt > System.currentTimeMillis()
     }
 
     private fun SessionEntity.toDomain(): Session {

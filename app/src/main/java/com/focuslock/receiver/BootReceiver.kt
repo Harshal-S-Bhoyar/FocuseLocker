@@ -3,8 +3,8 @@ package com.focuslock.receiver
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
-import android.util.Log
 import com.focuslock.domain.model.SessionStatus
+import timber.log.Timber
 import com.focuslock.domain.repository.SessionRepository
 import com.focuslock.domain.session.SessionRuntimeController
 import com.focuslock.domain.worker.SessionWorkerScheduler
@@ -40,7 +40,7 @@ class BootReceiver : BroadcastReceiver() {
 
     override fun onReceive(context: Context?, intent: Intent?) {
         if (intent?.action == Intent.ACTION_BOOT_COMPLETED && context != null) {
-            Log.d(TAG, "Device reboot completed, checking if active session needs recovery.")
+            Timber.tag(TAG).d("Device reboot completed, checking if active session needs recovery.")
 
             val pendingResult = goAsync()
             val receiverScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -50,14 +50,14 @@ class BootReceiver : BroadcastReceiver() {
                     when (val decision = BootRecoveryDecision.evaluate(session?.expiresAt, System.currentTimeMillis())) {
                         BootRecoveryDecision.NoSession -> Unit
                         is BootRecoveryDecision.Recover -> {
-                            Log.d(TAG, "Active session found. Recovering timers and notification.")
+                            Timber.tag(TAG).d("Active session found. Recovering timers and notification.")
                             session?.let {
                                 sessionWorkerScheduler.scheduleSessionTimers(it.expiresAt)
                                 sessionRuntimeController.startRuntime(decision.remainingMillis)
                             }
                         }
                         BootRecoveryDecision.CompleteExpired -> {
-                            Log.d(TAG, "Session expired while device was off.")
+                            Timber.tag(TAG).d("Session expired while device was off.")
                             session?.let { sessionRepository.endSession(it.id, SessionStatus.COMPLETED) }
                             sessionRuntimeController.stopRuntime()
                         }
@@ -65,7 +65,7 @@ class BootReceiver : BroadcastReceiver() {
                 } catch (e: CancellationException) {
                     throw e
                 } catch (e: Exception) {
-                    Log.e(TAG, "Error recovering session on boot", e)
+                    Timber.tag(TAG).e(e, "Error recovering session on boot")
                 } finally {
                     pendingResult.finish()
                     receiverScope.cancel()

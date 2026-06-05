@@ -10,9 +10,11 @@ import javax.inject.Inject
  */
 class InitializeAppUseCase @Inject constructor(
     private val appSettingsRepository: AppSettingsRepository,
-    private val blockingRepository: BlockingRepository
+    private val blockingRepository: BlockingRepository,
+    private val cleanupStaleSessionUseCase: CleanupStaleSessionUseCase
 ) {
     suspend operator fun invoke() {
+        cleanupStaleSessionUseCase()  // Purge any stale ACTIVE sessions from DB before routing
         appSettingsRepository.initializeDefaultSettings()
         blockingRepository.seedDomainDataIfNeeded()
     }

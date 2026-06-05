@@ -16,14 +16,18 @@ import javax.inject.Inject
 class ActivateSessionUseCase @Inject constructor(
     private val sessionRepository: SessionRepository,
     private val sessionWorkerScheduler: SessionWorkerScheduler,
-    private val sessionRuntimeController: SessionRuntimeController
+    private val sessionRuntimeController: SessionRuntimeController,
+    private val cleanupStaleSessionUseCase: CleanupStaleSessionUseCase
 ) {
     suspend operator fun invoke(durationMillis: Long): Result<Long> {
         if (durationMillis !in MIN_DURATION_MILLIS..MAX_DURATION_MILLIS) {
             return Result.failure(IllegalArgumentException("Session duration must be between 15 minutes and 72 hours."))
         }
 
-        if (sessionRepository.hasActiveSession()) {
+        // Clean up any expired session first.
+        // If nothing was cleaned AND a live session exists → block creation.
+        val cleaned = cleanupStaleSessionUseCase()
+        if (!cleaned && sessionRepository.hasActiveSession()) {
             return Result.failure(IllegalStateException("An active session already exists."))
         }
 

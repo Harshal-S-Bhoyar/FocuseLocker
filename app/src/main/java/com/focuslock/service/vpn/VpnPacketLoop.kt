@@ -2,7 +2,7 @@ package com.focuslock.service.vpn
 
 import android.net.VpnService
 import android.os.ParcelFileDescriptor
-import android.util.Log
+import timber.log.Timber
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.isActive
@@ -50,7 +50,7 @@ class VpnPacketLoop(
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
-            Log.e(TAG, "Packet loop error", e)
+            Timber.tag(TAG).e(e, "Packet loop error")
         } finally {
             inputStream.close()
             outputStream.close()
@@ -84,7 +84,7 @@ class VpnPacketLoop(
                 outputStream.write(responseArray)
             }
         } catch (e: Exception) {
-            Log.e(TAG, "Error forwarding DNS", e)
+            Timber.tag(TAG).e(e, "Error forwarding DNS")
         }
     }
 

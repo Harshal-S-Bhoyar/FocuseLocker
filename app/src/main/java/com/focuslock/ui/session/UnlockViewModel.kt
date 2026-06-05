@@ -75,6 +75,11 @@ class UnlockViewModel @Inject constructor(
                             return@collect
                         }
 
+                        // Do not overwrite specific Error states with the generic FAILED state from DB
+                        if (_uiState.value is UnlockUiState.Error && request.status == UnlockRequestStatus.FAILED) {
+                            return@collect
+                        }
+
                         _uiState.value = when (request.status) {
                             UnlockRequestStatus.PENDING -> UnlockUiState.Requesting
                             UnlockRequestStatus.OTP_SENT -> UnlockUiState.WaitingForOtp(request.id, request.otpAttempts, request.requestedAt)
@@ -108,14 +113,22 @@ class UnlockViewModel @Inject constructor(
 
     fun requestUnlock() {
         viewModelScope.launch {
-            val session = sessionRepository.getActiveSessionSync() ?: return@launch
-            val contact = trustedContactRepository.getContactSync() ?: return@launch
-            
+            // Guard: ensure session exists before touching DB
+            val session = sessionRepository.getActiveSessionSync() ?: run {
+                _uiState.value = UnlockUiState.Error("No active session found. Cannot request unlock.")
+                return@launch
+            }
+            // Guard: ensure trusted contact is configured
+            val contact = trustedContactRepository.getContactSync() ?: run {
+                _uiState.value = UnlockUiState.Error("No trusted contact configured.")
+                return@launch
+            }
+
             _uiState.value = UnlockUiState.Requesting
-            
+
             val categories = blockingRepository.getActiveCategoryKeys()
             val keywords = blockingRepository.getActiveKeywords().firstOrNull()?.map { it.keyword } ?: emptyList()
-            
+
             val result = requestUnlockUseCase(
                 sessionId = session.id,
                 trustedContactEmail = contact.email,
@@ -123,9 +136,13 @@ class UnlockViewModel @Inject constructor(
                 blockedKeywords = keywords,
                 timeRemaining = _timeRemainingFormatted.value
             )
-            
+
+            // Only set Error here if the Flow collector hasn't already done so
+            // (flow may have fired FAILED state already — that is fine, both say "failed")
             if (result.isFailure) {
-                _uiState.value = UnlockUiState.Error(result.exceptionOrNull()?.message ?: "Failed to request unlock")
+                _uiState.value = UnlockUiState.Error(
+                    result.exceptionOrNull()?.message ?: "Failed to send OTP. Check your internet connection."
+                )
             }
         }
     }
