@@ -53,3 +53,6 @@ graphify-out/
 chat_vault/
 backend/tests/*.js
 otp_architecture.md
+test_memory.js
+test_mcp.js
+*.bin

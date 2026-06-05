@@ -3,13 +3,27 @@ package com.focuslock
 import android.app.Application
 import android.app.NotificationChannel
 import android.app.NotificationManager
+import com.focuslock.util.FileLoggingTree
+import com.focuslock.util.GlobalExceptionHandler
 import dagger.hilt.android.HiltAndroidApp
+import timber.log.Timber
 
 @HiltAndroidApp
 class FocusLockApplication : Application() {
     
     override fun onCreate() {
         super.onCreate()
+        
+        // Initialize Timber for logging
+        if (BuildConfig.DEBUG) {
+            Timber.plant(Timber.DebugTree())
+        }
+        Timber.plant(FileLoggingTree(this))
+
+        // Set up global exception handling
+        val defaultHandler = Thread.getDefaultUncaughtExceptionHandler()
+        Thread.setDefaultUncaughtExceptionHandler(GlobalExceptionHandler(defaultHandler))
+        
         createNotificationChannel()
     }
     

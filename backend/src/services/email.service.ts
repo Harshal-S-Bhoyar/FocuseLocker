@@ -21,6 +21,7 @@ export class EmailService {
         sender: { name: config.brevo.senderName, email: config.brevo.senderEmail },
         to: [{ email: to }],
       });
+      console.log(`TEST OTP (Verify Contact): ${otp}`);
       return true;
     } catch (error) {
       console.error("Failed to send verification OTP via Brevo:", error);
@@ -41,6 +42,7 @@ export class EmailService {
         sender: { name: config.brevo.senderName, email: config.brevo.senderEmail },
         to: [{ email: to }],
       });
+      console.log(`TEST OTP (Unlock): ${otp}`);
       return true;
     } catch (error) {
       console.error("Failed to send unlock OTP via Brevo:", error);

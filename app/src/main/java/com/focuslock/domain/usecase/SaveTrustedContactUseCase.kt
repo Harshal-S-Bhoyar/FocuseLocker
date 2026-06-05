@@ -2,6 +2,7 @@ package com.focuslock.domain.usecase
 
 import com.focuslock.domain.repository.SessionRepository
 import com.focuslock.domain.repository.TrustedContactRepository
+import timber.log.Timber
 import javax.inject.Inject
 
 sealed class SaveContactResult {
@@ -38,10 +39,13 @@ class SaveTrustedContactUseCase @Inject constructor(
             if (sent) SaveContactResult.OtpSent
             else SaveContactResult.Error("Failed to send verification email.")
         } catch (e: java.io.IOException) {
-            SaveContactResult.Error("Failed to connect to the server. Check your internet connection.")
+            Timber.e(e, "IOException during API call to verifyContact")
+            SaveContactResult.Error("Failed to connect to the server. Check your internet connection. (${e.message})")
         } catch (e: retrofit2.HttpException) {
+            Timber.e(e, "HttpException during API call to verifyContact")
             SaveContactResult.Error("Server error (${e.code()}). Failed to send OTP.")
         } catch (e: Exception) {
+            Timber.e(e, "Unexpected Exception during API call to verifyContact")
             SaveContactResult.Error("An unexpected error occurred.")
         }
     }

@@ -20,8 +20,7 @@ val localProperties = Properties().apply {
         load(localPropertiesFile.inputStream())
     }
 }
-val debugBackendUrl = localProperties.getProperty("DEBUG_BACKEND_URL", "\"http://10.0.2.2:3000\"")
-
+val debugBackendUrl = localProperties.getProperty("DEBUG_BACKEND_URL") ?: "\"http://127.0.0.1:3000\""
 android {
     namespace = "com.focuslock"
     compileSdk = 35
@@ -136,6 +135,7 @@ dependencies {
     implementation("com.squareup.retrofit2:retrofit:2.9.0")
     implementation("com.jakewharton.retrofit:retrofit2-kotlinx-serialization-converter:1.0.0")
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
+
     implementation("com.squareup.okhttp3:logging-interceptor:4.12.0")
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.2")
 
@@ -145,6 +145,9 @@ dependencies {
     // Coroutines
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.9.0")
+
+    // Logging
+    implementation("com.jakewharton.timber:timber:5.0.1")
 
     // Testing
     testImplementation("junit:junit:4.13.2")

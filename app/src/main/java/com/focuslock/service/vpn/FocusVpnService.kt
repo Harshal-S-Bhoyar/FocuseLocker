@@ -7,7 +7,7 @@ import android.content.Context
 import android.content.Intent
 import android.net.VpnService
 import android.os.ParcelFileDescriptor
-import android.util.Log
+import timber.log.Timber
 import androidx.core.app.NotificationCompat
 import com.focuslock.R
 import com.focuslock.di.BlockingServiceEntryPoint
@@ -50,7 +50,7 @@ class FocusVpnService : VpnService() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        Log.d(TAG, "VPN Service starting")
+        Timber.tag(TAG).d("VPN Service starting")
         
         val notification = createNotification()
         startForeground(NOTIFICATION_ID, notification)
@@ -95,7 +95,7 @@ class FocusVpnService : VpnService() {
             vpnInterface = builder.establish()
             
             vpnInterface?.let { activeInterface ->
-                Log.d(TAG, "TUN interface established")
+                Timber.tag(TAG).d("TUN interface established")
                 packetLoopJob = serviceScope.launch {
                     val packetLoop = VpnPacketLoop(
                         this@FocusVpnService,
@@ -111,10 +111,10 @@ class FocusVpnService : VpnService() {
                     packetLoop.runLoop()
                 }
             } ?: run {
-                Log.e(TAG, "Failed to establish TUN interface")
+                Timber.tag(TAG).e("Failed to establish TUN interface")
             }
         } catch (e: Exception) {
-            Log.e(TAG, "Error starting VPN", e)
+            Timber.tag(TAG).e(e, "Error starting VPN")
         }
     }
 

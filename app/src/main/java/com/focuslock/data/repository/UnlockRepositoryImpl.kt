@@ -42,7 +42,7 @@ class UnlockRepositoryImpl @Inject constructor(
 
     override suspend fun incrementOtpAttempts(requestId: Long): Int {
         unlockRequestDao.incrementOtpAttempts(requestId)
-        return unlockRequestDao.getOtpAttempts(requestId)
+        return unlockRequestDao.getOtpAttempts(requestId) ?: 0
     }
 
     override suspend fun setCooldownEndsAt(requestId: Long, endsAt: Long) {

@@ -10,7 +10,8 @@ import org.junit.Test
 class IsSessionActiveUseCaseTest {
 
     private val sessionRepository = mockk<SessionRepository>()
-    private val useCase = IsSessionActiveUseCase(sessionRepository)
+    private val cleanupStaleSessionUseCase = mockk<CleanupStaleSessionUseCase>(relaxed = true)
+    private val useCase = IsSessionActiveUseCase(sessionRepository, cleanupStaleSessionUseCase)
 
     @Test
     fun `invoke returns true when session is active`() = runTest {

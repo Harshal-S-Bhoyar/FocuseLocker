@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
     Debug-only manifest overlay.
-    Merges networkSecurityConfig into the <application> tag for debug builds.
-    This does NOT affect release builds in any way.
+    Wires in network_security_config.xml to explicitly allow HTTP
+    to 127.0.0.1 (ADB reverse tunnel) and 10.0.2.2 (emulator).
 -->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <application

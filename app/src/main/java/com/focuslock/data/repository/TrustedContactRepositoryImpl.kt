@@ -55,21 +55,17 @@ class TrustedContactRepositoryImpl @Inject constructor(
     }
 
     override suspend fun sendVerificationOtp(email: String): Boolean {
-        return try {
-            api.verifyContact(VerifyContactRequest(email = email))
-            true
-        } catch (e: Exception) {
-            false
-        }
+        // Actually read the response — backend returns {success: true/false}
+        // Previously this always returned true even when the email failed to send
+        val response = api.verifyContact(VerifyContactRequest(email = email))
+        return response.success
     }
 
     override suspend fun confirmOtp(email: String, otp: String): Boolean {
-        return try {
-            val response = api.confirmContact(ConfirmContactRequest(email = email, otp = otp))
-            response.verified
-        } catch (e: Exception) {
-            false
-        }
+        // Backend returns 400 with {verified: false} on wrong OTP — Retrofit throws HttpException
+        // Backend returns 200 with {verified: true} on success
+        val response = api.confirmContact(ConfirmContactRequest(email = email, otp = otp))
+        return response.verified
     }
 
     private fun TrustedContactEntity.toDomain() = TrustedContact(

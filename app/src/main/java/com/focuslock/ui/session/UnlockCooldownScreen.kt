@@ -7,6 +7,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -18,17 +19,39 @@ import com.focuslock.R
 @Composable
 fun UnlockCooldownScreen(
     viewModel: UnlockViewModel = hiltViewModel(),
-    onNavigateToHome: () -> Unit
+    onNavigateToHome: () -> Unit,
+    onCooldownExpired: () -> Unit
 ) {
     val state by viewModel.uiState.collectAsState()
     
-    // State updates automatically via ViewModel Flow collection
+    // Get the endsAt timestamp from the ViewModel state
+    val endsAt = (state as? UnlockUiState.CooldownActive)?.endsAt ?: 0L
+
+    // Live countdown in milliseconds — ticks every second
+    var remainingMillis by remember(endsAt) {
+        mutableStateOf(maxOf(0L, endsAt - System.currentTimeMillis()))
+    }
+
+    // Tick the countdown every second
+    LaunchedEffect(endsAt) {
+        while (remainingMillis > 0L) {
+            delay(1000L)
+            remainingMillis = maxOf(0L, endsAt - System.currentTimeMillis())
+        }
+        // Countdown reached zero — cooldown is over
+        if (endsAt > 0L) {
+            onCooldownExpired()
+        }
+    }
+
+    // Format remainingMillis as MM:SS
+    val minutes = (remainingMillis / 1000) / 60
+    val seconds = (remainingMillis / 1000) % 60
+    val countdownText = String.format("%02d:%02d", minutes, seconds)
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text("Cooldown Active") }
-            )
+            TopAppBar(title = { Text("Cooldown Active") })
         }
     ) { paddingValues ->
         Column(
@@ -45,46 +68,51 @@ fun UnlockCooldownScreen(
                 tint = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.size(64.dp)
             )
-            
+
             Spacer(modifier = Modifier.height(24.dp))
-            
+
             Text(
                 text = stringResource(R.string.unlock_cooldown_title),
                 style = MaterialTheme.typography.headlineSmall,
                 textAlign = TextAlign.Center
             )
-            
+
             Spacer(modifier = Modifier.height(16.dp))
-            
+
             Text(
                 text = stringResource(R.string.unlock_cooldown_description),
                 style = MaterialTheme.typography.bodyLarge,
                 textAlign = TextAlign.Center,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
-            
+
             Spacer(modifier = Modifier.height(32.dp))
-            
-            val endsAt = (state as? UnlockUiState.CooldownActive)?.endsAt ?: 0L
-            if (endsAt > 0) {
-                // Here we could calculate exact remaining time, but for simplicity we'll just show when it expires
-                val expiryTimeStr = java.text.SimpleDateFormat("HH:mm:ss", java.util.Locale.getDefault())
-                    .format(java.util.Date(endsAt))
-                
+
+            // LIVE countdown display — replaces static clock string
+            if (endsAt > 0L) {
                 Text(
-                    text = stringResource(R.string.unlock_cooldown_unlocks_at, expiryTimeStr),
-                    style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.primary
+                    text = countdownText,
+                    style = MaterialTheme.typography.displayMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary,
+                    textAlign = TextAlign.Center
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = "remaining before unlock",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center
                 )
             }
-            
+
             Spacer(modifier = Modifier.height(32.dp))
-            
+
             Button(
                 onClick = onNavigateToHome,
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Text("Return to Home")
+                Text("Return to Active Session")
             }
         }
     }
