@@ -10,16 +10,19 @@ import com.focuslock.di.BlockingServiceEntryPoint
 import com.focuslock.domain.model.BlockCheckResult
 import com.focuslock.domain.repository.SessionRepository
 import com.focuslock.domain.usecase.CheckUrlForBlockedContentUseCase
-import com.focuslock.domain.usecase.GetActiveBlockedDomainsUseCase
+import com.focuslock.domain.usecase.GetAllBlockedDomainsFlowUseCase
 import com.focuslock.domain.usecase.GetActiveKeywordsUseCase
 import com.focuslock.service.overlay.BlockingOverlayService
 import androidx.core.content.ContextCompat
 import dagger.hilt.android.EntryPointAccessors
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.flow.combine
 import java.util.concurrent.atomic.AtomicReference
 
 /**
@@ -36,10 +39,14 @@ class FocusAccessibilityService : AccessibilityService() {
         private val SUPPORTED_BROWSERS = setOf(
             "com.android.chrome",
             "org.mozilla.firefox",
-            "com.sec.android.app.sbrowser", // Samsung Internet
+            "com.sec.android.app.sbrowser",
             "com.opera.browser",
+            "com.opera.mini.native",
             "com.duckduckgo.mobile.android",
-            "com.microsoft.emmx" // Edge
+            "com.microsoft.emmx",
+            "com.brave.browser",
+            "com.kiwibrowser.browser",
+            "com.UCMobile.intl"
         )
         
         // List of settings packages to protect
@@ -57,11 +64,13 @@ class FocusAccessibilityService : AccessibilityService() {
     @Volatile private var activeSessionExpiresAt: Long? = null
     private var lastProcessedUrl: String? = null
     private var lastProcessedAtMillis = 0L
+    private var pendingSmartScanJob: Job? = null
 
     private lateinit var checkUrlForBlockedContentUseCase: CheckUrlForBlockedContentUseCase
     private lateinit var getActiveKeywordsUseCase: GetActiveKeywordsUseCase
-    private lateinit var getActiveBlockedDomainsUseCase: GetActiveBlockedDomainsUseCase
+    private lateinit var getAllBlockedDomainsFlowUseCase: GetAllBlockedDomainsFlowUseCase
     private lateinit var sessionRepository: SessionRepository
+    private lateinit var smartScanUseCase: com.focuslock.domain.usecase.SmartScanUseCase
 
     /**
      * Called when the accessibility service is connected and ready.
@@ -78,17 +87,22 @@ class FocusAccessibilityService : AccessibilityService() {
 
         checkUrlForBlockedContentUseCase = entryPoint.checkUrlForBlockedContentUseCase()
         getActiveKeywordsUseCase = entryPoint.getActiveKeywordsUseCase()
-        getActiveBlockedDomainsUseCase = entryPoint.getActiveBlockedDomainsUseCase()
+        getAllBlockedDomainsFlowUseCase = entryPoint.getAllBlockedDomainsFlowUseCase()
         sessionRepository = entryPoint.sessionRepository()
+        smartScanUseCase = entryPoint.smartScanUseCase()
 
         // Observe active session
         serviceScope.launch {
-            sessionRepository.getActiveSession().collect { session ->
+            combine(
+                sessionRepository.getActiveSession(),
+                getAllBlockedDomainsFlowUseCase()
+            ) { session, domains ->
+                Pair(session, domains)
+            }.collect { (session, domains) ->
                 isSessionActive = session != null
                 activeSessionExpiresAt = session?.expiresAt
                 if (isSessionActive) {
-                    // Fetch blocked domains when session becomes active
-                    activeDomains.set(getActiveBlockedDomainsUseCase())
+                    activeDomains.set(domains)
                 } else {
                     activeDomains.set(emptyList())
                 }
@@ -110,23 +124,27 @@ class FocusAccessibilityService : AccessibilityService() {
      */
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
         if (event == null || !isSessionActive) return
-        
-        if (event.eventType != AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED &&
-            event.eventType != AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED) {
-            return
-        }
 
         val packageName = event.packageName?.toString() ?: return
+        val eventType = event.eventType
 
-        // 1. Settings Protection
+        // 1. Settings Protection — only on window state change (app/screen switch)
         if (SETTINGS_PACKAGES.contains(packageName)) {
-            handleSettingsEvent(event)
+            if (eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) {
+                handleSettingsEvent(event)
+            }
             return
         }
 
-        // 2. Browser Filtering
+        // 2. Browser Filtering — accept BOTH event types:
+        //    STATE_CHANGED  → tab switch, app open
+        //    CONTENT_CHANGED → URL bar update after navigation
+        //    Battery safety: isDuplicateUrlEvent() debounce + findUrlNode() specific ID filter
         if (SUPPORTED_BROWSERS.contains(packageName)) {
-            handleBrowserEvent(event, packageName)
+            if (eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED ||
+                eventType == AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED) {
+                handleBrowserEvent(event, packageName)
+            }
             return
         }
     }
@@ -136,29 +154,46 @@ class FocusAccessibilityService : AccessibilityService() {
         
         val sensitiveKeywords = listOf("FocusLock", "Device admin", "Device administrator", "VPN", "Accessibility")
         
-        for (keyword in sensitiveKeywords) {
-            val nodes = source.findAccessibilityNodeInfosByText(keyword)
-            if (nodes.isNotEmpty()) {
-                nodes.forEach { it.recycle() }
-                source.recycle()
-                performGlobalAction(GLOBAL_ACTION_BACK)
-                launchOverlayService("Protected settings", "SETTINGS_PROTECTED")
-                
-                return
-            }
-            nodes.forEach { it.recycle() }
-        }
+        val allText = mutableListOf<String>()
+        collectAllNodeText(source, allText)
         source.recycle()
+        
+        val found = allText.any { text ->
+            sensitiveKeywords.any { keyword -> 
+                text.contains(keyword, ignoreCase = true)
+            }
+        }
+        
+        if (found) {
+            performGlobalAction(GLOBAL_ACTION_BACK)
+            launchOverlayService("Protected settings", "SETTINGS_PROTECTED")
+        }
+    }
+
+    private fun collectAllNodeText(node: AccessibilityNodeInfo, textList: MutableList<String>) {
+        node.text?.toString()?.let { textList.add(it) }
+        node.contentDescription?.toString()?.let { textList.add(it) }
+        for (i in 0 until node.childCount) {
+            val child = node.getChild(i)
+            if (child != null) {
+                collectAllNodeText(child, textList)
+                child.recycle()
+            }
+        }
     }
 
     private fun handleBrowserEvent(event: AccessibilityEvent, packageName: String) {
         // Find the URL node. Note: ID varies by browser.
-        val source = event.source ?: return
+        val source = event.source
+        val root = rootInActiveWindow ?: source ?: return
         
-        val urlNode = findUrlNode(source, packageName)
+        val urlNode = findUrlNode(root, packageName)
         val url = urlNode?.text?.toString()
         urlNode?.recycle()
-        source.recycle()
+        if (root != source) {
+            root.recycle()
+        }
+        source?.recycle()
         
         if (!url.isNullOrBlank()) {
             if (isDuplicateUrlEvent(url)) return
@@ -170,6 +205,18 @@ class FocusAccessibilityService : AccessibilityService() {
                 launchOverlayService(result.matchedTerm, result.reason.name)
             } else {
                 stopService(Intent(this, BlockingOverlayService::class.java))
+                
+                // Smart Scan for dynamic blocking (runs asynchronously)
+                pendingSmartScanJob?.cancel()
+                pendingSmartScanJob = serviceScope.launch {
+                    val isAutoBlocked = smartScanUseCase(url, activeKeywords.get())
+                    if (isAutoBlocked) {
+                        withContext(Dispatchers.Main) {
+                            performGlobalAction(GLOBAL_ACTION_BACK)
+                            launchOverlayService("Smart Scan Match", "AUTO_BLOCKED")
+                        }
+                    }
+                }
             }
         }
     }
@@ -180,8 +227,12 @@ class FocusAccessibilityService : AccessibilityService() {
             "org.mozilla.firefox" -> "org.mozilla.firefox:id/mozac_browser_toolbar_url_view"
             "com.sec.android.app.sbrowser" -> "com.sec.android.app.sbrowser:id/location_bar_edit_text"
             "com.opera.browser" -> "com.opera.browser:id/url_field"
+            "com.opera.mini.native" -> "com.opera.mini.native:id/url_field"
             "com.duckduckgo.mobile.android" -> "com.duckduckgo.mobile.android:id/omnibarTextInput"
             "com.microsoft.emmx" -> "com.microsoft.emmx:id/url_bar"
+            "com.brave.browser" -> "com.brave.browser:id/url_bar"
+            "com.kiwibrowser.browser" -> "com.kiwibrowser.browser:id/url_bar"
+            "com.UCMobile.intl" -> "com.UCMobile.intl:id/title_bar_input"
             else -> return null
         }
         

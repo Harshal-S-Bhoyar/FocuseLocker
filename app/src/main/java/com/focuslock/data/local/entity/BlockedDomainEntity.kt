@@ -29,5 +29,14 @@ data class BlockedDomainEntity(
     val domain: String,
     
     @ColumnInfo(name = "category_key")
-    val categoryKey: String
+    val categoryKey: String,
+    
+    @ColumnInfo(name = "is_auto_blocked", defaultValue = "0")
+    val isAutoBlocked: Boolean = false,
+    
+    @ColumnInfo(name = "matched_keyword")
+    val matchedKeyword: String? = null,
+    
+    @ColumnInfo(name = "auto_blocked_at")
+    val autoBlockedAt: Long? = null
 )

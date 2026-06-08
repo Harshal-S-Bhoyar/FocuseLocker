@@ -26,14 +26,16 @@ class CheckUrlForBlockedContentUseCase @Inject constructor() {
 
         // 2. Check Domains
         val host = try {
-            URL(url).host.lowercase()
+            val uri = java.net.URI(if (url.startsWith("http")) url else "https://$url")
+            val h = uri.host?.lowercase()
+            if (h != null && h.startsWith("www.")) h.substring(4) else h
         } catch (e: Exception) {
             null
         }
 
         if (host != null) {
             for (domain in domains) {
-                val lowerDomain = domain.lowercase()
+                val lowerDomain = domain.lowercase().let { if (it.startsWith("www.")) it.substring(4) else it }
                 // Match exactly or as a subdomain (e.g., host is m.facebook.com and domain is facebook.com)
                 if (host == lowerDomain || host.endsWith(".$lowerDomain")) {
                     return BlockCheckResult.Blocked(domain, BlockReason.DOMAIN_BLOCKED)

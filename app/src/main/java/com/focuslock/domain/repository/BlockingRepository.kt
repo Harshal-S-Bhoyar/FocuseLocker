@@ -20,5 +20,8 @@ interface BlockingRepository {
 
     // Domains (used by VPN service)
     suspend fun getActiveBlockedDomains(): List<String>
+    suspend fun getAllBlockedDomains(): List<String>
+    fun getAllBlockedDomainsFlow(): Flow<List<String>>
     suspend fun seedDomainDataIfNeeded()
+    suspend fun addAutoBlockedDomain(domain: String, keyword: String)
 }

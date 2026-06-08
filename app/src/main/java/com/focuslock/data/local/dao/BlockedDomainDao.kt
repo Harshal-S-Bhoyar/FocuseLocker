@@ -24,6 +24,12 @@ interface BlockedDomainDao {
     """)
     suspend fun getActiveBlockedDomainList(): List<String>
     
+    @Query("SELECT DISTINCT domain FROM blocked_domains")
+    suspend fun getAllBlockedDomainList(): List<String>
+    
+    @Query("SELECT DISTINCT domain FROM blocked_domains")
+    fun getAllBlockedDomainListFlow(): Flow<List<String>>
+    
     @Query("SELECT * FROM blocked_domains WHERE category_key = :categoryKey")
     fun getDomainsByCategory(categoryKey: String): Flow<List<BlockedDomainEntity>>
     
@@ -44,4 +50,10 @@ interface BlockedDomainDao {
     
     @Query("SELECT COUNT(*) FROM blocked_domains")
     suspend fun getDomainCount(): Int
+
+    @Query("SELECT COUNT(*) FROM blocked_domains WHERE domain = :domain")
+    suspend fun countByDomain(domain: String): Int
+
+    @Query("SELECT * FROM blocked_domains WHERE is_auto_blocked = 1 ORDER BY auto_blocked_at DESC")
+    fun getAutoBlockedDomains(): Flow<List<BlockedDomainEntity>>
 }
