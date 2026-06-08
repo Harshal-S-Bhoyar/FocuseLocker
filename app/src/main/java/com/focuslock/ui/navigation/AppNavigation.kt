@@ -5,6 +5,8 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navigation
+import androidx.compose.runtime.remember
 import com.focuslock.ui.onboarding.OnboardingScreen
 import com.focuslock.ui.onboarding.PermissionSetupScreen
 import com.focuslock.ui.onboarding.TrustedContactSetupScreen
@@ -30,6 +32,7 @@ sealed class Screen(val route: String) {
     object ActiveSession : Screen("active_session")
 
     // Unlock flow (Phase 6)
+    object UnlockFlow : Screen("unlock_flow")
     object UnlockRequest : Screen("unlock_request")
     object OtpEntry : Screen("otp_entry")
     object UnlockCooldown : Screen("unlock_cooldown")
@@ -153,67 +156,88 @@ fun AppNavigation(
                     }
                 },
                 onNavigateToUnlockRequest = {
-                    navController.navigate(Screen.UnlockRequest.route)
+                    navController.navigate(Screen.UnlockFlow.route)
                 }
             )
         }
 
         // ── Phase 6 — Unlock flow (Placeholder) ──────────────────────────────
 
-        composable(Screen.UnlockRequest.route) {
-            com.focuslock.ui.session.UnlockRequestScreen(
-                onNavigateBack = { navController.popBackStack() },
-                onNavigateToOtp = { 
-                    navController.navigate(Screen.OtpEntry.route) {
-                        popUpTo(Screen.UnlockRequest.route) { inclusive = true }
-                    }
-                },
-                onNavigateToEmergency = {
-                    navController.navigate(Screen.EmergencyBypass.route)
+        navigation(
+            startDestination = Screen.UnlockRequest.route,
+            route = Screen.UnlockFlow.route
+        ) {
+            composable(Screen.UnlockRequest.route) { backStackEntry ->
+                val parentEntry = remember(backStackEntry) {
+                    navController.getBackStackEntry(Screen.UnlockFlow.route)
                 }
-            )
-        }
+                com.focuslock.ui.session.UnlockRequestScreen(
+                    viewModel = androidx.hilt.navigation.compose.hiltViewModel(parentEntry),
+                    onNavigateBack = { navController.popBackStack() },
+                    onNavigateToOtp = { 
+                        navController.navigate(Screen.OtpEntry.route) {
+                            popUpTo(Screen.UnlockRequest.route) { inclusive = true }
+                        }
+                    },
+                    onNavigateToCooldown = {
+                        navController.navigate(Screen.UnlockCooldown.route) {
+                            popUpTo(Screen.UnlockRequest.route) { inclusive = true }
+                        }
+                    },
+                    onNavigateToEmergency = {
+                        navController.navigate(Screen.EmergencyBypass.route)
+                    }
+                )
+            }
 
-        composable(Screen.OtpEntry.route) {
-            com.focuslock.ui.session.OtpEntryScreen(
-                onNavigateBack = { navController.popBackStack() },
-                onNavigateToCooldown = {
-                    navController.navigate(Screen.UnlockCooldown.route) {
-                        popUpTo(Screen.ActiveSession.route) { inclusive = false }
-                    }
+            composable(Screen.OtpEntry.route) { backStackEntry ->
+                val parentEntry = remember(backStackEntry) {
+                    navController.getBackStackEntry(Screen.UnlockFlow.route)
                 }
-            )
-        }
+                com.focuslock.ui.session.OtpEntryScreen(
+                    viewModel = androidx.hilt.navigation.compose.hiltViewModel(parentEntry),
+                    onNavigateBack = { navController.popBackStack() },
+                    onNavigateToCooldown = {
+                        navController.navigate(Screen.UnlockCooldown.route) {
+                            popUpTo(Screen.ActiveSession.route) { inclusive = false }
+                        }
+                    }
+                )
+            }
 
-        composable(Screen.UnlockCooldown.route) {
-            com.focuslock.ui.session.UnlockCooldownScreen(
-                onNavigateToHome = {
-                    // Navigate to ActiveSession — session is still running during cooldown.
-                    // Use popUpTo(UnlockCooldown) inclusive=true so back button
-                    // doesn't return to this screen.
-                    navController.navigate(Screen.ActiveSession.route) {
-                        popUpTo(Screen.UnlockCooldown.route) { inclusive = true }
-                    }
-                },
-                onCooldownExpired = {
-                    // Cooldown timer reached zero — session is deactivated by CooldownTimerWorker.
-                    // Navigate to SessionComplete and clear entire stack.
-                    navController.navigate(Screen.SessionComplete.route) {
-                        popUpTo(0) { inclusive = true }
-                    }
+            composable(Screen.UnlockCooldown.route) { backStackEntry ->
+                val parentEntry = remember(backStackEntry) {
+                    navController.getBackStackEntry(Screen.UnlockFlow.route)
                 }
-            )
-        }
+                com.focuslock.ui.session.UnlockCooldownScreen(
+                    viewModel = androidx.hilt.navigation.compose.hiltViewModel(parentEntry),
+                    onNavigateToHome = {
+                        navController.navigate(Screen.ActiveSession.route) {
+                            popUpTo(Screen.UnlockCooldown.route) { inclusive = true }
+                        }
+                    },
+                    onCooldownExpired = {
+                        navController.navigate(Screen.SessionComplete.route) {
+                            popUpTo(0) { inclusive = true }
+                        }
+                    }
+                )
+            }
 
-        composable(Screen.EmergencyBypass.route) {
-            com.focuslock.ui.session.EmergencyBypassScreen(
-                onNavigateBack = { navController.popBackStack() },
-                onNavigateToHome = {
-                    navController.navigate(Screen.Onboarding.route) {
-                        popUpTo(0) { inclusive = true }
-                    }
+            composable(Screen.EmergencyBypass.route) { backStackEntry ->
+                val parentEntry = remember(backStackEntry) {
+                    navController.getBackStackEntry(Screen.UnlockFlow.route)
                 }
-            )
+                com.focuslock.ui.session.EmergencyBypassScreen(
+                    viewModel = androidx.hilt.navigation.compose.hiltViewModel(parentEntry),
+                    onNavigateBack = { navController.popBackStack() },
+                    onNavigateToHome = {
+                        navController.navigate(Screen.SessionComplete.route) {
+                            popUpTo(0) { inclusive = true }
+                        }
+                    }
+                )
+            }
         }
 
         composable(Screen.SessionComplete.route) {

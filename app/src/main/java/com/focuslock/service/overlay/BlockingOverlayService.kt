@@ -174,9 +174,12 @@ class BlockingOverlayService : Service(), LifecycleOwner, ViewModelStoreOwner, S
     private fun openMainActivity() {
         val intent = Intent(this, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+            putExtra("navigate_to", "active_session")
         }
         startActivity(intent)
         // Auto-dismiss logic should be handled by accessibility service detecting URL change
+        hideOverlay()
+        stopSelf()
     }
     
     private fun openUnlockFlow() {
@@ -185,6 +188,8 @@ class BlockingOverlayService : Service(), LifecycleOwner, ViewModelStoreOwner, S
             putExtra("navigate_to", "early_unlock") // Let the activity route correctly
         }
         startActivity(intent)
+        hideOverlay()
+        stopSelf()
     }
 
     override fun onDestroy() {
