@@ -118,7 +118,7 @@ private fun VerifyContactContent(
         ) {
             if (state.isLoading) {
                 CircularProgressIndicator(
-                    color = MaterialTheme.colorScheme.onPrimary,
+                    color = androidx.compose.ui.graphics.Color.White,
                     strokeWidth = 2.dp,
                     modifier = Modifier.height(20.dp)
                 )
@@ -146,7 +146,7 @@ private fun VerifyContactContent(
                 enabled = !state.isResending
             ) {
                 if (state.isResending) {
-                    CircularProgressIndicator(strokeWidth = 2.dp, modifier = Modifier.height(16.dp))
+                    CircularProgressIndicator(color = androidx.compose.ui.graphics.Color.White, strokeWidth = 2.dp, modifier = Modifier.height(16.dp))
                 } else {
                     Text(
                         text = stringResource(R.string.verify_contact_resend),

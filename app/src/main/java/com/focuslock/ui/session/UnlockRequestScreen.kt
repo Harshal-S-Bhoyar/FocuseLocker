@@ -11,7 +11,10 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.graphics.Color
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.compose.ui.res.stringResource
 import com.focuslock.R
@@ -22,22 +25,31 @@ fun UnlockRequestScreen(
     viewModel: UnlockViewModel = hiltViewModel(),
     onNavigateBack: () -> Unit,
     onNavigateToOtp: () -> Unit,
+    onNavigateToCooldown: () -> Unit,
     onNavigateToEmergency: () -> Unit
 ) {
     val state by viewModel.uiState.collectAsState()
 
     LaunchedEffect(state) {
-        if (state is UnlockUiState.WaitingForOtp) {
-            onNavigateToOtp()
+        when (state) {
+            is UnlockUiState.WaitingForOtp -> onNavigateToOtp()
+            is UnlockUiState.CooldownActive -> onNavigateToCooldown()
+            is UnlockUiState.EmergencyBypassActive -> onNavigateToEmergency()
+            else -> Unit
         }
     }
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Request Unlock") }
+                title = { Text("Request Unlock", fontWeight = FontWeight.SemiBold) },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.background,
+                    titleContentColor = MaterialTheme.colorScheme.onBackground
+                )
             )
-        }
+        },
+        containerColor = MaterialTheme.colorScheme.background
     ) { paddingValues ->
         Column(
             modifier = Modifier
@@ -51,14 +63,16 @@ fun UnlockRequestScreen(
                 imageVector = Icons.Default.Warning,
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.error,
-                modifier = Modifier.size(64.dp)
+                modifier = Modifier.size(56.dp)
             )
             
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(32.dp))
             
             Text(
                 text = stringResource(R.string.unlock_request_title),
                 style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onBackground,
                 textAlign = TextAlign.Center
             )
             
@@ -66,7 +80,7 @@ fun UnlockRequestScreen(
             
             Text(
                 text = stringResource(R.string.unlock_request_description),
-                style = MaterialTheme.typography.bodyLarge,
+                style = MaterialTheme.typography.bodyMedium,
                 textAlign = TextAlign.Center,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -87,16 +101,24 @@ fun UnlockRequestScreen(
                     viewModel.requestUnlock()
                     // Navigation will be triggered via LaunchedEffect observing state in the navigation layer
                 },
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(56.dp),
+                shape = RoundedCornerShape(16.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary
+                ),
                 enabled = state !is UnlockUiState.Requesting
             ) {
                 if (state is UnlockUiState.Requesting) {
                     CircularProgressIndicator(
                         modifier = Modifier.size(24.dp),
-                        color = MaterialTheme.colorScheme.onPrimary
+                        strokeWidth = 2.dp,
+                        color = Color.White
                     )
                 } else {
-                    Text("Send Request to Trusted Contact")
+                    Text("Send Request to Trusted Contact", fontWeight = FontWeight.SemiBold)
                 }
             }
             
@@ -104,9 +126,12 @@ fun UnlockRequestScreen(
             
             OutlinedButton(
                 onClick = onNavigateBack,
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(56.dp),
+                shape = RoundedCornerShape(16.dp)
             ) {
-                Text("Cancel & Continue Blocking")
+                Text("Cancel", fontWeight = FontWeight.SemiBold)
             }
             
             Spacer(modifier = Modifier.height(32.dp))
@@ -115,7 +140,7 @@ fun UnlockRequestScreen(
                 onClick = onNavigateToEmergency,
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Text("Use Emergency Bypass (24hr Wait)")
+                Text("Emergency Bypass", color = MaterialTheme.colorScheme.error)
             }
         }
     }

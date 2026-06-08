@@ -10,7 +10,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.graphics.Color
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.compose.ui.res.stringResource
 import com.focuslock.R
@@ -34,9 +37,14 @@ fun OtpEntryScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Enter Unlock Code") }
+                title = { Text("Enter Unlock Code", fontWeight = FontWeight.SemiBold) },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.background,
+                    titleContentColor = MaterialTheme.colorScheme.onBackground
+                )
             )
-        }
+        },
+        containerColor = MaterialTheme.colorScheme.background
     ) { paddingValues ->
         Column(
             modifier = Modifier
@@ -50,14 +58,16 @@ fun OtpEntryScreen(
                 imageVector = Icons.Default.Lock,
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(64.dp)
+                modifier = Modifier.size(56.dp)
             )
             
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(32.dp))
             
             Text(
                 text = stringResource(R.string.otp_entry_sent_message),
                 style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onBackground,
                 textAlign = TextAlign.Center
             )
             
@@ -65,7 +75,7 @@ fun OtpEntryScreen(
             
             Text(
                 text = stringResource(R.string.otp_entry_instruction),
-                style = MaterialTheme.typography.bodyLarge,
+                style = MaterialTheme.typography.bodyMedium,
                 textAlign = TextAlign.Center,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -78,6 +88,7 @@ fun OtpEntryScreen(
                 label = { Text("6-Digit Code") },
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                 singleLine = true,
+                shape = RoundedCornerShape(12.dp),
                 modifier = Modifier.fillMaxWidth()
             )
             
@@ -96,16 +107,24 @@ fun OtpEntryScreen(
             
             Button(
                 onClick = { viewModel.verifyOtp(otpValue) },
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(56.dp),
+                shape = RoundedCornerShape(16.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary
+                ),
                 enabled = otpValue.length == 6 && state !is UnlockUiState.VerifyingOtp
             ) {
                 if (state is UnlockUiState.VerifyingOtp) {
                     CircularProgressIndicator(
                         modifier = Modifier.size(24.dp),
-                        color = MaterialTheme.colorScheme.onPrimary
+                        strokeWidth = 2.dp,
+                        color = Color.White
                     )
                 } else {
-                    Text("Verify Code")
+                    Text("Verify Code", fontWeight = FontWeight.SemiBold)
                 }
             }
             
@@ -113,9 +132,12 @@ fun OtpEntryScreen(
             
             OutlinedButton(
                 onClick = onNavigateBack,
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(56.dp),
+                shape = RoundedCornerShape(16.dp)
             ) {
-                Text("Cancel")
+                Text("Cancel", fontWeight = FontWeight.SemiBold)
             }
         }
     }

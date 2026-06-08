@@ -12,6 +12,8 @@ import com.focuslock.domain.usecase.RequestUnlockUseCase
 import com.focuslock.domain.usecase.StartEmergencyBypassUseCase
 import com.focuslock.domain.usecase.VerifyUnlockOtpUseCase
 import com.focuslock.domain.usecase.VerifyUnlockResult
+import com.focuslock.domain.usecase.DeactivateSessionUseCase
+import com.focuslock.domain.model.SessionStatus
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -40,7 +42,8 @@ class UnlockViewModel @Inject constructor(
     private val requestUnlockUseCase: RequestUnlockUseCase,
     private val verifyUnlockOtpUseCase: VerifyUnlockOtpUseCase,
     private val startEmergencyBypassUseCase: StartEmergencyBypassUseCase,
-    private val getSessionRemainingTimeUseCase: GetSessionRemainingTimeUseCase
+    private val getSessionRemainingTimeUseCase: GetSessionRemainingTimeUseCase,
+    private val deactivateSessionUseCase: DeactivateSessionUseCase
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow<UnlockUiState>(UnlockUiState.Idle)
@@ -186,6 +189,15 @@ class UnlockViewModel @Inject constructor(
             val result = startEmergencyBypassUseCase(session.id)
             if (result.isFailure) {
                 _uiState.value = UnlockUiState.Error(result.exceptionOrNull()?.message ?: "Failed to start emergency bypass")
+            }
+        }
+    }
+    
+    fun completeCooldownAndKillSession() {
+        viewModelScope.launch {
+            val session = sessionRepository.getActiveSessionSync()
+            if (session != null) {
+                deactivateSessionUseCase(session.id, SessionStatus.COMPLETED)
             }
         }
     }

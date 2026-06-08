@@ -10,6 +10,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.hilt.navigation.compose.hiltViewModel
 import kotlinx.coroutines.delay
 import androidx.compose.ui.res.stringResource
@@ -39,7 +40,8 @@ fun UnlockCooldownScreen(
             remainingMillis = maxOf(0L, endsAt - System.currentTimeMillis())
         }
         // Countdown reached zero — cooldown is over
-        if (endsAt > 0L) {
+        if (endsAt > 0L && remainingMillis <= 0L) {
+            viewModel.completeCooldownAndKillSession()
             onCooldownExpired()
         }
     }
@@ -51,8 +53,15 @@ fun UnlockCooldownScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(title = { Text("Cooldown Active") })
-        }
+            TopAppBar(
+                title = { Text("Cooldown Active", fontWeight = FontWeight.SemiBold) },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.background,
+                    titleContentColor = MaterialTheme.colorScheme.onBackground
+                )
+            )
+        },
+        containerColor = MaterialTheme.colorScheme.background
     ) { paddingValues ->
         Column(
             modifier = Modifier
@@ -66,14 +75,16 @@ fun UnlockCooldownScreen(
                 imageVector = Icons.Default.HourglassEmpty,
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(64.dp)
+                modifier = Modifier.size(56.dp)
             )
 
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(32.dp))
 
             Text(
                 text = stringResource(R.string.unlock_cooldown_title),
                 style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onBackground,
                 textAlign = TextAlign.Center
             )
 
@@ -81,7 +92,7 @@ fun UnlockCooldownScreen(
 
             Text(
                 text = stringResource(R.string.unlock_cooldown_description),
-                style = MaterialTheme.typography.bodyLarge,
+                style = MaterialTheme.typography.bodyMedium,
                 textAlign = TextAlign.Center,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -92,7 +103,7 @@ fun UnlockCooldownScreen(
             if (endsAt > 0L) {
                 Text(
                     text = countdownText,
-                    style = MaterialTheme.typography.displayMedium,
+                    style = MaterialTheme.typography.displayLarge,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.primary,
                     textAlign = TextAlign.Center
@@ -110,9 +121,16 @@ fun UnlockCooldownScreen(
 
             Button(
                 onClick = onNavigateToHome,
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(56.dp),
+                shape = RoundedCornerShape(16.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary
+                )
             ) {
-                Text("Return to Active Session")
+                Text("Return to Active Session", fontWeight = FontWeight.SemiBold)
             }
         }
     }

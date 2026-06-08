@@ -15,7 +15,7 @@ class GetActiveBlockedDomainsUseCaseTest {
     @Test
     fun `invoke exposes active blocked domains`() = runTest {
         val domains = listOf("example.com", "social.example")
-        coEvery { blockingRepository.getActiveBlockedDomains() } returns domains
+        coEvery { blockingRepository.getAllBlockedDomains() } returns domains
 
         assertEquals(domains, useCase())
     }

@@ -63,7 +63,7 @@ fun SessionConfirmationScreen(
                 if (activationState is ActivationState.Loading) {
                     CircularProgressIndicator(
                         modifier = Modifier.size(dimensionResource(R.dimen.progress_indicator_size)),
-                        color = MaterialTheme.colorScheme.onPrimary
+                        color = androidx.compose.ui.graphics.Color.White
                     )
                 } else {
                     Text(stringResource(R.string.session_lock_in), style = MaterialTheme.typography.titleLarge)

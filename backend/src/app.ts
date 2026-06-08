@@ -34,6 +34,12 @@ const otpLimiter = rateLimit({
 // Apply general rate limiting
 app.use("/api", generalLimiter);
 
+// Apply strict rate limit on OTP-generating endpoints BEFORE mounting routes
+app.use("/api/verify-contact", otpLimiter);
+app.use("/api/confirm-contact", otpLimiter);
+app.use("/api/request-unlock", otpLimiter);
+app.use("/api/verify-unlock-otp", otpLimiter);
+
 // Health check
 app.get("/health", (req: Request, res: Response) => {
   res.json({ status: "ok" });
@@ -42,10 +48,6 @@ app.get("/health", (req: Request, res: Response) => {
 // Mount routes
 app.use("/api", contactRoutes);
 app.use("/api", unlockRoutes);
-
-// Apply strict rate limit on OTP endpoints (overrides general limiter for these routes)
-app.use("/api/contact/verify", otpLimiter);
-app.use("/api/unlock/request", otpLimiter);
 
 // Global error handler
 app.use((err: Error, req: Request, res: Response, next: NextFunction) => {

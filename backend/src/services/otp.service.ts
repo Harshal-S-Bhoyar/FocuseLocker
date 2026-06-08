@@ -26,6 +26,7 @@ export class OtpService {
     };
 
     otpStore.set(email, entry);
+    console.log(JSON.stringify({ event: "otp_generated", email, type, expiresAt }));
 
     // Return the plain OTP so it can be sent via SMS
     return plainOtp;
@@ -62,15 +63,18 @@ export class OtpService {
     if (isValid) {
       // Delete entry after successful verification
       otpStore.delete(email);
+      console.log(JSON.stringify({ event: "otp_verified", email, type: expectedType, success: true }));
       return { valid: true };
     }
 
     if (attempts === config.otp.maxAttempts) {
       // Reached max attempts on this check, delete it immediately
       otpStore.delete(email);
+      console.log(JSON.stringify({ event: "otp_verify_failed", email, type: expectedType, attempts }));
       return { valid: false, reason: "max_attempts" };
     }
 
+    console.log(JSON.stringify({ event: "otp_verify_failed", email, type: expectedType, attempts }));
     return { valid: false, reason: "invalid" };
   }
 }

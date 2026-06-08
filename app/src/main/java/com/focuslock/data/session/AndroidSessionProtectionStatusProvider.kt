@@ -16,6 +16,7 @@ class AndroidSessionProtectionStatusProvider @Inject constructor(
     override fun getStatus(): SessionProtectionStatus = SessionProtectionStatus(
         vpnPermissionGranted = PermissionChecker.isVpnPermissionGranted(context),
         accessibilityEnabled = PermissionChecker.isAccessibilityServiceEnabled(context),
-        deviceAdminEnabled = PermissionChecker.isDeviceAdminEnabled(context)
+        deviceAdminEnabled = PermissionChecker.isDeviceAdminEnabled(context),
+        batteryOptimizationIgnored = PermissionChecker.isBatteryOptimizationIgnored(context)
     )
 }

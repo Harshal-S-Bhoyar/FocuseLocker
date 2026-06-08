@@ -135,7 +135,7 @@ private fun TrustedContactSetupContent(
         ) {
             if (isLoading) {
                 CircularProgressIndicator(
-                    color = MaterialTheme.colorScheme.onPrimary,
+                    color = androidx.compose.ui.graphics.Color.White,
                     strokeWidth = 2.dp,
                     modifier = Modifier.height(20.dp)
                 )

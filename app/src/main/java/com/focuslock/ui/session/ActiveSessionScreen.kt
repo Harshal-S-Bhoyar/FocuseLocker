@@ -9,9 +9,11 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Error
+import androidx.compose.material.icons.filled.HourglassEmpty
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -20,11 +22,19 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
+import androidx.compose.foundation.clickable
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import kotlinx.coroutines.delay
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -32,6 +42,7 @@ import androidx.compose.ui.res.dimensionResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.focuslock.R
 import java.util.Locale
@@ -49,9 +60,18 @@ fun ActiveSessionScreen(
 ) {
     val remainingTimeMillis by viewModel.remainingTimeMillis.collectAsStateWithLifecycle()
     val protectionStatus by viewModel.protectionStatus.collectAsStateWithLifecycle()
+    val unlockInfo by viewModel.activeUnlockInfo.collectAsStateWithLifecycle()
+    val sessionActive by viewModel.sessionActive.collectAsStateWithLifecycle()
 
     LaunchedEffect(Unit) {
         viewModel.refreshProtectionStatus()
+    }
+
+    // Automatically navigate when the session disappears (e.g. killed by background worker after cooldown)
+    LaunchedEffect(sessionActive) {
+        if (sessionActive == false) {
+            onNavigateToSessionComplete()
+        }
     }
 
     // Automatically navigate when the timer reaches zero
@@ -64,71 +84,176 @@ fun ActiveSessionScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(stringResource(R.string.active_session_title)) }
+                title = { Text(stringResource(R.string.active_session_title), fontWeight = FontWeight.SemiBold) },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.background,
+                    titleContentColor = MaterialTheme.colorScheme.onBackground
+                )
             )
-        }
+        },
+        containerColor = MaterialTheme.colorScheme.background
     ) { paddingValues ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
-                .padding(dimensionResource(R.dimen.spacing_xl)),
+                .padding(24.dp),
             verticalArrangement = Arrangement.Center,
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             
             Text(
                 text = stringResource(R.string.active_session_time_remaining),
-                style = MaterialTheme.typography.titleLarge,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                fontWeight = FontWeight.Medium
             )
             
-            Spacer(modifier = Modifier.height(dimensionResource(R.dimen.spacing_lg)))
+            Spacer(modifier = Modifier.height(8.dp))
             
             // Countdown Timer Display
             if (remainingTimeMillis == -1L) {
                 // Initial loading state
-                CircularProgressIndicator()
+                CircularProgressIndicator(
+                    color = MaterialTheme.colorScheme.primary,
+                    strokeWidth = 3.dp,
+                    modifier = Modifier.size(32.dp)
+                )
             } else {
                 Text(
                     text = formatTime(remainingTimeMillis),
                     fontSize = MaterialTheme.typography.displayLarge.fontSize,
                     fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.primary,
+                    color = MaterialTheme.colorScheme.onBackground,
                     textAlign = TextAlign.Center
                 )
             }
             
-            Spacer(modifier = Modifier.height(dimensionResource(R.dimen.spacing_xxxl)))
+            Spacer(modifier = Modifier.height(48.dp))
             
             // Status Indicators
             Card(
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(24.dp),
+                colors = androidx.compose.material3.CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                ),
+                elevation = androidx.compose.material3.CardDefaults.cardElevation(0.dp)
             ) {
                 Column(
-                    modifier = Modifier.padding(dimensionResource(R.dimen.spacing_lg)),
-                    verticalArrangement = Arrangement.spacedBy(dimensionResource(R.dimen.spacing_md))
+                    modifier = Modifier.padding(24.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
                     StatusRow(label = stringResource(R.string.active_session_vpn_permission), isActive = protectionStatus.vpnPermissionGranted)
                     StatusRow(label = stringResource(R.string.active_session_accessibility), isActive = protectionStatus.accessibilityEnabled)
                     StatusRow(label = stringResource(R.string.active_session_uninstall_protection), isActive = protectionStatus.deviceAdminEnabled)
+                    
+                    val context = androidx.compose.ui.platform.LocalContext.current
+                    StatusRow(
+                        label = "Battery Unrestricted", 
+                        isActive = protectionStatus.batteryOptimizationIgnored,
+                        onClick = {
+                            if (!protectionStatus.batteryOptimizationIgnored) {
+                                try {
+                                    val intent = android.content.Intent(android.provider.Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
+                                        data = android.net.Uri.parse("package:${context.packageName}")
+                                    }
+                                    context.startActivity(intent)
+                                } catch (e: Exception) {
+                                    // Fallback to regular battery optimization settings if request fails
+                                    try {
+                                        val intent = android.content.Intent(android.provider.Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS)
+                                        context.startActivity(intent)
+                                    } catch (e2: Exception) {
+                                        // Ignore
+                                    }
+                                }
+                            }
+                        }
+                    )
                 }
             }
             
             Spacer(modifier = Modifier.weight(1f))
             
-            // Early Unlock Button (Navigates to Phase 6 flow)
+            // Cooldown Timer Card (Shows if Cooldown is active)
+            if (unlockInfo?.status == com.focuslock.domain.model.UnlockRequestStatus.COOLDOWN) {
+                val endsAt = unlockInfo?.cooldownEndsAt ?: 0L
+                var cooldownRemainingMillis by remember(endsAt) {
+                    mutableStateOf(maxOf(0L, endsAt - System.currentTimeMillis()))
+                }
+
+                LaunchedEffect(endsAt) {
+                    while (cooldownRemainingMillis > 0L) {
+                        delay(1000L)
+                        cooldownRemainingMillis = maxOf(0L, endsAt - System.currentTimeMillis())
+                    }
+                    if (endsAt > 0L && cooldownRemainingMillis <= 0L) {
+                        viewModel.completeCooldownAndKillSession()
+                    }
+                }
+
+                if (endsAt > 0L) {
+                    val minutes = (cooldownRemainingMillis / 1000) / 60
+                    val seconds = (cooldownRemainingMillis / 1000) % 60
+                    val countdownText = String.format("%02d:%02d", minutes, seconds)
+                    
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(24.dp),
+                        colors = androidx.compose.material3.CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                        ),
+                        elevation = androidx.compose.material3.CardDefaults.cardElevation(0.dp)
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(24.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.HourglassEmpty,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(32.dp)
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                text = "Cooldown Active",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                text = countdownText,
+                                style = MaterialTheme.typography.displaySmall,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                    }
+                    
+                    Spacer(modifier = Modifier.height(24.dp))
+                }
+            }
+            
+            // Early Unlock Button
             Button(
                 onClick = onNavigateToUnlockRequest,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(dimensionResource(R.dimen.button_height)),
+                    .height(56.dp),
+                shape = RoundedCornerShape(16.dp),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.errorContainer,
-                    contentColor = MaterialTheme.colorScheme.onErrorContainer
+                    containerColor = MaterialTheme.colorScheme.onBackground,
+                    contentColor = MaterialTheme.colorScheme.background
                 )
             ) {
-                Text(stringResource(R.string.active_session_request_unlock), style = MaterialTheme.typography.titleMedium)
+                Text(
+                    text = stringResource(R.string.active_session_request_unlock), 
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold
+                )
             }
         }
     }
@@ -151,16 +276,23 @@ private fun formatTime(millis: Long): String {
 }
 
 @Composable
-fun StatusRow(label: String, isActive: Boolean) {
+fun StatusRow(label: String, isActive: Boolean, onClick: (() -> Unit)? = null) {
     Row(
-        verticalAlignment = Alignment.CenterVertically
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = if (onClick != null) Modifier.clickable { onClick() } else Modifier
     ) {
         Icon(
             imageVector = if (isActive) Icons.Default.CheckCircle else Icons.Default.Error,
             contentDescription = stringResource(if (isActive) R.string.status_active else R.string.status_inactive),
-            tint = if (isActive) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
+            tint = if (isActive) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error,
+            modifier = Modifier.size(20.dp)
         )
-        Spacer(modifier = Modifier.width(dimensionResource(R.dimen.spacing_md)))
-        Text(text = label, style = MaterialTheme.typography.bodyLarge)
+        Spacer(modifier = Modifier.width(12.dp))
+        Text(
+            text = label, 
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurface,
+            fontWeight = FontWeight.Medium
+        )
     }
 }

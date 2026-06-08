@@ -1,5 +1,7 @@
 package com.focuslock.ui.session
 
+import com.focuslock.domain.repository.SessionRepository
+import com.focuslock.domain.repository.UnlockRepository
 import com.focuslock.domain.usecase.GetSessionRemainingTimeUseCase
 import com.focuslock.domain.session.SessionProtectionStatus
 import com.focuslock.domain.session.SessionProtectionStatusProvider
@@ -24,6 +26,8 @@ class ActiveSessionViewModelTest {
 
     private val getSessionRemainingTimeUseCase = mockk<GetSessionRemainingTimeUseCase>()
     private val protectionStatusProvider = mockk<SessionProtectionStatusProvider>()
+    private val sessionRepository = mockk<SessionRepository>()
+    private val unlockRepository = mockk<UnlockRepository>()
     private val testDispatcher = UnconfinedTestDispatcher()
 
     @Before
@@ -32,8 +36,11 @@ class ActiveSessionViewModelTest {
         every { protectionStatusProvider.getStatus() } returns SessionProtectionStatus(
             vpnPermissionGranted = true,
             accessibilityEnabled = true,
-            deviceAdminEnabled = true
+            deviceAdminEnabled = true,
+            batteryOptimizationIgnored = true
         )
+        every { sessionRepository.getActiveSession() } returns flowOf(null)
+        every { unlockRepository.getLatestRequest(any()) } returns flowOf(null)
     }
 
     @After
@@ -47,7 +54,12 @@ class ActiveSessionViewModelTest {
         every { getSessionRemainingTimeUseCase.invoke() } returns flowOf(5000L, 4000L)
 
         // Act
-        val viewModel = ActiveSessionViewModel(getSessionRemainingTimeUseCase, protectionStatusProvider)
+        val viewModel = ActiveSessionViewModel(
+            getSessionRemainingTimeUseCase, 
+            protectionStatusProvider,
+            sessionRepository,
+            unlockRepository
+        )
 
         // Start collecting so SharingStarted.WhileSubscribed triggers
         val collectJob = launch {
