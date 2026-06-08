@@ -1,5 +1,5 @@
 # Jetro Agent Context
-
+@agent-memory
 > Finance features: **Enabled**
 > Offline — backend not connected. Sign in to unlock full capabilities.
 

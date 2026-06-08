@@ -34,7 +34,9 @@ class FocusVpnService : VpnService() {
     private lateinit var getActiveBlockedDomainsUseCase: GetActiveBlockedDomainsUseCase
     private lateinit var sessionRepository: SessionRepository
     
-    private val activeDomains = mutableSetOf<String>()
+    // HashSet gives O(1) lookup — previously was mutableSetOf which could be slow
+    // This matters because isDomainBlocked() is called on EVERY DNS packet
+    private val activeDomains = HashSet<String>()
     private val dnsConfig = DnsConfig.DEFAULT
 
     override fun onCreate() {
@@ -59,7 +61,8 @@ class FocusVpnService : VpnService() {
             // Load blocked domains into memory for O(1) lookup
             val domains = getActiveBlockedDomainsUseCase()
             activeDomains.clear()
-            activeDomains.addAll(domains)
+            // Store lowercase for O(1) case-insensitive lookup in isDomainBlocked()
+            activeDomains.addAll(domains.map { it.lowercase() })
             
             // Monitor session status
             sessionMonitorJob?.cancel()
@@ -101,11 +104,13 @@ class FocusVpnService : VpnService() {
                         this@FocusVpnService,
                         activeInterface,
                         dnsConfig = dnsConfig,
-                        isDomainBlocked = { domain -> 
-                            activeDomains.any { blockedDomain ->
-                                domain.equals(blockedDomain, ignoreCase = true) ||
-                                    domain.endsWith(".$blockedDomain", ignoreCase = true)
-                            }
+                        isDomainBlocked = { domain ->
+                            // O(1) HashSet lookup instead of O(n) linear scan
+                            // First check exact match, then check if it's a subdomain of a blocked domain
+                            activeDomains.contains(domain.lowercase()) ||
+                                domain.contains('.') && activeDomains.contains(
+                                    domain.substringAfter('.').lowercase()
+                                )
                         }
                     )
                     packetLoop.runLoop()

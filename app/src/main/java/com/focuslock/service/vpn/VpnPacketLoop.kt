@@ -5,8 +5,10 @@ import android.os.ParcelFileDescriptor
 import timber.log.Timber
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.yield
 import java.io.FileInputStream
 import java.io.FileOutputStream
 import java.net.DatagramPacket
@@ -22,6 +24,15 @@ class VpnPacketLoop(
 ) {
     private val TAG = "VpnPacketLoop"
     
+    // Reusable socket — created once, protected once, reused for all DNS forwards.
+    // Eliminates OS-level socket allocation + vpnService.protect() call per DNS query.
+    private val sharedDnsSocket: DatagramSocket by lazy {
+        DatagramSocket().also { socket ->
+            socket.soTimeout = DNS_TIMEOUT_MILLIS
+            vpnService.protect(socket) // Only called ONCE for the lifetime of the loop
+        }
+    }
+
     suspend fun runLoop() = withContext(Dispatchers.IO) {
         val inputStream = FileInputStream(vpnInterface.fileDescriptor)
         val outputStream = FileOutputStream(vpnInterface.fileDescriptor)
@@ -30,20 +41,35 @@ class VpnPacketLoop(
         
         try {
             while (isActive) {
+                // yield() gives the coroutine scheduler a chance to cancel cleanly
+                yield()
                 val length = inputStream.read(packet.array())
-                if (length > 0) {
-                    packet.limit(length)
-                    packet.position(0)
-                    
-                    val domain = DnsPacketParser.extractDomainName(packet, length)
-                    if (domain != null) {
-                        if (isDomainBlocked(domain)) {
-                            val response = DnsResponseBuilder.buildNxDomainResponse(packet, length)
-                            outputStream.write(response)
-                        } else {
-                            // Forward to upstream DNS
-                            forwardDns(packet, length, outputStream)
+                when {
+                    length > 0 -> {
+                        packet.limit(length)
+                        packet.position(0)
+                        
+                        val domain = DnsPacketParser.extractDomainName(packet, length)
+                        if (domain != null) {
+                            if (isDomainBlocked(domain)) {
+                                val response = DnsResponseBuilder.buildNxDomainResponse(packet, length)
+                                outputStream.write(response)
+                            } else {
+                                // Forward to upstream DNS
+                                forwardDns(packet, length, outputStream)
+                            }
                         }
+                    }
+                    length == 0 -> {
+                        // No data available — sleep briefly to avoid 100% CPU busy-loop
+                        // This is the #1 battery drain fix: the VPN was spinning at full speed on idle
+                        delay(10L)
+                    }
+                    else -> {
+                        // length == -1 means EOF (TUN interface was closed by OS or VPN revoked)
+                        // Sleep longer before retry to prevent 100% CPU spin on a closed fd
+                        Timber.tag(TAG).w("TUN read returned EOF — interface may be closing. Backing off.")
+                        delay(500L)
                     }
                 }
             }
@@ -54,6 +80,7 @@ class VpnPacketLoop(
         } finally {
             inputStream.close()
             outputStream.close()
+            runCatching { sharedDnsSocket.close() }
         }
     }
     
@@ -69,20 +96,17 @@ class VpnPacketLoop(
             packetBuffer.position(dnsOffset)
             packetBuffer.get(dnsPayload)
             
-            DatagramSocket().use { socket ->
-                vpnService.protect(socket) // Protect socket from VPN routing loop
+            // Use shared socket instead of creating a new one per query
+            val receivePacket = queryUpstreamDns(sharedDnsSocket, dnsPayload)
+            val responseArray = buildTunDnsResponse(
+                packetBuffer = packetBuffer,
+                dnsOffset = dnsOffset,
+                ipHeaderLength = ipHeaderLength,
+                udpOffset = udpOffset,
+                receivePacket = receivePacket
+            )
 
-                val receivePacket = queryUpstreamDns(socket, dnsPayload)
-                val responseArray = buildTunDnsResponse(
-                    packetBuffer = packetBuffer,
-                    dnsOffset = dnsOffset,
-                    ipHeaderLength = ipHeaderLength,
-                    udpOffset = udpOffset,
-                    receivePacket = receivePacket
-                )
-
-                outputStream.write(responseArray)
-            }
+            outputStream.write(responseArray)
         } catch (e: Exception) {
             Timber.tag(TAG).e(e, "Error forwarding DNS")
         }

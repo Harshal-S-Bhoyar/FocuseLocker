@@ -23,7 +23,7 @@ interface BlockedCategoryDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertCategory(category: BlockedCategoryEntity)
     
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insertCategories(categories: List<BlockedCategoryEntity>)
     
     @Update
@@ -31,4 +31,7 @@ interface BlockedCategoryDao {
     
     @Query("UPDATE blocked_categories SET is_active = :isActive WHERE category_key = :categoryKey")
     suspend fun updateCategoryStatus(categoryKey: String, isActive: Boolean)
+
+    @Query("UPDATE blocked_categories SET is_active = 1 WHERE category_key = 'AUTO_BLOCKED'")
+    suspend fun ensureAutoBlockedActive()
 }

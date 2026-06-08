@@ -1,0 +1,16 @@
+{
+  "name": "defender",
+  "version": "1.0.0",
+  "description": "Comprehensive security analysis skill covering Threat Modeling, Vulnerability Scanning, Triage, Validation, Patch Generation, and Reporting.",
+  "author": "Antigravity",
+  "capabilities": [
+    "Threat Modeling",
+    "Vulnerability Discovery",
+    "Security Review",
+    "Vulnerability Triage",
+    "Exploit Validation",
+    "Patch Generation",
+    "Security Reporting"
+  ],
+  "entry_point": "skill.md"
+}

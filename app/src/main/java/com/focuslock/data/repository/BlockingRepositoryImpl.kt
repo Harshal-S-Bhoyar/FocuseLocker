@@ -19,7 +19,7 @@ import kotlinx.serialization.json.Json
 import javax.inject.Inject
 import javax.inject.Singleton
 
-private const val MAX_KEYWORDS = 50
+private const val MAX_KEYWORDS = 10
 
 @Singleton
 class BlockingRepositoryImpl @Inject constructor(
@@ -88,16 +88,41 @@ class BlockingRepositoryImpl @Inject constructor(
         return domainDao.getActiveBlockedDomainList()
     }
 
-    override suspend fun seedDomainDataIfNeeded() {
-        // Seed categories if empty
-        val existingCategories = categoryDao.getActiveCategoryKeys()
-        if (existingCategories.isEmpty()) {
-            categoryDao.insertCategories(
-                CategoryKey.ALL.map { key ->
-                    BlockedCategoryEntity(categoryKey = key, isActive = false)
-                }
+    override suspend fun getAllBlockedDomains(): List<String> {
+        return domainDao.getAllBlockedDomainList()
+    }
+
+    override fun getAllBlockedDomainsFlow(): Flow<List<String>> {
+        return domainDao.getAllBlockedDomainListFlow()
+    }
+
+    override suspend fun addAutoBlockedDomain(domain: String, keyword: String) {
+        if (domainDao.countByDomain(domain) == 0) {
+            domainDao.insertDomain(
+                BlockedDomainEntity(
+                    domain = domain,
+                    categoryKey = "AUTO_BLOCKED", // We will add this to CategoryKey if needed, but strings work.
+                    isAutoBlocked = true,
+                    matchedKeyword = keyword,
+                    autoBlockedAt = System.currentTimeMillis()
+                )
             )
         }
+    }
+
+    override suspend fun seedDomainDataIfNeeded() {
+        // Ensure all category rows exist. IGNORE means existing rows keep user prefs.
+        categoryDao.insertCategories(
+            CategoryKey.ALL.map { key ->
+                BlockedCategoryEntity(
+                    categoryKey = key,
+                    isActive = key == "AUTO_BLOCKED"
+                )
+            }
+        )
+
+        // AUTO_BLOCKED must always be active for dynamic blocking to work
+        categoryDao.ensureAutoBlockedActive()
 
         // Seed domains from bundled JSON if empty
         if (domainDao.getDomainCount() == 0) {
