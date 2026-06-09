@@ -9,6 +9,7 @@ import com.focuslock.domain.usecase.StartEmergencyBypassUseCase
 import com.focuslock.domain.usecase.VerifyUnlockOtpUseCase
 import com.focuslock.domain.usecase.VerifyUnlockResult
 import com.focuslock.domain.usecase.GetSessionRemainingTimeUseCase
+import com.focuslock.domain.usecase.DeactivateSessionUseCase
 import com.focuslock.domain.repository.TrustedContactRepository
 import com.focuslock.domain.repository.BlockingRepository
 import io.mockk.coEvery
@@ -36,6 +37,7 @@ class UnlockViewModelTest {
     private lateinit var requestUnlockUseCase: RequestUnlockUseCase
     private lateinit var verifyUnlockOtpUseCase: VerifyUnlockOtpUseCase
     private lateinit var startEmergencyBypassUseCase: StartEmergencyBypassUseCase
+    private lateinit var deactivateSessionUseCase: DeactivateSessionUseCase
 
     private lateinit var viewModel: UnlockViewModel
     private val requestFlow = kotlinx.coroutines.flow.MutableSharedFlow<com.focuslock.domain.model.UnlockRequest?>(replay = 1)
@@ -49,6 +51,7 @@ class UnlockViewModelTest {
         requestUnlockUseCase = mockk()
         verifyUnlockOtpUseCase = mockk()
         startEmergencyBypassUseCase = mockk()
+        deactivateSessionUseCase = mockk()
         val trustedContactRepository: TrustedContactRepository = mockk()
         val blockingRepository: BlockingRepository = mockk()
         val getSessionRemainingTimeUseCase: GetSessionRemainingTimeUseCase = mockk()
@@ -89,7 +92,8 @@ class UnlockViewModelTest {
             requestUnlockUseCase,
             verifyUnlockOtpUseCase,
             startEmergencyBypassUseCase,
-            getSessionRemainingTimeUseCase
+            getSessionRemainingTimeUseCase,
+            deactivateSessionUseCase
         )
     }
 

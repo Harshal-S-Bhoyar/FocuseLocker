@@ -116,7 +116,7 @@ class BlockingRepositoryImpl @Inject constructor(
             CategoryKey.ALL.map { key ->
                 BlockedCategoryEntity(
                     categoryKey = key,
-                    isActive = key == "AUTO_BLOCKED"
+                    isActive = true
                 )
             }
         )
@@ -124,10 +124,8 @@ class BlockingRepositoryImpl @Inject constructor(
         // AUTO_BLOCKED must always be active for dynamic blocking to work
         categoryDao.ensureAutoBlockedActive()
 
-        // Seed domains from bundled JSON if empty
-        if (domainDao.getDomainCount() == 0) {
-            loadDomainsFromAssets()
-        }
+        // Seed domains from bundled JSON
+        loadDomainsFromAssets()
     }
 
     private suspend fun loadDomainsFromAssets() {

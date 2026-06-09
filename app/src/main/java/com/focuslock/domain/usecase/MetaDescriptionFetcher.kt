@@ -59,17 +59,7 @@ class MetaDescriptionFetcher @Inject constructor() {
                     null
                 } else {
                     val htmlSnippet = String(charBuffer, 0, charsRead)
-
-                    // Check <meta name="description" content="...">
-                    val pattern = "(?i)<meta[^>]{0,500}name=[\"']description[\"'][^>]{0,500}content=[\"'](.*?)[\"']".toRegex()
-                    val match = pattern.find(htmlSnippet)
-                    if (match != null) {
-                        match.groupValues[1]
-                    } else {
-                        // Also check property="og:description"
-                        val ogPattern = "(?i)<meta[^>]{0,500}property=[\"']og:description[\"'][^>]{0,500}content=[\"'](.*?)[\"']".toRegex()
-                        ogPattern.find(htmlSnippet)?.groupValues?.get(1)
-                    }
+                    extractDescriptionFromHtml(htmlSnippet)
                 }
             }
         } catch (e: Exception) {
@@ -82,5 +72,27 @@ class MetaDescriptionFetcher @Inject constructor() {
         // Cache and return the result
         descriptionCache[cacheKey] = result ?: ""
         result
+    }
+
+    fun extractDescriptionFromHtml(htmlSnippet: String): String? {
+        val metaTagPattern = "(?i)<meta([^>]{0,1000})>".toRegex()
+        val contentPattern = "(?i)content=[\"'](.*?)[\"']".toRegex()
+        val namePattern = "(?i)name=[\"']description[\"']".toRegex()
+        
+        val matchContent = metaTagPattern.findAll(htmlSnippet)
+            .filter { namePattern.containsMatchIn(it.groupValues[1]) }
+            .mapNotNull { contentPattern.find(it.groupValues[1])?.groupValues?.get(1) }
+            .firstOrNull()
+
+        if (matchContent != null) {
+            return matchContent
+        } else {
+            // Also check property="og:description"
+            val ogNamePattern = "(?i)property=[\"']og:description[\"']".toRegex()
+            return metaTagPattern.findAll(htmlSnippet)
+                .filter { ogNamePattern.containsMatchIn(it.groupValues[1]) }
+                .mapNotNull { contentPattern.find(it.groupValues[1])?.groupValues?.get(1) }
+                .firstOrNull()
+        }
     }
 }
