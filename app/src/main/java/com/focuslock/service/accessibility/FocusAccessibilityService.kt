@@ -195,7 +195,8 @@ class FocusAccessibilityService : AccessibilityService() {
         }
         source?.recycle()
         
-        if (!url.isNullOrBlank()) {
+        val isValidUrl = url != null && url.contains(".") && !url.contains(" ")
+        if (isValidUrl) {
             if (isDuplicateUrlEvent(url)) return
 
             val result = checkUrlForBlockedContentUseCase(url, activeKeywords.get(), activeDomains.get())

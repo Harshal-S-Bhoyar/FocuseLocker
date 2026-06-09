@@ -3,6 +3,7 @@ package com.focuslock.ui.session
 import com.focuslock.domain.repository.SessionRepository
 import com.focuslock.domain.repository.UnlockRepository
 import com.focuslock.domain.usecase.GetSessionRemainingTimeUseCase
+import com.focuslock.domain.usecase.DeactivateSessionUseCase
 import com.focuslock.domain.session.SessionProtectionStatus
 import com.focuslock.domain.session.SessionProtectionStatusProvider
 import io.mockk.every
@@ -28,6 +29,7 @@ class ActiveSessionViewModelTest {
     private val protectionStatusProvider = mockk<SessionProtectionStatusProvider>()
     private val sessionRepository = mockk<SessionRepository>()
     private val unlockRepository = mockk<UnlockRepository>()
+    private val deactivateSessionUseCase = mockk<DeactivateSessionUseCase>()
     private val testDispatcher = UnconfinedTestDispatcher()
 
     @Before
@@ -58,7 +60,8 @@ class ActiveSessionViewModelTest {
             getSessionRemainingTimeUseCase, 
             protectionStatusProvider,
             sessionRepository,
-            unlockRepository
+            unlockRepository,
+            deactivateSessionUseCase
         )
 
         // Start collecting so SharingStarted.WhileSubscribed triggers

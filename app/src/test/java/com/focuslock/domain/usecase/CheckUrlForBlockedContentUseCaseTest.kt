@@ -72,4 +72,10 @@ class CheckUrlForBlockedContentUseCaseTest {
         val result2 = useCase("https://notfacebook.com", emptyList(), listOf("facebook.com"))
         assertEquals(BlockCheckResult.Allowed, result2)
     }
+
+    @Test
+    fun `invoke matches domain without schema`() {
+        val result = useCase("facebook.com", emptyList(), listOf("facebook.com"))
+        assertEquals(BlockCheckResult.Blocked("facebook.com", BlockReason.DOMAIN_BLOCKED), result)
+    }
 }
