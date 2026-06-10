@@ -1,0 +1,23 @@
+[
+  {
+    "id": "VULN-001",
+    "status": "true_positive",
+    "title": "Unbounded Array Length in Unlock Request Schema (Backend DoS)",
+    "severity": "High",
+    "action": "Patch backend/src/schemas/request.schemas.ts to add .max(50) to arrays."
+  },
+  {
+    "id": "VULN-002",
+    "status": "true_positive",
+    "title": "Server-Side Request Forgery (SSRF) in MetaDescriptionFetcher",
+    "severity": "Low",
+    "action": "Patch app/src/main/java/com/focuslock/domain/usecase/MetaDescriptionFetcher.kt to block private/local IP ranges."
+  },
+  {
+    "id": "VULN-003",
+    "status": "true_positive",
+    "title": "Rate Limiting Bypass via IP Rotation",
+    "severity": "Medium",
+    "action": "Patch backend/src/services/otp.service.ts and routes to track rate limits per-email in addition to IP."
+  }
+]

@@ -27,10 +27,11 @@ import com.focuslock.data.local.entity.UnlockRequestEntity
         UnlockRequestEntity::class,
         AppSettingEntity::class
     ],
-    version = 5,
+    version = 6,
     exportSchema = true,
     autoMigrations = [
-        androidx.room.AutoMigration(from = 4, to = 5)
+        androidx.room.AutoMigration(from = 4, to = 5),
+        androidx.room.AutoMigration(from = 5, to = 6)
     ]
 )
 abstract class FocusDatabase : RoomDatabase() {

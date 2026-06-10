@@ -23,5 +23,6 @@ interface BlockingRepository {
     suspend fun getAllBlockedDomains(): List<String>
     fun getAllBlockedDomainsFlow(): Flow<List<String>>
     suspend fun seedDomainDataIfNeeded()
-    suspend fun addAutoBlockedDomain(domain: String, keyword: String)
+    suspend fun addAutoBlockedDomain(domain: String, keyword: String, blockStatus: String = "PERMANENT", expiresAt: Long? = null)
+    suspend fun getCachedDomainStatus(domain: String): String?
 }

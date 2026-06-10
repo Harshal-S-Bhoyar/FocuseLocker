@@ -1,0 +1,7 @@
+{
+  "casino":   ["gambling","betting","poker","slots","wagering","blackjack","roulette"],
+  "porn":     ["xxx","adult","nsfw","explicit","erotic","hentai"],
+  "gambling": ["casino","betting","wagering","odds","wager"],
+  "drugs":    ["narcotics","cocaine","marijuana","weed","meth"],
+  "alcohol":  ["beer","wine","liquor","vodka","whiskey","drunk"]
+}

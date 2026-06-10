@@ -139,10 +139,14 @@ class FocusAccessibilityService : AccessibilityService() {
         // 2. Browser Filtering — accept BOTH event types:
         //    STATE_CHANGED  → tab switch, app open
         //    CONTENT_CHANGED → URL bar update after navigation
-        //    Battery safety: isDuplicateUrlEvent() debounce + findUrlNode() specific ID filter
+        //    Battery safety: Throttle CONTENT_CHANGED to max 2 times a second (500ms) to prevent excessive DOM traversal
         if (SUPPORTED_BROWSERS.contains(packageName)) {
-            if (eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED ||
-                eventType == AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED) {
+            val now = SystemClock.elapsedRealtime()
+            val isContentChanged = eventType == AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED
+            val isStateChanged = eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED
+
+            if (isStateChanged || (isContentChanged && now - lastProcessedAtMillis > 500L)) {
+                lastProcessedAtMillis = now
                 handleBrowserEvent(event, packageName)
             }
             return
@@ -210,11 +214,20 @@ class FocusAccessibilityService : AccessibilityService() {
                 // Smart Scan for dynamic blocking (runs asynchronously)
                 pendingSmartScanJob?.cancel()
                 pendingSmartScanJob = serviceScope.launch {
-                    val isAutoBlocked = smartScanUseCase(url, activeKeywords.get())
-                    if (isAutoBlocked) {
-                        withContext(Dispatchers.Main) {
-                            performGlobalAction(GLOBAL_ACTION_BACK)
-                            launchOverlayService("Smart Scan Match", "AUTO_BLOCKED")
+                    val result = smartScanUseCase(url, activeKeywords.get())
+                    withContext(Dispatchers.Main) {
+                        when (result) {
+                            is com.focuslock.domain.model.SmartScanResult.Blocked -> {
+                                performGlobalAction(GLOBAL_ACTION_BACK)
+                                launchOverlayService(result.keyword, "AUTO_BLOCKED: ${result.signal}")
+                            }
+                            is com.focuslock.domain.model.SmartScanResult.FetchFailed -> {
+                                // Meta fetch failed — allow the page through.
+                                // Only block when keywords are positively matched.
+                            }
+                            is com.focuslock.domain.model.SmartScanResult.Clean -> {
+                                // No action needed
+                            }
                         }
                     }
                 }
@@ -255,10 +268,12 @@ class FocusAccessibilityService : AccessibilityService() {
     }
 
     private fun isDuplicateUrlEvent(url: String): Boolean {
-        val now = SystemClock.elapsedRealtime()
-        val isDuplicate = url == lastProcessedUrl && now - lastProcessedAtMillis < URL_DEBOUNCE_MILLIS
-        lastProcessedUrl = url
-        lastProcessedAtMillis = now
+        // Since we already throttle CONTENT_CHANGED events globally, 
+        // this method just ensures we don't start duplicate scans for the exact same URL
+        val isDuplicate = url == lastProcessedUrl
+        if (!isDuplicate) {
+            lastProcessedUrl = url
+        }
         return isDuplicate
     }
 
