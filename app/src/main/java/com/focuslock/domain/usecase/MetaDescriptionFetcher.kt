@@ -1,8 +1,14 @@
 package com.focuslock.domain.usecase
 
+import com.focuslock.domain.model.FetchOutcome
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeout
+import org.jsoup.Jsoup
 import java.net.HttpURLConnection
+import java.net.InetAddress
 import java.net.URL
 import java.util.concurrent.ConcurrentHashMap
 import javax.inject.Inject
@@ -11,88 +17,104 @@ import javax.inject.Singleton
 @Singleton
 class MetaDescriptionFetcher @Inject constructor() {
 
-    // Cache: domain → meta description (or empty string if none found / failed)
+    // Cache: domain → signals (or empty string if none found / failed)
     // Prevents repeat network fetches for the same domain within a session.
-    // This is a major battery-saver: without this, every URL navigation triggers a
-    // fresh HTTP GET request even for domains we've already checked.
-    private val descriptionCache = ConcurrentHashMap<String, String>()
+    private val descriptionCache = ConcurrentHashMap<String, Map<String, String>>()
     private val MAX_CACHE_SIZE = 200
 
-    suspend fun fetchMetaDescription(urlStr: String): String? = withContext(Dispatchers.IO) {
-        // Extract just the domain as the cache key (ignores query params and paths)
+    suspend fun fetchPageSignals(urlStr: String): FetchOutcome = withContext(Dispatchers.IO) {
         val cacheKey = try {
             val parsed = URL(if (urlStr.startsWith("http")) urlStr else "https://$urlStr")
             parsed.host.lowercase()
         } catch (e: Exception) {
-            return@withContext null
+            return@withContext FetchOutcome.Failed("Invalid URL")
         }
 
-        // Return cached result if we've seen this domain before
         if (descriptionCache.containsKey(cacheKey)) {
             val cached = descriptionCache[cacheKey]
-            return@withContext if (cached.isNullOrEmpty()) null else cached
+            return@withContext if (cached.isNullOrEmpty()) FetchOutcome.Failed("Cached empty") else FetchOutcome.Success(cached)
         }
 
-        // Evict oldest entries if cache is too large
         if (descriptionCache.size >= MAX_CACHE_SIZE) {
             val firstKey = descriptionCache.keys().nextElement()
             descriptionCache.remove(firstKey)
         }
 
-        var connection: HttpURLConnection? = null
-        val result: String? = try {
-            val url = URL(if (urlStr.startsWith("http")) urlStr else "https://$urlStr")
-            connection = url.openConnection() as HttpURLConnection
-            connection.connectTimeout = 3000
-            connection.readTimeout = 3000
-            connection.requestMethod = "GET"
-            connection.setRequestProperty("User-Agent", "Mozilla/5.0")
+        var lastException: Exception? = null
+        repeat(2) { attempt ->
+            var connection: HttpURLConnection? = null
+            try {
+                return@withContext withTimeout(4000L) {
+                    val url = URL(if (urlStr.startsWith("http")) urlStr else "https://$urlStr")
+                    if (isPrivateHost(url.host)) {
+                        throw Exception("Blocked: private address")
+                    }
+                    connection = url.openConnection() as HttpURLConnection
+                    connection!!.connectTimeout = 3000
+                    connection!!.readTimeout = 3000
+                    connection!!.requestMethod = "GET"
+                    connection!!.setRequestProperty("User-Agent", "Mozilla/5.0")
 
-            if (connection.responseCode != HttpURLConnection.HTTP_OK) {
-                null
-            } else {
-                val inputStream = connection.inputStream
-                val reader = inputStream.bufferedReader()
-                val charBuffer = CharArray(8192) // Read up to 8KB
-                val charsRead = reader.read(charBuffer)
-                if (charsRead <= 0) {
-                    null
-                } else {
-                    val htmlSnippet = String(charBuffer, 0, charsRead)
-                    extractDescriptionFromHtml(htmlSnippet)
+                    if (connection!!.responseCode != HttpURLConnection.HTTP_OK) {
+                        throw Exception("HTTP error: ${connection!!.responseCode}")
+                    } else {
+                        val inputStream = connection!!.inputStream
+                        val reader = inputStream.bufferedReader()
+                        val charBuffer = CharArray(8192)
+                        
+                        var totalHtml = ""
+                        val charsRead1 = reader.read(charBuffer)
+                        if (charsRead1 > 0) {
+                            totalHtml += String(charBuffer, 0, charsRead1)
+                            // read body
+                            val charsRead2 = reader.read(charBuffer)
+                            if (charsRead2 > 0) {
+                                totalHtml += String(charBuffer, 0, charsRead2)
+                            }
+                        }
+                        
+                        val signals = extractSignals(totalHtml)
+                        descriptionCache[cacheKey] = signals
+                        FetchOutcome.Success(signals)
+                    }
                 }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                lastException = e
+                if (attempt == 0) delay(500)
+            } finally {
+                connection?.disconnect()
             }
-        } catch (e: Exception) {
-            // Don't log exception details here — it may contain URL info
-            null
-        } finally {
-            connection?.disconnect()
         }
-
-        // Cache and return the result
-        descriptionCache[cacheKey] = result ?: ""
-        result
+        
+        descriptionCache[cacheKey] = emptyMap()
+        FetchOutcome.Failed(lastException?.message ?: "Unknown Error")
     }
 
-    fun extractDescriptionFromHtml(htmlSnippet: String): String? {
-        val metaTagPattern = "(?i)<meta([^>]{0,1000})>".toRegex()
-        val contentPattern = "(?i)content=[\"'](.*?)[\"']".toRegex()
-        val namePattern = "(?i)name=[\"']description[\"']".toRegex()
-        
-        val matchContent = metaTagPattern.findAll(htmlSnippet)
-            .filter { namePattern.containsMatchIn(it.groupValues[1]) }
-            .mapNotNull { contentPattern.find(it.groupValues[1])?.groupValues?.get(1) }
-            .firstOrNull()
-
-        if (matchContent != null) {
-            return matchContent
-        } else {
-            // Also check property="og:description"
-            val ogNamePattern = "(?i)property=[\"']og:description[\"']".toRegex()
-            return metaTagPattern.findAll(htmlSnippet)
-                .filter { ogNamePattern.containsMatchIn(it.groupValues[1]) }
-                .mapNotNull { contentPattern.find(it.groupValues[1])?.groupValues?.get(1) }
-                .firstOrNull()
+    private fun isPrivateHost(host: String): Boolean {
+        return try {
+            val addr = InetAddress.getByName(host)
+            addr.isLoopbackAddress ||
+                addr.isSiteLocalAddress ||
+                addr.isLinkLocalAddress ||
+                addr.isAnyLocalAddress
+        } catch (e: Exception) {
+            false
         }
+    }
+
+    fun extractSignals(html: String): Map<String, String> {
+        val doc = Jsoup.parse(html)
+        return mapOf(
+            "meta_description" to (doc.select("meta[name=description]").attr("content")),
+            "meta_keywords" to (doc.select("meta[name=keywords]").attr("content")),
+            "og_title" to (doc.select("meta[property=og:title]").attr("content")),
+            "og_description" to (doc.select("meta[property=og:description]").attr("content")),
+            "twitter_description" to (doc.select("meta[name=twitter:description]").attr("content")),
+            "page_title" to (doc.selectFirst("title")?.text().orEmpty()),
+            "first_h1" to (doc.selectFirst("h1")?.text().orEmpty()),
+            "body_text" to (doc.body()?.text()?.take(2000).orEmpty())
+        ).filterValues { it.isNotBlank() }
     }
 }

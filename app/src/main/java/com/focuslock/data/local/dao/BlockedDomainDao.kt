@@ -24,10 +24,10 @@ interface BlockedDomainDao {
     """)
     suspend fun getActiveBlockedDomainList(): List<String>
     
-    @Query("SELECT DISTINCT domain FROM blocked_domains")
+    @Query("SELECT DISTINCT domain FROM blocked_domains WHERE block_status IS NULL OR block_status != 'CLEAN_CACHE'")
     suspend fun getAllBlockedDomainList(): List<String>
     
-    @Query("SELECT DISTINCT domain FROM blocked_domains")
+    @Query("SELECT DISTINCT domain FROM blocked_domains WHERE block_status IS NULL OR block_status != 'CLEAN_CACHE'")
     fun getAllBlockedDomainListFlow(): Flow<List<String>>
     
     @Query("SELECT * FROM blocked_domains WHERE category_key = :categoryKey")
@@ -56,4 +56,13 @@ interface BlockedDomainDao {
 
     @Query("SELECT * FROM blocked_domains WHERE is_auto_blocked = 1 ORDER BY auto_blocked_at DESC")
     fun getAutoBlockedDomains(): Flow<List<BlockedDomainEntity>>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsertDomain(domain: BlockedDomainEntity)
+
+    @Query("SELECT * FROM blocked_domains WHERE domain = :domain AND (expires_at IS NULL OR expires_at > :now)")
+    suspend fun findActiveDomain(domain: String, now: Long = System.currentTimeMillis()): BlockedDomainEntity?
+
+    @Query("DELETE FROM blocked_domains WHERE expires_at IS NOT NULL AND expires_at < :now")
+    suspend fun deleteExpiredEntries(now: Long = System.currentTimeMillis())
 }

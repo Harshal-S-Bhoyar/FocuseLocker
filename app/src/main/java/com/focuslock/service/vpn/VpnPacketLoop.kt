@@ -61,9 +61,10 @@ class VpnPacketLoop(
                         }
                     }
                     length == 0 -> {
-                        // No data available — sleep briefly to avoid 100% CPU busy-loop
-                        // This is the #1 battery drain fix: the VPN was spinning at full speed on idle
-                        delay(10L)
+                        // No data available — sleep to avoid CPU busy-loop on idle TUN.
+                        // Battery fix: 100ms = 10 wakeups/sec vs. 10ms = 100 wakeups/sec.
+                        // DNS latency is unaffected — active packets (length > 0) bypass this branch entirely.
+                        delay(100L)
                     }
                     else -> {
                         // length == -1 means EOF (TUN interface was closed by OS or VPN revoked)

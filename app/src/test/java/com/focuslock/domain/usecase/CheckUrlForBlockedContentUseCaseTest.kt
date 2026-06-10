@@ -21,14 +21,14 @@ class CheckUrlForBlockedContentUseCaseTest {
     }
 
     @Test
-    fun `invoke with blocked keyword in query param returns BLOCKED`() {
+    fun `invoke with blocked keyword in query param returns ALLOWED`() {
         val result = useCase(
             url = "https://google.com/search?q=free+GAMBLING+sites",
             keywords = listOf("gambling"),
             domains = emptyList()
         )
         
-        assertEquals(BlockCheckResult.Blocked("gambling", BlockReason.KEYWORD_MATCH), result)
+        assertEquals(BlockCheckResult.Allowed, result)
     }
 
     @Test

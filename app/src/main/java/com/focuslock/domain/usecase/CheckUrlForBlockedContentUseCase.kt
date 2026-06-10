@@ -15,11 +15,12 @@ class CheckUrlForBlockedContentUseCase @Inject constructor() {
     ): BlockCheckResult {
         if (url.isBlank()) return BlockCheckResult.Allowed
 
-        val lowerUrl = url.lowercase()
+        val uri = try { java.net.URI(if (url.startsWith("http")) url else "https://$url") } catch (_: Exception) { null }
+        val hostAndPath = ((uri?.host ?: "") + (uri?.path ?: "")).lowercase()
         
         // 1. Check Keywords
         for (keyword in keywords) {
-            if (lowerUrl.contains(keyword.lowercase())) {
+            if (NormalizedMatcher.matches(keyword, hostAndPath)) {
                 return BlockCheckResult.Blocked(keyword, BlockReason.KEYWORD_MATCH)
             }
         }

@@ -38,5 +38,11 @@ data class BlockedDomainEntity(
     val matchedKeyword: String? = null,
     
     @ColumnInfo(name = "auto_blocked_at")
-    val autoBlockedAt: Long? = null
+    val autoBlockedAt: Long? = null,
+
+    @ColumnInfo(name = "block_status", defaultValue = "'PERMANENT'")
+    val blockStatus: String = "PERMANENT",  // PERMANENT, TEMPORARY, CLEAN_CACHE
+
+    @ColumnInfo(name = "expires_at")
+    val expiresAt: Long? = null
 )

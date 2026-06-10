@@ -1,0 +1,16 @@
+--- backend/src/app.ts
++++ backend/src/app.ts
+@@ -26,10 +26,13 @@
+ 
+ const otpLimiter = rateLimit({
+   windowMs: 15 * 60 * 1000, // 15 minutes
+-  limit: 5, // Limit each IP to 5 requests per window
++  limit: 5, // Limit to 5 requests per window per IP/Email
+   standardHeaders: true,
+   legacyHeaders: false,
++  keyGenerator: (req) => {
++    return req.body?.email || req.body?.trustedContactEmail || req.ip || "unknown";
++  }
+ });
+ 
+ // Apply general rate limiting

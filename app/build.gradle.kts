@@ -96,6 +96,10 @@ android {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
         }
     }
+
+    testOptions {
+        unitTests.isReturnDefaultValues = true
+    }
 }
 
 ksp {
@@ -138,6 +142,9 @@ dependencies {
 
     implementation("com.squareup.okhttp3:logging-interceptor:4.12.0")
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.2")
+
+    // HTML Parsing
+    implementation("org.jsoup:jsoup:1.17.2")
 
     // WorkManager
     implementation("androidx.work:work-runtime-ktx:2.10.0")

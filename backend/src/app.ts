@@ -22,13 +22,19 @@ const generalLimiter = rateLimit({
   limit: 100, // Limit each IP to 100 requests per window
   standardHeaders: true,
   legacyHeaders: false,
+  validate: { xForwardedForHeader: false, default: false },
 });
 
 const otpLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  limit: 5, // Limit each IP to 5 requests per window
+  limit: 5, // Limit to 5 requests per window per email/IP
   standardHeaders: true,
   legacyHeaders: false,
+  validate: { xForwardedForHeader: false, default: false },
+  keyGenerator: (req) => {
+    const email = req.body?.email || req.body?.trustedContactEmail;
+    return email ? `email:${email}` : req.ip || "unknown";
+  },
 });
 
 // Apply general rate limiting
@@ -52,7 +58,7 @@ app.use("/api", unlockRoutes);
 // Global error handler
 app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
   console.error("Unhandled error:", err);
-  
+
   res.status(500).json({
     message: "Internal server error",
     // Do not leak stack traces in production

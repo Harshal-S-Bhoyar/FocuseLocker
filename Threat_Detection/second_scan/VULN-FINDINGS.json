@@ -1,0 +1,29 @@
+[
+  {
+    "id": "VULN-001",
+    "title": "Unbounded Array Length in Unlock Request Schema (Backend DoS)",
+    "description": "The requestUnlockSchema accepts arrays for `blockedCategories` and `blockedKeywords` without specifying a maximum length. An attacker can send extremely large arrays, causing V8 memory exhaustion during `join(', ')` or payload rejection by the email provider, leading to Denial of Service.",
+    "severity": "High",
+    "confidence": "High",
+    "file": "backend/src/schemas/request.schemas.ts",
+    "type": "Denial of Service (CWE-400)"
+  },
+  {
+    "id": "VULN-002",
+    "title": "Server-Side Request Forgery (SSRF) in MetaDescriptionFetcher",
+    "description": "The SmartScan feature fetches arbitrary URLs provided by the accessibility service. There is no validation to prevent requests to local/private IP addresses (e.g., 127.0.0.1, 192.168.x.x, 10.x.x.x). An attacker could craft a webpage with iframes or redirects to internal services, causing the app to send requests to local network devices.",
+    "severity": "Medium",
+    "confidence": "High",
+    "file": "app/src/main/java/com/focuslock/domain/usecase/MetaDescriptionFetcher.kt",
+    "type": "Server-Side Request Forgery (CWE-918)"
+  },
+  {
+    "id": "VULN-003",
+    "title": "Rate Limiting Bypass via IP Rotation",
+    "description": "The `otpLimiter` in the Express backend restricts requests based on IP address. An attacker can use a proxy pool to rotate IPs and spam a victim's email address with OTP requests, completely bypassing the intended 5 requests/15min limit. It also creates a risk of blocking legitimate users sharing an IP (NAT).",
+    "severity": "Medium",
+    "confidence": "Medium",
+    "file": "backend/src/app.ts",
+    "type": "Improper Rate Limiting (CWE-799)"
+  }
+]

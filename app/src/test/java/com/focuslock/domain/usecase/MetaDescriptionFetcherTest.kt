@@ -1,33 +1,32 @@
 package com.focuslock.domain.usecase
 
-import kotlinx.coroutines.runBlocking
-import org.junit.Assert.assertNotNull
-import org.junit.Assert.assertNull
+import org.junit.Assert.assertEquals
 import org.junit.Test
 
 class MetaDescriptionFetcherTest {
 
     @Test
-    fun `extractDescriptionFromHtml returns content when name precedes content`() {
+    fun `extractSignals extracts meta description`() {
         val fetcher = MetaDescriptionFetcher()
         val html = """<html><head><meta name="description" content="This is a test description"></head></html>"""
-        val result = fetcher.extractDescriptionFromHtml(html)
-        org.junit.Assert.assertEquals("This is a test description", result)
+        val result = fetcher.extractSignals(html)
+        assertEquals("This is a test description", result["meta_description"])
     }
 
     @Test
-    fun `extractDescriptionFromHtml returns content when content precedes name`() {
-        val fetcher = MetaDescriptionFetcher()
-        val html = """<html><head><meta content="This is a test description" name="description"></head></html>"""
-        val result = fetcher.extractDescriptionFromHtml(html)
-        org.junit.Assert.assertEquals("This is a test description", result)
-    }
-
-    @Test
-    fun `extractDescriptionFromHtml returns og description if standard description is missing`() {
+    fun `extractSignals extracts og description`() {
         val fetcher = MetaDescriptionFetcher()
         val html = """<html><head><meta property="og:description" content="OG test description"></head></html>"""
-        val result = fetcher.extractDescriptionFromHtml(html)
-        org.junit.Assert.assertEquals("OG test description", result)
+        val result = fetcher.extractSignals(html)
+        assertEquals("OG test description", result["og_description"])
+    }
+
+    @Test
+    fun `extractSignals extracts page title and body text`() {
+        val fetcher = MetaDescriptionFetcher()
+        val html = """<html><head><title>Page Title</title></head><body><p>Body content</p></body></html>"""
+        val result = fetcher.extractSignals(html)
+        assertEquals("Page Title", result["page_title"])
+        assertEquals("Body content", result["body_text"])
     }
 }

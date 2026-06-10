@@ -96,18 +96,23 @@ class BlockingRepositoryImpl @Inject constructor(
         return domainDao.getAllBlockedDomainListFlow()
     }
 
-    override suspend fun addAutoBlockedDomain(domain: String, keyword: String) {
-        if (domainDao.countByDomain(domain) == 0) {
-            domainDao.insertDomain(
-                BlockedDomainEntity(
-                    domain = domain,
-                    categoryKey = "AUTO_BLOCKED", // We will add this to CategoryKey if needed, but strings work.
-                    isAutoBlocked = true,
-                    matchedKeyword = keyword,
-                    autoBlockedAt = System.currentTimeMillis()
-                )
+    override suspend fun getCachedDomainStatus(domain: String): String? {
+        domainDao.deleteExpiredEntries()
+        return domainDao.findActiveDomain(domain)?.blockStatus
+    }
+
+    override suspend fun addAutoBlockedDomain(domain: String, keyword: String, blockStatus: String, expiresAt: Long?) {
+        domainDao.upsertDomain(
+            BlockedDomainEntity(
+                domain = domain,
+                categoryKey = "AUTO_BLOCKED",
+                isAutoBlocked = true,
+                matchedKeyword = keyword,
+                autoBlockedAt = System.currentTimeMillis(),
+                blockStatus = blockStatus,
+                expiresAt = expiresAt
             )
-        }
+        )
     }
 
     override suspend fun seedDomainDataIfNeeded() {
