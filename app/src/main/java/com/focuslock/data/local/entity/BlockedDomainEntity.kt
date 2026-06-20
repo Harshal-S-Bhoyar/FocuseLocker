@@ -44,5 +44,8 @@ data class BlockedDomainEntity(
     val blockStatus: String = "PERMANENT",  // PERMANENT, TEMPORARY, CLEAN_CACHE
 
     @ColumnInfo(name = "expires_at")
-    val expiresAt: Long? = null
+    val expiresAt: Long? = null,
+
+    @ColumnInfo(name = "source", defaultValue = "NULL")
+    val source: String? = null
 )

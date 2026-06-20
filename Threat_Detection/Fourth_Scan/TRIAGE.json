@@ -1,0 +1,18 @@
+[
+  {
+    "id": "VULN-001",
+    "title": "Unbounded Buffer Read in DnsPacketParser",
+    "status": "VALIDATED",
+    "priority": "P3",
+    "notes": "Low risk as the exception would merely drop the packet and be caught by the general Exception handler in the packet loop, but should be fixed for stability.",
+    "remediation": "Add buffer size checks before extracting UDP payload and DNS domains."
+  },
+  {
+    "id": "VULN-002",
+    "title": "Missing Intent Action Validation",
+    "status": "FALSE_POSITIVE",
+    "priority": "P4",
+    "notes": "FocusDeviceAdminReceiver inherits from DeviceAdminReceiver which inherently validates system actions (like ACTION_DEVICE_ADMIN_DISABLE_REQUESTED). Intents must come from the system.",
+    "remediation": "None required."
+  }
+]

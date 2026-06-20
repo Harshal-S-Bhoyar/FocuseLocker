@@ -9,8 +9,6 @@ jest.mock("../src/services/otp.service");
 jest.mock("../src/services/email.service");
 
 describe("Contact Routes", () => {
-  const email = "test@example.com";
-
   beforeEach(() => {
     jest.clearAllMocks();
   });
@@ -23,6 +21,7 @@ describe("Contact Routes", () => {
     it("should return 400 for invalid email", async () => {
       const res = await request(app)
         .post("/api/verify-contact")
+        .set("X-Forwarded-For", "11.0.0.1")
         .send({ email: "invalid-email" }); 
 
       expect(res.status).toBe(400);
@@ -32,9 +31,11 @@ describe("Contact Routes", () => {
     it("should return 200 on success", async () => {
       (otpService.generateAndStore as jest.Mock).mockResolvedValue("123456");
       (emailService.sendVerificationOtp as jest.Mock).mockResolvedValue(true);
+      const email = "test2@example.com";
 
       const res = await request(app)
         .post("/api/verify-contact")
+        .set("X-Forwarded-For", "11.0.0.2")
         .send({ email: email });
 
       expect(res.status).toBe(200);
@@ -46,9 +47,11 @@ describe("Contact Routes", () => {
     it("should return 500 if Email fails", async () => {
       (otpService.generateAndStore as jest.Mock).mockResolvedValue("123456");
       (emailService.sendVerificationOtp as jest.Mock).mockResolvedValue(false); // Fails
+      const email = "test3@example.com";
 
       const res = await request(app)
         .post("/api/verify-contact")
+        .set("X-Forwarded-For", "11.0.0.3")
         .send({ email: email });
 
       expect(res.status).toBe(500);
@@ -58,8 +61,10 @@ describe("Contact Routes", () => {
 
   describe("POST /api/confirm-contact", () => {
     it("should return 400 for invalid OTP length", async () => {
+      const email = "test4@example.com";
       const res = await request(app)
         .post("/api/confirm-contact")
+        .set("X-Forwarded-For", "11.0.0.4")
         .send({ email: email, otp: "123" });
 
       expect(res.status).toBe(400);
@@ -67,9 +72,11 @@ describe("Contact Routes", () => {
 
     it("should return 200 when OTP is valid", async () => {
       (otpService.verify as jest.Mock).mockResolvedValue({ valid: true });
+      const email = "test5@example.com";
 
       const res = await request(app)
         .post("/api/confirm-contact")
+        .set("X-Forwarded-For", "11.0.0.5")
         .send({ email: email, otp: "123456" });
 
       expect(res.status).toBe(200);
@@ -79,9 +86,11 @@ describe("Contact Routes", () => {
 
     it("should return 400 when OTP is invalid", async () => {
       (otpService.verify as jest.Mock).mockResolvedValue({ valid: false, reason: "invalid" });
+      const email = "test6@example.com";
 
       const res = await request(app)
         .post("/api/confirm-contact")
+        .set("X-Forwarded-For", "11.0.0.6")
         .send({ email: email, otp: "123456" });
 
       expect(res.status).toBe(400);

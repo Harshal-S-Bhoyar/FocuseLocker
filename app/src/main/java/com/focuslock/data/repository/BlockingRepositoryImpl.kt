@@ -16,6 +16,8 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.Dispatchers
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -85,7 +87,7 @@ class BlockingRepositoryImpl @Inject constructor(
     // ── Domains ───────────────────────────────────────────────────────────────
 
     override suspend fun getActiveBlockedDomains(): List<String> {
-        return domainDao.getActiveBlockedDomainList()
+        return domainDao.getActiveBlockedDomainList(System.currentTimeMillis())
     }
 
     override suspend fun getAllBlockedDomains(): List<String> {
@@ -96,12 +98,11 @@ class BlockingRepositoryImpl @Inject constructor(
         return domainDao.getAllBlockedDomainListFlow()
     }
 
-    override suspend fun getCachedDomainStatus(domain: String): String? {
-        domainDao.deleteExpiredEntries()
-        return domainDao.findActiveDomain(domain)?.blockStatus
+    override suspend fun getCachedDomainStatus(domain: String): String? = withContext(Dispatchers.IO) {
+        return@withContext domainDao.findActiveDomain(domain)?.blockStatus
     }
 
-    override suspend fun addAutoBlockedDomain(domain: String, keyword: String, blockStatus: String, expiresAt: Long?) {
+    override suspend fun addAutoBlockedDomain(domain: String, keyword: String, blockStatus: String, expiresAt: Long?) = withContext(Dispatchers.IO) {
         domainDao.upsertDomain(
             BlockedDomainEntity(
                 domain = domain,
@@ -131,6 +132,8 @@ class BlockingRepositoryImpl @Inject constructor(
 
         // Seed domains from bundled JSON
         loadDomainsFromAssets()
+        // Seed domains from bundled StevenBlack hosts file
+        loadHostsFromAssets()
     }
 
     private suspend fun loadDomainsFromAssets() {
@@ -149,6 +152,21 @@ class BlockingRepositoryImpl @Inject constructor(
             }
         } catch (e: Exception) {
             // Assets file missing — app still works with keyword-only blocking
+        }
+    }
+
+    private suspend fun loadHostsFromAssets() {
+        try {
+            val raw = context.assets.open("hosts.txt")
+                .bufferedReader()
+                .use { it.readText() }
+            
+            val entities = com.focuslock.data.parser.StevenBlackParser.parseHostsFile(raw, CategoryKey.GENERAL)
+            entities.chunked(1000).forEach { batch ->
+                domainDao.insertDomains(batch)
+            }
+        } catch (e: Exception) {
+            // hosts.txt missing
         }
     }
 

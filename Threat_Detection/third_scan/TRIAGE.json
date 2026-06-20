@@ -1,0 +1,24 @@
+[
+  {
+    "id": "VULN-001",
+    "status": "true_positive",
+    "title": "Server-Side Request Forgery (SSRF) via DNS Rebinding",
+    "severity": "High",
+    "preconditions": "Attacker must convince the user to visit an attacker-controlled domain in a supported browser.",
+    "attack_path": "User visits attacker.com -> FocusLocker intercepts URL and extracts domain -> FocusLocker's SmartScanUseCase attempts to fetch meta description -> attacker.com DNS returns public IP during validation -> URL.openConnection() resolves DNS again and attacker returns private IP (e.g., 127.0.0.1) -> FocusLocker fetches sensitive internal services on the local network.",
+    "impact": "Exposes local or private network services to an attacker.",
+    "root_cause_location": "app/src/main/java/com/focuslock/domain/usecase/MetaDescriptionFetcher.kt",
+    "remediation": "Disable DNS resolution entirely during validation, or use a custom SocketFactory/HostnameVerifier that pins the validated IP address for the HTTP connection, preventing the secondary DNS lookup."
+  },
+  {
+    "id": "VULN-002",
+    "status": "true_positive",
+    "title": "Rate Limiting Bypass on OTP Endpoints via Variable Emails",
+    "severity": "High",
+    "preconditions": "Attacker can send POST requests to the backend API.",
+    "attack_path": "Attacker writes a script to repeatedly POST to /api/verify-contact with a different email (e.g., test1@example.com, test2@example.com). The rate limiter keys off the email instead of the IP, treating each as a new client and never triggering the block.",
+    "impact": "Exhausts the email sending quotas and causes Denial of Service (DoS) and potential financial loss.",
+    "root_cause_location": "backend/src/app.ts",
+    "remediation": "Implement a strict IP-based rate limiter for the OTP endpoint that cannot be bypassed, or limit the number of OTP requests per IP globally alongside the email limiter."
+  }
+]

@@ -37,9 +37,9 @@ class TimerSetupViewModelTest {
     }
 
     @Test
-    fun `initial state is valid with 15 minutes`() {
+    fun `initial state is valid with 1 minutes`() {
         assertEquals(0, viewModel.hours.value)
-        assertEquals(15, viewModel.minutes.value)
+        assertEquals(1, viewModel.minutes.value)
         assertTrue(viewModel.isValid())
     }
 
@@ -55,9 +55,9 @@ class TimerSetupViewModelTest {
     }
 
     @Test
-    fun `duration less than 15 minutes is invalid`() {
+    fun `duration less than 1 minute is invalid`() {
         viewModel.updateHours(0)
-        viewModel.updateMinutes(10)
+        viewModel.updateMinutes(0)
         
         assertFalse(viewModel.isValid())
     }

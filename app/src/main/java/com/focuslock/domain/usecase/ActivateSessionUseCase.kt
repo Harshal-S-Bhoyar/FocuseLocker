@@ -21,7 +21,7 @@ class ActivateSessionUseCase @Inject constructor(
 ) {
     suspend operator fun invoke(durationMillis: Long): Result<Long> {
         if (durationMillis !in MIN_DURATION_MILLIS..MAX_DURATION_MILLIS) {
-            return Result.failure(IllegalArgumentException("Session duration must be between 15 minutes and 72 hours."))
+            return Result.failure(IllegalArgumentException("Session duration must be between 1 minute and 72 hours."))
         }
 
         // Clean up any expired session first.
@@ -55,7 +55,7 @@ class ActivateSessionUseCase @Inject constructor(
     }
 
     private companion object {
-        const val MIN_DURATION_MILLIS = 15 * 60 * 1000L
+        const val MIN_DURATION_MILLIS = 1 * 60 * 1000L
         const val MAX_DURATION_MILLIS = 72 * 60 * 60 * 1000L
     }
 }

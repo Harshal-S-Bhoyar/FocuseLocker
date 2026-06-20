@@ -13,6 +13,7 @@ import com.focuslock.R
 import com.focuslock.di.BlockingServiceEntryPoint
 import com.focuslock.domain.repository.SessionRepository
 import com.focuslock.domain.usecase.GetActiveBlockedDomainsUseCase
+import com.focuslock.domain.usecase.GetAllBlockedDomainsFlowUseCase
 import dagger.hilt.android.EntryPointAccessors
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -24,29 +25,35 @@ import kotlinx.coroutines.launch
 
 class FocusVpnService : VpnService() {
 
-    private val TAG = "FocusVpnService"
+    private val TAG = "SVC_VPN"
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     
     private var vpnInterface: ParcelFileDescriptor? = null
     private var packetLoopJob: Job? = null
     private var sessionMonitorJob: Job? = null
-    
+    private var domainObserverJob: Job? = null
+
     private lateinit var getActiveBlockedDomainsUseCase: GetActiveBlockedDomainsUseCase
+    private lateinit var getAllBlockedDomainsFlowUseCase: GetAllBlockedDomainsFlowUseCase
     private lateinit var sessionRepository: SessionRepository
+
+    @Volatile
+    private var activeDomains: HashSet<String> = HashSet()
     
-    // HashSet gives O(1) lookup — previously was mutableSetOf which could be slow
-    // This matters because isDomainBlocked() is called on EVERY DNS packet
-    private val activeDomains = HashSet<String>()
-    private val dnsConfig = DnsConfig.DEFAULT
+    private lateinit var dnsConfig: DnsConfig
+    private lateinit var okHttpClient: okhttp3.OkHttpClient
 
     override fun onCreate() {
         super.onCreate()
+        dnsConfig = DnsConfig.fromContext(this)
         val entryPoint = EntryPointAccessors.fromApplication(
             applicationContext,
             BlockingServiceEntryPoint::class.java
         )
         getActiveBlockedDomainsUseCase = entryPoint.getActiveBlockedDomainsUseCase()
+        getAllBlockedDomainsFlowUseCase = entryPoint.getAllBlockedDomainsFlowUseCase()
         sessionRepository = entryPoint.sessionRepository()
+        okHttpClient = entryPoint.okHttpClient()
         
         createNotificationChannel()
     }
@@ -58,12 +65,21 @@ class FocusVpnService : VpnService() {
         startForeground(NOTIFICATION_ID, notification)
         
         serviceScope.launch {
-            // Load blocked domains into memory for O(1) lookup
-            val domains = getActiveBlockedDomainsUseCase()
-            activeDomains.clear()
-            // Store lowercase for O(1) case-insensitive lookup in isDomainBlocked()
-            activeDomains.addAll(domains.map { it.lowercase() })
-            
+            // Eager initial load — fills activeDomains before VPN starts to prevent race condition
+            // where packets arrive before first Flow emission from Room.
+            val initialDomains = getActiveBlockedDomainsUseCase()
+            activeDomains = HashSet(initialDomains.map { it.lowercase() })
+            Timber.tag(TAG).d("VPN Blocklist initial load: ${activeDomains.size} domains")
+
+            // Live observer — picks up category toggles, auto-blocks, new seeds without restart.
+            domainObserverJob?.cancel()
+            domainObserverJob = launch {
+                getAllBlockedDomainsFlowUseCase().collectLatest { domains ->
+                    activeDomains = HashSet(domains.map { it.lowercase() })
+                    Timber.tag(TAG).d("VPN Blocklist updated: ${activeDomains.size} domains active")
+                }
+            }
+
             // Monitor session status
             sessionMonitorJob?.cancel()
             sessionMonitorJob = launch {
@@ -73,7 +89,7 @@ class FocusVpnService : VpnService() {
                     }
                 }
             }
-            
+
             startVpn()
         }
         
@@ -85,32 +101,42 @@ class FocusVpnService : VpnService() {
         
         try {
             val builder = Builder()
-            builder.addAddress("10.0.0.2", 32)
-            // Only DNS is routed through the TUN. Routing all traffic would require
-            // a userspace TCP/IP stack and would otherwise drop normal internet access.
-            dnsConfig.resolvers.forEach { resolver ->
-                builder.addRoute(resolver, 32)
-            }
-            builder.addDnsServer(dnsConfig.primaryResolver)
+            builder.addAddress(dnsConfig.virtualIpv4, 32)
+            builder.addAddress(dnsConfig.virtualIpv6, 128)
+            
+            val dnsIpv4 = "10.0.0.3"
+            val dnsIpv6 = "fd00:1:fd00:1:fd00:1:fd00:2"
+            
+            // Route only the virtual DNS IPs into the TUN.
+            // All other traffic, including DoH to NextDNS, goes over the physical network.
+            builder.addRoute(dnsIpv4, 32)
+            builder.addRoute(dnsIpv6, 128)
+            
+            builder.addDnsServer(dnsIpv4)
+            builder.addDnsServer(dnsIpv6)
             builder.setSession("FocusLock VPN")
             builder.setMtu(1500)
             
             vpnInterface = builder.establish()
             
             vpnInterface?.let { activeInterface ->
-                Timber.tag(TAG).d("TUN interface established")
+                Timber.tag(TAG).d("TUN interface established — DNS captured locally and forwarded via DoH")
                 packetLoopJob = serviceScope.launch {
+                    val dohClient = okHttpClient.newBuilder()
+                        .dns(BootstrapDns(this@FocusVpnService))
+                        .socketFactory(ProtectedSocketFactory(this@FocusVpnService))
+                        .connectTimeout(5, java.util.concurrent.TimeUnit.SECONDS)
+                        .readTimeout(5, java.util.concurrent.TimeUnit.SECONDS)
+                        .cache(null)
+                        .build()
+
                     val packetLoop = VpnPacketLoop(
-                        this@FocusVpnService,
-                        activeInterface,
+                        vpnService = this@FocusVpnService,
+                        vpnInterface = activeInterface,
                         dnsConfig = dnsConfig,
+                        okHttpClient = dohClient,
                         isDomainBlocked = { domain ->
-                            // O(1) HashSet lookup instead of O(n) linear scan
-                            // First check exact match, then check if it's a subdomain of a blocked domain
-                            activeDomains.contains(domain.lowercase()) ||
-                                domain.contains('.') && activeDomains.contains(
-                                    domain.substringAfter('.').lowercase()
-                                )
+                            isDomainOrParentBlocked(domain)
                         }
                     )
                     packetLoop.runLoop()
@@ -126,9 +152,28 @@ class FocusVpnService : VpnService() {
     private fun stopVpn() {
         packetLoopJob?.cancel()
         sessionMonitorJob?.cancel()
+        domainObserverJob?.cancel()
         vpnInterface?.close()
         vpnInterface = null
         stopSelf()
+    }
+
+    internal fun isDomainOrParentBlocked(domain: String): Boolean {
+        val currentDomains = activeDomains // Grab volatile reference
+        var blocked = false
+        var currentDomain = domain.lowercase()
+        
+        // Recursive subdomain check
+        while (currentDomain.isNotEmpty()) {
+            if (currentDomains.contains(currentDomain)) {
+                blocked = true
+                break
+            }
+            val dotIndex = currentDomain.indexOf('.')
+            if (dotIndex == -1) break
+            currentDomain = currentDomain.substring(dotIndex + 1)
+        }
+        return blocked
     }
 
     override fun onDestroy() {

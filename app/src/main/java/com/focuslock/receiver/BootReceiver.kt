@@ -26,7 +26,7 @@ import javax.inject.Inject
 class BootReceiver : BroadcastReceiver() {
 
     companion object {
-        private const val TAG = "BootReceiver"
+        private const val TAG = "RCV_BOOT"
     }
 
     @Inject

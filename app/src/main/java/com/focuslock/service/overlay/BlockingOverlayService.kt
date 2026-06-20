@@ -45,7 +45,7 @@ class BlockingOverlayService : Service(), LifecycleOwner, ViewModelStoreOwner, S
         const val ACTION_HIDE_OVERLAY = OverlayContract.ACTION_HIDE_OVERLAY
         private const val NOTIFICATION_ID = 1002
         private const val CHANNEL_ID = "blocking_overlay_channel"
-        private const val TAG = "BlockingOverlayService"
+        private const val TAG = "SVC_OVERLAY"
     }
 
     private lateinit var windowManager: WindowManager

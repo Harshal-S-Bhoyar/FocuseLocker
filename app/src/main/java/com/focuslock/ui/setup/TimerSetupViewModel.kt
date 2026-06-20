@@ -12,7 +12,7 @@ import javax.inject.Inject
 
 /**
  * ViewModel for the TimerSetupScreen.
- * Manages the duration logic and validation (minimum 15 mins, maximum 72 hours).
+ * Manages the duration logic and validation (minimum 1 min, maximum 72 hours).
  */
 @HiltViewModel
 class TimerSetupViewModel @Inject constructor(
@@ -22,7 +22,7 @@ class TimerSetupViewModel @Inject constructor(
     private val _hours = MutableStateFlow(0)
     val hours: StateFlow<Int> = _hours.asStateFlow()
 
-    private val _minutes = MutableStateFlow(15)
+    private val _minutes = MutableStateFlow(1)
     val minutes: StateFlow<Int> = _minutes.asStateFlow()
 
     private val _hasVerifiedContact = MutableStateFlow(false)
@@ -48,8 +48,8 @@ class TimerSetupViewModel @Inject constructor(
     
     fun getDurationMillis(): Long {
         val totalMinutes = (_hours.value * 60) + _minutes.value
-        // Enforce 15 min minimum
-        val validMinutes = totalMinutes.coerceAtLeast(15)
+        // Enforce 1 min minimum
+        val validMinutes = totalMinutes.coerceAtLeast(1)
         // Enforce 72 hours maximum
         val boundedMinutes = validMinutes.coerceAtMost(72 * 60)
         return boundedMinutes * 60 * 1000L
@@ -57,6 +57,6 @@ class TimerSetupViewModel @Inject constructor(
     
     fun isValid(): Boolean {
         val totalMinutes = (_hours.value * 60) + _minutes.value
-        return totalMinutes in 15..(72 * 60)
+        return totalMinutes in 1..(72 * 60)
     }
 }

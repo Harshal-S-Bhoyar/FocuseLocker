@@ -22,6 +22,7 @@ class RequestUnlockUseCase @Inject constructor(
         val requestId: Long = try {
             unlockRepository.createRequest(sessionId)
         } catch (e: Exception) {
+            timber.log.Timber.e(e, "Failed to record unlock request in local database")
             return@withContext Result.failure(
                 Exception("Failed to record unlock request in local database: ${e.message}", e)
             )
@@ -48,11 +49,13 @@ class RequestUnlockUseCase @Inject constructor(
                 )
             }
         } catch (e: Exception) {
+            timber.log.Timber.e(e, "Network exception during request unlock")
             // Step 3c: Network exception (connection refused, timeout, etc.).
             // requestId is guaranteed non-null here — safe to update.
             try {
                 unlockRepository.updateStatus(requestId, UnlockRequestStatus.FAILED)
             } catch (cleanupError: Exception) {
+                timber.log.Timber.e(cleanupError, "Error updating status during cleanup")
                 // Log only — original exception is what the caller needs.
             }
             Result.failure(Exception("Network error sending OTP: ${e.message}", e))

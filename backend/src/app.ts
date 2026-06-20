@@ -6,6 +6,7 @@ import contactRoutes from "./routes/contact.routes";
 import unlockRoutes from "./routes/unlock.routes";
 
 const app = express();
+app.set("trust proxy", 1);
 
 // Security headers
 app.use(helmet());
@@ -25,15 +26,25 @@ const generalLimiter = rateLimit({
   validate: { xForwardedForHeader: false, default: false },
 });
 
-const otpLimiter = rateLimit({
+const otpIpLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  limit: 5, // Limit to 5 requests per window per email/IP
+  limit: 5, // Limit to 5 requests per window per IP
   standardHeaders: true,
   legacyHeaders: false,
   validate: { xForwardedForHeader: false, default: false },
+  keyGenerator: (req) => req.ip || "unknown",
+});
+
+const otpEmailLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  limit: 5, // Limit to 5 requests per window per email
+  standardHeaders: true,
+  legacyHeaders: false,
+  validate: { xForwardedForHeader: false, default: false },
+  skip: (req) => !(req.body?.email || req.body?.trustedContactEmail),
   keyGenerator: (req) => {
     const email = req.body?.email || req.body?.trustedContactEmail;
-    return email ? `email:${email}` : req.ip || "unknown";
+    return `email:${email}`;
   },
 });
 
@@ -41,10 +52,11 @@ const otpLimiter = rateLimit({
 app.use("/api", generalLimiter);
 
 // Apply strict rate limit on OTP-generating endpoints BEFORE mounting routes
-app.use("/api/verify-contact", otpLimiter);
-app.use("/api/confirm-contact", otpLimiter);
-app.use("/api/request-unlock", otpLimiter);
-app.use("/api/verify-unlock-otp", otpLimiter);
+const otpLimiters = [otpIpLimiter, otpEmailLimiter];
+app.use("/api/verify-contact", ...otpLimiters);
+app.use("/api/confirm-contact", ...otpLimiters);
+app.use("/api/request-unlock", ...otpLimiters);
+app.use("/api/verify-unlock-otp", ...otpLimiters);
 
 // Health check
 app.get("/health", (req: Request, res: Response) => {

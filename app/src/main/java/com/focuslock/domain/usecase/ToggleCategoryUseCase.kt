@@ -14,6 +14,7 @@ class ToggleCategoryUseCase @Inject constructor(
             blockingRepository.setCategoryActive(categoryKey, isActive)
             Result.success(Unit)
         } catch (e: Exception) {
+            timber.log.Timber.e(e, "Failed to toggle category")
             Result.failure(e)
         }
     }

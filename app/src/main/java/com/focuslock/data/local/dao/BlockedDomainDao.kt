@@ -13,22 +13,41 @@ interface BlockedDomainDao {
     @Query("""
         SELECT bd.* FROM blocked_domains bd
         INNER JOIN blocked_categories bc ON bd.category_key = bc.category_key
-        WHERE bc.is_active = 1
+        WHERE bc.is_active = 1 
+          AND (bd.block_status IS NULL OR bd.block_status = 'PERMANENT')
+          AND (bd.expires_at IS NULL OR bd.expires_at > :now)
     """)
-    fun getActiveBlockedDomains(): Flow<List<BlockedDomainEntity>>
+    fun getActiveBlockedDomains(now: Long = System.currentTimeMillis()): Flow<List<BlockedDomainEntity>>
     
     @Query("""
-        SELECT bd.domain FROM blocked_domains bd
+        SELECT DISTINCT bd.domain 
+        FROM blocked_domains bd
         INNER JOIN blocked_categories bc ON bd.category_key = bc.category_key
-        WHERE bc.is_active = 1
+        WHERE bc.is_active = 1 
+          AND (bd.block_status IS NULL OR bd.block_status = 'PERMANENT')
+          AND (bd.expires_at IS NULL OR bd.expires_at > :now)
     """)
-    suspend fun getActiveBlockedDomainList(): List<String>
+    suspend fun getActiveBlockedDomainList(now: Long = System.currentTimeMillis()): List<String>
     
-    @Query("SELECT DISTINCT domain FROM blocked_domains WHERE block_status IS NULL OR block_status != 'CLEAN_CACHE'")
-    suspend fun getAllBlockedDomainList(): List<String>
+    @Query("""
+        SELECT DISTINCT bd.domain 
+        FROM blocked_domains bd
+        INNER JOIN blocked_categories bc ON bd.category_key = bc.category_key
+        WHERE bc.is_active = 1 
+          AND (bd.block_status IS NULL OR bd.block_status = 'PERMANENT')
+          AND (bd.expires_at IS NULL OR bd.expires_at > :now)
+    """)
+    suspend fun getAllBlockedDomainList(now: Long = System.currentTimeMillis()): List<String>
     
-    @Query("SELECT DISTINCT domain FROM blocked_domains WHERE block_status IS NULL OR block_status != 'CLEAN_CACHE'")
-    fun getAllBlockedDomainListFlow(): Flow<List<String>>
+    @Query("""
+        SELECT DISTINCT bd.domain 
+        FROM blocked_domains bd
+        INNER JOIN blocked_categories bc ON bd.category_key = bc.category_key
+        WHERE bc.is_active = 1 
+          AND (bd.block_status IS NULL OR bd.block_status = 'PERMANENT')
+          AND (bd.expires_at IS NULL OR bd.expires_at > :now)
+    """)
+    fun getAllBlockedDomainListFlow(now: Long = System.currentTimeMillis()): Flow<List<String>>
     
     @Query("SELECT * FROM blocked_domains WHERE category_key = :categoryKey")
     fun getDomainsByCategory(categoryKey: String): Flow<List<BlockedDomainEntity>>

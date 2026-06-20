@@ -14,6 +14,7 @@ class RemoveKeywordUseCase @Inject constructor(
             blockingRepository.removeKeyword(keywordId)
             Result.success(Unit)
         } catch (e: Exception) {
+            timber.log.Timber.e(e, "Error removing keyword")
             Result.failure(e)
         }
     }

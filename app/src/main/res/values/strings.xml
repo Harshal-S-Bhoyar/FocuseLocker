@@ -94,7 +94,7 @@
     <string name="timer_review">Review &amp; Lock In</string>
     <string name="timer_hours">Hours</string>
     <string name="timer_minutes">Minutes</string>
-    <string name="timer_invalid">Timer must be between 15 minutes and 72 hours.</string>
+    <string name="timer_invalid">Timer must be between 1 minute and 72 hours.</string>
     <string name="number_picker_increase">Increase %1$s</string>
     <string name="number_picker_decrease">Decrease %1$s</string>
     <string name="session_confirmation_title">Confirm Session</string>

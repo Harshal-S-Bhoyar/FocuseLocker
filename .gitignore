@@ -56,3 +56,9 @@ otp_architecture.md
 test_memory.js
 test_mcp.js
 *.bin
+.antigravity
+.understand-anything
+logs
+*.txt
+log
+device logs

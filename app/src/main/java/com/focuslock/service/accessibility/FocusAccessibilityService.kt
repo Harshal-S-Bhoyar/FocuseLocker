@@ -23,6 +23,8 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.selects.select
+import kotlinx.coroutines.async
 import java.util.concurrent.atomic.AtomicReference
 
 /**
@@ -33,7 +35,7 @@ import java.util.concurrent.atomic.AtomicReference
 class FocusAccessibilityService : AccessibilityService() {
 
     companion object {
-        private const val TAG = "FocusAccessibility"
+        private const val TAG = "SVC_ACCESSIBILITY"
         
         // List of supported browser package names
         private val SUPPORTED_BROWSERS = setOf(
@@ -71,6 +73,8 @@ class FocusAccessibilityService : AccessibilityService() {
     private lateinit var getAllBlockedDomainsFlowUseCase: GetAllBlockedDomainsFlowUseCase
     private lateinit var sessionRepository: SessionRepository
     private lateinit var smartScanUseCase: com.focuslock.domain.usecase.SmartScanUseCase
+    private lateinit var dohQueryUseCase: com.focuslock.domain.usecase.DoHQueryUseCase
+    private lateinit var keywordScanner: com.focuslock.domain.usecase.KeywordScanner
 
     /**
      * Called when the accessibility service is connected and ready.
@@ -90,6 +94,8 @@ class FocusAccessibilityService : AccessibilityService() {
         getAllBlockedDomainsFlowUseCase = entryPoint.getAllBlockedDomainsFlowUseCase()
         sessionRepository = entryPoint.sessionRepository()
         smartScanUseCase = entryPoint.smartScanUseCase()
+        dohQueryUseCase = entryPoint.dohQueryUseCase()
+        keywordScanner = entryPoint.keywordScanner()
 
         // Observe active session
         serviceScope.launch {
@@ -113,6 +119,7 @@ class FocusAccessibilityService : AccessibilityService() {
         serviceScope.launch {
             getActiveKeywordsUseCase().collect { keywords ->
                 activeKeywords.set(keywords)
+                keywordScanner.rebuild(keywords)
             }
         }
     }
@@ -211,22 +218,54 @@ class FocusAccessibilityService : AccessibilityService() {
             } else {
                 stopService(Intent(this, BlockingOverlayService::class.java))
                 
-                // Smart Scan for dynamic blocking (runs asynchronously)
+                // Smart Scan and DoH for dynamic blocking (runs asynchronously)
                 pendingSmartScanJob?.cancel()
                 pendingSmartScanJob = serviceScope.launch {
-                    val result = smartScanUseCase(url, activeKeywords.get())
-                    withContext(Dispatchers.Main) {
-                        when (result) {
-                            is com.focuslock.domain.model.SmartScanResult.Blocked -> {
+                    val dohJob = async { dohQueryUseCase.checkAndCacheDoH(url) }
+                    val metaJob = async { smartScanUseCase(url, activeKeywords.get()) }
+
+                    val blockedResult = select<Pair<String, String>?> {
+                        dohJob.onAwait { dohResult ->
+                            if (dohResult is com.focuslock.domain.model.DoHResult.Blocked) {
+                                metaJob.cancel()
+                                Pair("category_block", "NEXTDNS_DOH")
+                            } else {
+                                null
+                            }
+                        }
+                        metaJob.onAwait { result ->
+                            if (result is com.focuslock.domain.model.SmartScanResult.Blocked) {
+                                dohJob.cancel()
+                                Pair(result.keyword, "AUTO_BLOCKED: ${result.signal}")
+                            } else {
+                                null
+                            }
+                        }
+                    }
+
+                    if (blockedResult != null) {
+                        withContext(Dispatchers.Main) {
+                            performGlobalAction(GLOBAL_ACTION_BACK)
+                            launchOverlayService(blockedResult.first, blockedResult.second)
+                        }
+                        return@launch
+                    }
+
+                    // If the first one finished cleanly, we need to wait for the other one
+                    if (dohJob.isActive) {
+                        val dohResult = dohJob.await()
+                        if (dohResult is com.focuslock.domain.model.DoHResult.Blocked) {
+                            withContext(Dispatchers.Main) {
+                                performGlobalAction(GLOBAL_ACTION_BACK)
+                                launchOverlayService("category_block", "NEXTDNS_DOH")
+                            }
+                        }
+                    } else if (metaJob.isActive) {
+                        val result = metaJob.await()
+                        if (result is com.focuslock.domain.model.SmartScanResult.Blocked) {
+                            withContext(Dispatchers.Main) {
                                 performGlobalAction(GLOBAL_ACTION_BACK)
                                 launchOverlayService(result.keyword, "AUTO_BLOCKED: ${result.signal}")
-                            }
-                            is com.focuslock.domain.model.SmartScanResult.FetchFailed -> {
-                                // Meta fetch failed — allow the page through.
-                                // Only block when keywords are positively matched.
-                            }
-                            is com.focuslock.domain.model.SmartScanResult.Clean -> {
-                                // No action needed
                             }
                         }
                     }

@@ -18,4 +18,7 @@ interface BlockingServiceEntryPoint {
     fun getAllBlockedDomainsFlowUseCase(): GetAllBlockedDomainsFlowUseCase
     fun sessionRepository(): SessionRepository
     fun smartScanUseCase(): com.focuslock.domain.usecase.SmartScanUseCase
+    fun dohQueryUseCase(): com.focuslock.domain.usecase.DoHQueryUseCase
+    fun keywordScanner(): com.focuslock.domain.usecase.KeywordScanner
+    fun okHttpClient(): okhttp3.OkHttpClient
 }

@@ -22,7 +22,7 @@ import javax.inject.Inject
 class FocusDeviceAdminReceiver : DeviceAdminReceiver() {
 
     companion object {
-        private const val TAG = "FocusDeviceAdmin"
+        private const val TAG = "RCV_ADMIN"
     }
 
     @Inject

@@ -165,6 +165,7 @@ fun ActiveSessionScreen(
                                         val intent = android.content.Intent(android.provider.Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS)
                                         context.startActivity(intent)
                                     } catch (e2: Exception) {
+                                        timber.log.Timber.e(e2, "Failed to open battery optimization settings")
                                         // Ignore
                                     }
                                 }
