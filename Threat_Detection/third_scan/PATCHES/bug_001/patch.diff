@@ -1,0 +1,41 @@
+--- app/src/main/java/com/focuslock/domain/usecase/MetaDescriptionFetcher.kt
++++ app/src/main/java/com/focuslock/domain/usecase/MetaDescriptionFetcher.kt
+@@ -55,12 +55,15 @@
+             try {
+                 return@withContext withTimeout(4000L) {
+                     val url = URL(if (urlStr.startsWith("http")) urlStr else "https://$urlStr")
+-                    if (isPrivateHost(url.host)) {
++                    val addr = try { InetAddress.getByName(url.host) } catch (e: Exception) { throw Exception("DNS resolution failed") }
++                    if (isPrivateHost(addr)) {
+                         throw Exception("Blocked: private address")
+                     }
+-                    connection = url.openConnection() as HttpURLConnection
++                    val safeUrl = URL(url.protocol, addr.hostAddress, url.port, url.file)
++                    connection = safeUrl.openConnection() as HttpURLConnection
+                     connection!!.connectTimeout = 3000
+                     connection!!.readTimeout = 3000
+                     connection!!.requestMethod = "GET"
+                     connection!!.setRequestProperty("User-Agent", "Mozilla/5.0")
++                    connection!!.setRequestProperty("Host", url.host)
+ 
+                     if (connection!!.responseCode != HttpURLConnection.HTTP_OK) {
+@@ -111,13 +114,9 @@
+         }
+     }
+ 
+-    private fun isPrivateHost(host: String): Boolean {
+-        return try {
+-            val addr = InetAddress.getByName(host)
+-            addr.isLoopbackAddress ||
+-                addr.isSiteLocalAddress ||
+-                addr.isLinkLocalAddress ||
+-                addr.isAnyLocalAddress
+-        } catch (e: Exception) {
+-            false
+-        }
++    private fun isPrivateHost(addr: InetAddress): Boolean {
++        return addr.isLoopbackAddress ||
++               addr.isSiteLocalAddress ||
++               addr.isLinkLocalAddress ||
++               addr.isAnyLocalAddress
+     }

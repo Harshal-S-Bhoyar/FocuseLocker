@@ -30,6 +30,7 @@ class StartEmergencyBypassUseCase @Inject constructor(
             
             Result.success(Unit)
         } catch (e: Exception) {
+            timber.log.Timber.e(e, "Error starting emergency bypass")
             Result.failure(e)
         }
     }

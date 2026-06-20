@@ -36,6 +36,7 @@ class VerifyContactOtpUseCase @Inject constructor(
         } catch (e: retrofit2.HttpException) {
             VerifyOtpResult.Error("Server error (${e.code()}). Verification failed.")
         } catch (e: Exception) {
+            timber.log.Timber.e(e, "Error verifying contact OTP")
             VerifyOtpResult.Error("An unexpected error occurred.")
         }
     }

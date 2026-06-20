@@ -1,0 +1,16 @@
+[
+  {
+    "id": "VULN-001",
+    "title": "Unbounded Buffer Read in DnsPacketParser",
+    "description": "If a malformed IPv6 packet declares a payload length greater than the actual buffer, DnsPacketParser may throw an IndexOutOfBoundsException if not explicitly checked against buffer limits.",
+    "severity": "Low",
+    "location": "app/src/main/java/com/focuslock/service/vpn/DnsPacketParser.kt"
+  },
+  {
+    "id": "VULN-002",
+    "title": "Missing Intent Action Validation",
+    "description": "Certain broadcast receivers or services may not strictly validate the incoming Intent Action, potentially leading to unauthorized component activation.",
+    "severity": "Low",
+    "location": "app/src/main/java/com/focuslock/service/admin/FocusDeviceAdminReceiver.kt"
+  }
+]

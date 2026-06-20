@@ -4,34 +4,32 @@ import android.net.VpnService
 import android.os.ParcelFileDescriptor
 import timber.log.Timber
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.yield
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import okhttp3.RequestBody.Companion.toRequestBody
 import java.io.FileInputStream
 import java.io.FileOutputStream
-import java.net.DatagramPacket
-import java.net.DatagramSocket
-import java.net.InetAddress
 import java.nio.ByteBuffer
 
 class VpnPacketLoop(
     private val vpnService: VpnService,
     private val vpnInterface: ParcelFileDescriptor,
     private val dnsConfig: DnsConfig,
+    private val okHttpClient: OkHttpClient,
     private val isDomainBlocked: (String) -> Boolean
 ) {
-    private val TAG = "VpnPacketLoop"
-    
-    // Reusable socket — created once, protected once, reused for all DNS forwards.
-    // Eliminates OS-level socket allocation + vpnService.protect() call per DNS query.
-    private val sharedDnsSocket: DatagramSocket by lazy {
-        DatagramSocket().also { socket ->
-            socket.soTimeout = DNS_TIMEOUT_MILLIS
-            vpnService.protect(socket) // Only called ONCE for the lifetime of the loop
-        }
-    }
+    private val TAG = "SVC_VPN_PACKET"
+    private val loopScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     suspend fun runLoop() = withContext(Dispatchers.IO) {
         val inputStream = FileInputStream(vpnInterface.fileDescriptor)
@@ -41,7 +39,6 @@ class VpnPacketLoop(
         
         try {
             while (isActive) {
-                // yield() gives the coroutine scheduler a chance to cancel cleanly
                 yield()
                 val length = inputStream.read(packet.array())
                 when {
@@ -49,26 +46,78 @@ class VpnPacketLoop(
                         packet.limit(length)
                         packet.position(0)
                         
+                        val version = packet.get(0).toInt() ushr 4
+                        var isUdp = false
+                        var udpOffset = 0
+                        var ipHeaderLength = 0
+                        var isIpv6 = false
+
+                        if (version == 4) {
+                            ipHeaderLength = (packet.get(0).toInt() and 0x0F) * 4
+                            if (length >= ipHeaderLength + 8) {
+                                val protocol = packet.get(9).toInt() and 0xFF
+                                if (protocol == 17) {
+                                    isUdp = true
+                                    udpOffset = ipHeaderLength
+                                }
+                            }
+                        } else if (version == 6) {
+                            ipHeaderLength = 40
+                            isIpv6 = true
+                            if (length >= ipHeaderLength + 8) {
+                                val nextHeader = packet.get(6).toInt() and 0xFF
+                                if (nextHeader == 17) {
+                                    isUdp = true
+                                    udpOffset = ipHeaderLength
+                                }
+                            }
+                        }
+
+                        if (!isUdp) {
+                            continue
+                        }
+
+                        val destPort = ((packet.get(udpOffset + 2).toInt() and 0xFF) shl 8) or (packet.get(udpOffset + 3).toInt() and 0xFF)
+                        if (destPort != 53) {
+                            continue
+                        }
+
                         val domain = DnsPacketParser.extractDomainName(packet, length)
                         if (domain != null) {
                             if (isDomainBlocked(domain)) {
+                                Timber.tag(TAG).v("DNS BLOCKED (local): $domain")
                                 val response = DnsResponseBuilder.buildNxDomainResponse(packet, length)
                                 outputStream.write(response)
                             } else {
-                                // Forward to upstream DNS
-                                forwardDns(packet, length, outputStream)
+                                val dnsOffset = udpOffset + 8
+                                val dnsPayloadLength = length - dnsOffset
+                                val dnsPayload = ByteArray(dnsPayloadLength)
+                                packet.position(dnsOffset)
+                                packet.get(dnsPayload)
+
+                                val packetBytes = ByteArray(length)
+                                packet.position(0)
+                                packet.get(packetBytes)
+
+                                loopScope.launch {
+                                    forwardDnsViaDoH(
+                                        packetBytes = packetBytes,
+                                        outputStream = outputStream,
+                                        domain = domain,
+                                        dnsPayload = dnsPayload,
+                                        isIpv6 = isIpv6,
+                                        ipHeaderLength = ipHeaderLength,
+                                        udpOffset = udpOffset,
+                                        dnsOffset = dnsOffset
+                                    )
+                                }
                             }
                         }
                     }
                     length == 0 -> {
-                        // No data available — sleep to avoid CPU busy-loop on idle TUN.
-                        // Battery fix: 100ms = 10 wakeups/sec vs. 10ms = 100 wakeups/sec.
-                        // DNS latency is unaffected — active packets (length > 0) bypass this branch entirely.
                         delay(100L)
                     }
                     else -> {
-                        // length == -1 means EOF (TUN interface was closed by OS or VPN revoked)
-                        // Sleep longer before retry to prevent 100% CPU spin on a closed fd
                         Timber.tag(TAG).w("TUN read returned EOF — interface may be closing. Backing off.")
                         delay(500L)
                     }
@@ -81,83 +130,125 @@ class VpnPacketLoop(
         } finally {
             inputStream.close()
             outputStream.close()
-            runCatching { sharedDnsSocket.close() }
+            loopScope.cancel()
         }
     }
     
-    private fun forwardDns(packetBuffer: ByteBuffer, length: Int, outputStream: FileOutputStream) {
+    private suspend fun forwardDnsViaDoH(
+        packetBytes: ByteArray,
+        outputStream: FileOutputStream,
+        domain: String,
+        dnsPayload: ByteArray,
+        isIpv6: Boolean,
+        ipHeaderLength: Int,
+        udpOffset: Int,
+        dnsOffset: Int
+    ) = withContext(Dispatchers.IO) {
         try {
-            // Extract original IP and UDP headers to reconstruct response
-            val ipHeaderLength = (packetBuffer.get(0).toInt() and 0x0F) * 4
-            val udpOffset = ipHeaderLength
-            val dnsOffset = udpOffset + 8
-            val dnsPayloadLength = length - dnsOffset
-            
-            val dnsPayload = ByteArray(dnsPayloadLength)
-            packetBuffer.position(dnsOffset)
-            packetBuffer.get(dnsPayload)
-            
-            // Use shared socket instead of creating a new one per query
-            val receivePacket = queryUpstreamDns(sharedDnsSocket, dnsPayload)
+            val endpoint = dnsConfig.dohEndpoint
+            Timber.tag(TAG).d("DoH fwd: domain=$domain ep=$endpoint payload=${dnsPayload.size}B")
+            val mediaType = "application/dns-message".toMediaType()
+            val requestBody = dnsPayload.toRequestBody(mediaType)
+            val request = Request.Builder()
+                .url(endpoint)
+                .post(requestBody)
+                .addHeader("Accept", "application/dns-message")
+                .build()
+
+            val response = okHttpClient.newCall(request).execute()
+            if (!response.isSuccessful) {
+                val body = try { response.body?.string()?.take(300) } catch (ex: Exception) { "unreadable" }
+                Timber.tag(TAG).e("DoH FAIL: domain=$domain code=${response.code} ep=$endpoint body=$body")
+                return@withContext
+            }
+
+            val responseData = response.body?.bytes()
+            if (responseData == null) {
+                Timber.tag(TAG).e("DoH NULL body: domain=$domain ep=$endpoint")
+                return@withContext
+            }
+
+            Timber.tag(TAG).d("DoH OK: domain=$domain resp=${responseData.size}B")
+
             val responseArray = buildTunDnsResponse(
-                packetBuffer = packetBuffer,
+                packetBytes = packetBytes,
                 dnsOffset = dnsOffset,
                 ipHeaderLength = ipHeaderLength,
                 udpOffset = udpOffset,
-                receivePacket = receivePacket
+                responseData = responseData,
+                isIpv6 = isIpv6
             )
 
-            outputStream.write(responseArray)
+            synchronized(outputStream) {
+                outputStream.write(responseArray)
+            }
         } catch (e: Exception) {
-            Timber.tag(TAG).e(e, "Error forwarding DNS")
+            Timber.tag(TAG).e(e, "DoH EXC: domain=$domain ep=${dnsConfig.dohEndpoint} ${e.javaClass.simpleName}:${e.message}")
         }
     }
 
     private fun buildTunDnsResponse(
-        packetBuffer: ByteBuffer,
+
+        packetBytes: ByteArray,
         dnsOffset: Int,
         ipHeaderLength: Int,
         udpOffset: Int,
-        receivePacket: DatagramPacket
+        responseData: ByteArray,
+        isIpv6: Boolean
     ): ByteArray {
-        val responseLength = dnsOffset + receivePacket.length
+        val responseLength = dnsOffset + responseData.size
         val responseBuffer = ByteBuffer.allocate(responseLength)
 
-        packetBuffer.position(0)
-        val headerBytes = ByteArray(dnsOffset)
-        packetBuffer.get(headerBytes)
-        responseBuffer.put(headerBytes)
-        responseBuffer.put(receivePacket.data, 0, receivePacket.length)
+        responseBuffer.put(packetBytes, 0, dnsOffset)
+        responseBuffer.put(responseData)
 
         val responseArray = responseBuffer.array()
 
-        responseArray[2] = (responseLength shr 8).toByte()
-        responseArray[3] = responseLength.toByte()
+        if (isIpv6) {
+            val payloadLength = responseLength - 40
+            responseArray[4] = (payloadLength shr 8).toByte()
+            responseArray[5] = payloadLength.toByte()
+        } else {
+            responseArray[2] = (responseLength shr 8).toByte()
+            responseArray[3] = responseLength.toByte()
+        }
 
         val udpLength = responseLength - ipHeaderLength
         responseArray[udpOffset + 4] = (udpLength shr 8).toByte()
         responseArray[udpOffset + 5] = udpLength.toByte()
 
-        swapIpAddresses(responseArray)
+        swapIpAddresses(responseArray, isIpv6)
         swapUdpPorts(responseArray, udpOffset)
 
-        responseArray[udpOffset + 6] = 0
-        responseArray[udpOffset + 7] = 0
+        if (!isIpv6) {
+            responseArray[10] = 0
+            responseArray[11] = 0
+            val ipChecksum = calculateChecksum(responseArray, 0, ipHeaderLength, 0)
+            val ipChecksumInv = ipChecksum.inv() and 0xFFFF
+            responseArray[10] = (ipChecksumInv shr 8).toByte()
+            responseArray[11] = ipChecksumInv.toByte()
+        }
 
-        responseArray[10] = 0
-        responseArray[11] = 0
-        val ipChecksum = calculateChecksum(responseArray, 0, ipHeaderLength)
-        responseArray[10] = (ipChecksum shr 8).toByte()
-        responseArray[11] = ipChecksum.toByte()
+        val udpChecksum = computeUdpChecksum(responseArray, ipHeaderLength, udpOffset, isIpv6)
+        responseArray[udpOffset + 6] = (udpChecksum shr 8).toByte()
+        responseArray[udpOffset + 7] = udpChecksum.toByte()
 
         return responseArray
     }
 
-    private fun swapIpAddresses(responseArray: ByteArray) {
-        for (i in 0..3) {
-            val temp = responseArray[12 + i]
-            responseArray[12 + i] = responseArray[16 + i]
-            responseArray[16 + i] = temp
+    private fun swapIpAddresses(responseArray: ByteArray, isIpv6: Boolean) {
+        if (isIpv6) {
+            for (i in 0..15) {
+                val temp = responseArray[8 + i]
+                responseArray[8 + i] = responseArray[24 + i]
+                responseArray[24 + i] = temp
+            }
+        } else {
+            for (i in 0..3) {
+                val temp = responseArray[12 + i]
+                responseArray[12 + i] = responseArray[16 + i]
+                responseArray[16 + i] = temp
+            }
         }
     }
 
@@ -168,33 +259,9 @@ class VpnPacketLoop(
             responseArray[udpOffset + 2 + i] = temp
         }
     }
-
-    private fun queryUpstreamDns(socket: DatagramSocket, dnsPayload: ByteArray): DatagramPacket {
-        socket.soTimeout = DNS_TIMEOUT_MILLIS
-        var lastFailure: Exception? = null
-
-        for (resolver in dnsConfig.resolvers) {
-            try {
-                val queryPacket = DatagramPacket(
-                    dnsPayload,
-                    dnsPayload.size,
-                    InetAddress.getByName(resolver),
-                    DNS_PORT
-                )
-                socket.send(queryPacket)
-
-                val responseData = ByteArray(MAX_DNS_RESPONSE_BYTES)
-                return DatagramPacket(responseData, responseData.size).also(socket::receive)
-            } catch (e: Exception) {
-                lastFailure = e
-            }
-        }
-
-        throw lastFailure ?: IllegalStateException("No DNS resolver configured")
-    }
     
-    private fun calculateChecksum(data: ByteArray, offset: Int, length: Int): Int {
-        var sum = 0
+    private fun calculateChecksum(data: ByteArray, offset: Int, length: Int, initialSum: Int): Int {
+        var sum = initialSum
         var i = offset
         val end = offset + length
         
@@ -213,12 +280,29 @@ class VpnPacketLoop(
             sum = (sum and 0xFFFF) + (sum shr 16)
         }
         
-        return sum.inv() and 0xFFFF
+        return sum
     }
 
-    private companion object {
-        const val DNS_PORT = 53
-        const val DNS_TIMEOUT_MILLIS = 3000
-        const val MAX_DNS_RESPONSE_BYTES = 4096
+    private fun computeUdpChecksum(responseArray: ByteArray, ipHeaderLength: Int, udpOffset: Int, isIpv6: Boolean): Int {
+        responseArray[udpOffset + 6] = 0
+        responseArray[udpOffset + 7] = 0
+
+        val udpLength = ((responseArray[udpOffset + 4].toInt() and 0xFF) shl 8) or (responseArray[udpOffset + 5].toInt() and 0xFF)
+        var sum = 0
+        
+        if (isIpv6) {
+            sum = calculateChecksum(responseArray, 8, 32, sum)
+            sum += udpLength
+            sum += 17 
+        } else {
+            sum = calculateChecksum(responseArray, 12, 8, sum)
+            sum += 17 
+            sum += udpLength
+        }
+        
+        sum = calculateChecksum(responseArray, udpOffset, udpLength, sum)
+        
+        val checksum = sum.inv() and 0xFFFF
+        return if (checksum == 0) 0xFFFF else checksum
     }
 }

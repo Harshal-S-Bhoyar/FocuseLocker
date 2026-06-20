@@ -20,7 +20,23 @@ val localProperties = Properties().apply {
         load(localPropertiesFile.inputStream())
     }
 }
-val debugBackendUrl = localProperties.getProperty("DEBUG_BACKEND_URL") ?: "\"http://127.0.0.1:3000\""
+
+fun String.wrapQuotes(): String {
+    val unquoted = this.trim('"')
+    return "\"$unquoted\""
+}
+
+fun getSecret(key: String, default: String): String {
+    return providers.environmentVariable(key).orNull?.wrapQuotes()
+        ?: localProperties.getProperty(key)?.wrapQuotes()
+        ?: project.findProperty(key)?.toString()?.wrapQuotes()
+        ?: default
+}
+
+val defaultBackendUrl = "\"http://127.0.0.1:3000\""
+val defaultNextDnsBaseUrl = "\"https://dns.nextdns.io/\""
+val defaultFallbackDns = "\"https://family.adguard-dns.com/dns-query\""
+
 android {
     namespace = "com.focuslock"
     compileSdk = 35
@@ -38,8 +54,20 @@ android {
             useSupportLibrary = true
         }
 
-        // Backend URL from BuildConfig
-        buildConfigField("String", "BACKEND_URL", "\"https://focuslock-backend.railway.app\"")
+        // Backend URL and NextDNS Profile ID from environment/local.properties
+        buildConfigField("String", "NEXTDNS_PROFILE_ID", getSecret("NEXTDNS_PROFILE_ID", "\"\""))
+        buildConfigField("String", "NEXTDNS_BASE_URL", getSecret("NEXTDNS_BASE_URL", defaultNextDnsBaseUrl))
+        buildConfigField("String", "FALLBACK_DNS_ENDPOINT", getSecret("FALLBACK_DNS_ENDPOINT", defaultFallbackDns))
+        buildConfigField("String", "BACKEND_URL", getSecret("BACKEND_URL", defaultBackendUrl))
+        
+        // Fast-path IP configuration for DNS bootstrap
+        buildConfigField("String", "BOOTSTRAP_FALLBACK_SERVERS", getSecret("BOOTSTRAP_FALLBACK_SERVERS", "\"8.8.8.8,1.1.1.1\""))
+        buildConfigField("String", "NEXTDNS_FASTPATH_IPS", getSecret("NEXTDNS_FASTPATH_IPS", "\"45.90.28.0,45.90.30.0\""))
+        buildConfigField("String", "ADGUARD_FASTPATH_IPS", getSecret("ADGUARD_FASTPATH_IPS", "\"94.140.14.15,94.140.15.16\""))
+        
+        // VPN Virtual Network Configuration
+        buildConfigField("String", "VIRTUAL_IPV4", getSecret("VIRTUAL_IPV4", "\"10.0.0.2\""))
+        buildConfigField("String", "VIRTUAL_IPV6", getSecret("VIRTUAL_IPV6", "\"fd00:1:fd00:1:fd00:1:fd00:1\""))
     }
 
     signingConfigs {
@@ -68,10 +96,12 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+            // Can override release-specific backend URL via env var or property if needed
+            buildConfigField("String", "BACKEND_URL", getSecret("RELEASE_BACKEND_URL", getSecret("BACKEND_URL", "\"https://focuslock-backend.railway.app\"")))
         }
         debug {
             isMinifyEnabled = false
-            buildConfigField("String", "BACKEND_URL", debugBackendUrl)
+            buildConfigField("String", "BACKEND_URL", getSecret("DEBUG_BACKEND_URL", getSecret("BACKEND_URL", defaultBackendUrl)))
         }
     }
 
@@ -94,6 +124,8 @@ android {
     packaging {
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
+            excludes += "META-INF/LICENSE.md"
+            excludes += "META-INF/LICENSE-notice.md"
         }
     }
 
@@ -161,6 +193,7 @@ dependencies {
     testImplementation("io.mockk:mockk:1.13.9")
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.9.0")
     testImplementation("app.cash.turbine:turbine:1.0.0")
+    androidTestImplementation("io.mockk:mockk-android:1.13.9")
     androidTestImplementation("androidx.test.ext:junit:1.3.0")
     androidTestImplementation("androidx.test:core:1.6.1")
     androidTestImplementation("androidx.test:runner:1.6.2")

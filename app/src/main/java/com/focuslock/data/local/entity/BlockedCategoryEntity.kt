@@ -27,7 +27,8 @@ object CategoryKey {
     const val NEWS = "NEWS"
     const val GAMING = "GAMING"
     const val SHOPPING = "SHOPPING"
+    const val GENERAL = "GENERAL"
     const val AUTO_BLOCKED = "AUTO_BLOCKED"
     
-    val ALL = listOf(SOCIAL_MEDIA, ADULT, GAMBLING, NEWS, GAMING, SHOPPING, AUTO_BLOCKED)
+    val ALL = listOf(SOCIAL_MEDIA, ADULT, GAMBLING, NEWS, GAMING, SHOPPING, GENERAL, AUTO_BLOCKED)
 }

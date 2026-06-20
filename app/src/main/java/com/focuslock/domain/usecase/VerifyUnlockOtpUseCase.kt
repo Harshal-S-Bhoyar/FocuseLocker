@@ -63,6 +63,7 @@ class VerifyUnlockOtpUseCase @Inject constructor(
                 }
             }
         } catch (e: Exception) {
+            timber.log.Timber.e(e, "Error verifying unlock OTP")
             VerifyUnlockResult.Error("An unexpected error occurred.")
         }
     }

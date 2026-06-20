@@ -12,6 +12,7 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.serialization.json.jsonArray
 import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -24,11 +25,12 @@ class DoHQueryUseCase @Inject constructor(
 ) {
     suspend fun queryDoH(domain: String): DoHResult = withContext(Dispatchers.IO) {
         try {
-            val profileId = com.focuslock.BuildConfig.NEXTDNS_PROFILE_ID
+            val sharedPreferences = context.getSharedPreferences("focuslock_prefs", Context.MODE_PRIVATE)
+            val profileId = sharedPreferences.getString("NEXTDNS_PROFILE_ID", com.focuslock.BuildConfig.NEXTDNS_PROFILE_ID) ?: ""
             val endpoint = if (profileId.isBlank()) {
-                "https://family.adguard-dns.com/dns-query"
+                com.focuslock.BuildConfig.FALLBACK_DNS_ENDPOINT
             } else {
-                "https://$profileId.dns.nextdns.io/dns-query"
+                "${com.focuslock.BuildConfig.NEXTDNS_BASE_URL}$profileId"
             }
 
             val request = Request.Builder()
@@ -36,9 +38,17 @@ class DoHQueryUseCase @Inject constructor(
                 .header("Accept", "application/dns-json")
                 .build()
                 
-            val customClient = okHttpClient.newBuilder()
-                .connectTimeout(3, TimeUnit.SECONDS)
-                .readTimeout(3, TimeUnit.SECONDS)
+            // ponytail: fresh builder = no shared connection pool. newBuilder() inherits the pool
+            // which lets OkHttp reuse stale connections and skip DNS entirely, falling back to
+            // NetworkModule's dnsCache whose BootstrapDns has vpnService=null — causing UDP DNS
+            // to be intercepted by the TUN interface = recursion loop.
+            val bootstrapDns = com.focuslock.service.vpn.BootstrapDns()
+            val customClient = OkHttpClient.Builder()
+                .dns(bootstrapDns)
+                .connectTimeout(2, TimeUnit.SECONDS)
+                .readTimeout(2, TimeUnit.SECONDS)
+                .writeTimeout(1, TimeUnit.SECONDS)
+                .proxy(java.net.Proxy.NO_PROXY)
                 .build()
 
             val response = customClient.newCall(request).execute()
@@ -48,19 +58,32 @@ class DoHQueryUseCase @Inject constructor(
             val json = Json.parseToJsonElement(responseBody).jsonObject
             
             val status = json["Status"]?.jsonPrimitive?.intOrNull ?: -1
-            when (status) {
-                0 -> DoHResult.Clean
-                3 -> DoHResult.Blocked
-                else -> DoHResult.Unknown
+            val answers = json["Answer"]?.jsonArray
+            
+            if (status == 3) {
+                // NXDOMAIN - NextDNS/AdGuard often return this for blocked domains
+                return@withContext DoHResult.Blocked
+            } else if (status == 0) {
+                // Status 0 (NOERROR) can still be blocked if it resolves to 0.0.0.0 or :: (NextDNS default)
+                var isBlocked = false
+                answers?.forEach { element ->
+                    val data = element.jsonObject["data"]?.jsonPrimitive?.content
+                    if (data == "0.0.0.0" || data == "::") {
+                        isBlocked = true
+                    }
+                }
+                return@withContext if (isBlocked) DoHResult.Blocked else DoHResult.Clean
+            } else {
+                return@withContext DoHResult.Unknown
             }
         } catch (e: Exception) {
-            e.printStackTrace()
+            timber.log.Timber.e(e, "Query failed with exception")
             DoHResult.QueryFailed
         }
     }
 
     suspend fun checkAndCacheDoH(url: String): DoHResult {
-        val domain = extractDomain(url) ?: return DoHResult.QueryFailed
+        val domain = DomainExtractor.extract(url) ?: return DoHResult.QueryFailed
 
         val cachedStatus = blockingRepository.getCachedDomainStatus(domain)
         if (cachedStatus == "PERMANENT") return DoHResult.Blocked
@@ -82,14 +105,5 @@ class DoHQueryUseCase @Inject constructor(
         return result
     }
 
-    private fun extractDomain(url: String): String? {
-        return try {
-            val uri = java.net.URI(if (url.startsWith("http")) url else "https://$url")
-            var host = uri.host ?: return null
-            host = host.removePrefix("www.").removePrefix("m.").removePrefix("mobile.")
-            host
-        } catch (e: Exception) {
-            null
-        }
-    }
+
 }

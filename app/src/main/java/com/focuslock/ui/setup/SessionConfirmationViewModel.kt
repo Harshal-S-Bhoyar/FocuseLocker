@@ -35,8 +35,8 @@ class SessionConfirmationViewModel @Inject constructor(
 ) : ViewModel() {
 
     // Retrieve duration passed via navigation arguments.
-    // Default to 15 minutes if not provided (fallback).
-    val durationMillis: Long = savedStateHandle.get<Long>("durationMillis") ?: (15 * 60 * 1000L)
+    // Default to 1 minute if not provided (fallback).
+    val durationMillis: Long = savedStateHandle.get<Long>("durationMillis") ?: (1 * 60 * 1000L)
 
     // Only active categories are shown
     val activeCategories: StateFlow<List<BlockedCategory>> = getAllCategoriesUseCase()

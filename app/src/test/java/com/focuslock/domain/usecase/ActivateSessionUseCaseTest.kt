@@ -32,7 +32,7 @@ class ActivateSessionUseCaseTest {
         coEvery { sessionRepository.hasActiveSession() } returns true
 
         // Act
-        val result = useCase(15 * 60 * 1000L)
+        val result = useCase(1 * 60 * 1000L)
 
         // Assert
         assertTrue(result.isFailure)
@@ -45,7 +45,7 @@ class ActivateSessionUseCaseTest {
         coEvery { sessionRepository.hasActiveSession() } returns false
         coEvery { sessionRepository.startSession(any()) } returns 1L
 
-        val durationMillis = 15 * 60 * 1000L
+        val durationMillis = 1 * 60 * 1000L
 
         // Act
         val result = useCase(durationMillis)
@@ -63,7 +63,7 @@ class ActivateSessionUseCaseTest {
         coEvery { sessionRepository.startSession(any()) } returns 9L
         every { runtimeController.startRuntime(any()) } throws IllegalStateException("startup failed")
 
-        val result = useCase(15 * 60 * 1000L)
+        val result = useCase(1 * 60 * 1000L)
 
         assertTrue(result.isFailure)
         coVerify { workerScheduler.cancelSessionTimers() }

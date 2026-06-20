@@ -47,6 +47,7 @@ class OnboardingViewModel @Inject constructor(
 
                 _uiState.value = OnboardingUiState(isLoading = false, event = event)
             } catch (e: Exception) {
+                timber.log.Timber.e(e, "Error completing onboarding")
                 _uiState.value = OnboardingUiState(isLoading = false, event = null)
             }
         }

@@ -33,7 +33,7 @@ import com.focuslock.R
 
 /**
  * Screen where users set the duration for their focus session.
- * It enforces boundaries (min 15 mins, max 72 hours) visually and logically.
+ * It enforces boundaries (min 1 min, max 72 hours) visually and logically.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -99,10 +99,10 @@ fun TimerSetupScreen(
                 NumberPicker(
                     value = minutes,
                     label = stringResource(R.string.timer_minutes),
-                    onIncrement = { viewModel.updateMinutes(minutes + 5) },
-                    onDecrement = { viewModel.updateMinutes(minutes - 5) },
-                    enabledIncrement = minutes <= 54, // 59 max, so can't add 5 if > 54
-                    enabledDecrement = minutes >= 5
+                    onIncrement = { viewModel.updateMinutes(minutes + 1) },
+                    onDecrement = { viewModel.updateMinutes(minutes - 1) },
+                    enabledIncrement = minutes < 59,
+                    enabledDecrement = minutes > 0
                 )
             }
             

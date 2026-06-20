@@ -3,14 +3,25 @@ package com.focuslock
 import android.app.Application
 import android.app.NotificationChannel
 import android.app.NotificationManager
+import androidx.hilt.work.HiltWorkerFactory
+import androidx.work.Configuration
 import com.focuslock.util.FileLoggingTree
 import com.focuslock.util.GlobalExceptionHandler
 import dagger.hilt.android.HiltAndroidApp
 import timber.log.Timber
+import javax.inject.Inject
 
 @HiltAndroidApp
-class FocusLockApplication : Application() {
+class FocusLockApplication : Application(), Configuration.Provider {
     
+    @Inject
+    lateinit var workerFactory: HiltWorkerFactory
+
+    override val workManagerConfiguration: Configuration
+        get() = Configuration.Builder()
+            .setWorkerFactory(workerFactory)
+            .build()
+            
     override fun onCreate() {
         super.onCreate()
         
@@ -23,6 +34,8 @@ class FocusLockApplication : Application() {
         // Set up global exception handling
         val defaultHandler = Thread.getDefaultUncaughtExceptionHandler()
         Thread.setDefaultUncaughtExceptionHandler(GlobalExceptionHandler(defaultHandler))
+        
+        Timber.i("FocusLockApplication started. Logging system initialized.")
         
         createNotificationChannel()
     }

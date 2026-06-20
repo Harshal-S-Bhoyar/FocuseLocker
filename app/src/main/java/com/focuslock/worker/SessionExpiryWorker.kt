@@ -27,8 +27,10 @@ class SessionExpiryWorker @AssistedInject constructor(
 ) : CoroutineWorker(context, workerParams) {
 
     override suspend fun doWork(): Result = withContext(Dispatchers.IO) {
+        timber.log.Timber.i("SessionExpiryWorker started.")
         val session = sessionRepository.getActiveSessionSync()
         if (session != null) {
+            timber.log.Timber.i("Deactivating expired session ${session.id}")
             setForeground(notificationManager.getForegroundInfo(0L))
             deactivateSessionUseCase(session.id, SessionStatus.COMPLETED)
             notificationManager.cancelNotification()
