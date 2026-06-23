@@ -8,10 +8,12 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.Image
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Lock
-import androidx.compose.material3.Button
-import androidx.compose.material3.CircularProgressIndicator
+import com.focuslock.ui.common.CyberpunkLoadingIndicator
+import com.focuslock.ui.common.FullScreenBannerLoader
+import androidx.compose.ui.res.painterResource
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -23,6 +25,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.layout.Box
+import androidx.compose.ui.draw.blur
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.draw.drawWithCache
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.BlendMode
+import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.focuslock.R
@@ -73,16 +83,45 @@ private fun OnboardingContent(
         verticalArrangement = Arrangement.Center
     ) {
         if (isLoading) {
-            CircularProgressIndicator()
+            FullScreenBannerLoader(modifier = Modifier.fillMaxSize())
             return
         }
 
-        Icon(
-            imageVector = Icons.Filled.Lock,
-            contentDescription = null,
-            modifier = Modifier.size(80.dp),
-            tint = MaterialTheme.colorScheme.primary
-        )
+        Box(contentAlignment = Alignment.Center) {
+            // Shadow / Glow effect behind the icon
+            Icon(
+                imageVector = Icons.Filled.Lock,
+                contentDescription = null,
+                modifier = Modifier
+                    .size(100.dp)
+                    .blur(16.dp),
+                tint = com.focuslock.ui.theme.GlowCyan
+            )
+            // 3D Textured foreground icon
+            Icon(
+                imageVector = Icons.Filled.Lock,
+                contentDescription = null,
+                modifier = Modifier
+                    .size(100.dp)
+                    .graphicsLayer {
+                        compositingStrategy = CompositingStrategy.Offscreen
+                    }
+                    .drawWithCache {
+                        val brush = Brush.linearGradient(
+                            colors = listOf(
+                                Color.White,
+                                com.focuslock.ui.theme.CyanPrimary,
+                                com.focuslock.ui.theme.VioletSecondary
+                            )
+                        )
+                        onDrawWithContent {
+                            drawContent()
+                            drawRect(brush, blendMode = BlendMode.SrcAtop)
+                        }
+                    },
+                tint = Color.White
+            )
+        }
 
         Spacer(modifier = Modifier.height(32.dp))
 
@@ -113,16 +152,12 @@ private fun OnboardingContent(
 
         Spacer(modifier = Modifier.height(48.dp))
 
-        Button(
+        com.focuslock.ui.components.PrimaryButton(
             onClick = onGetStartedClicked,
             modifier = Modifier
                 .fillMaxWidth()
-                .height(52.dp)
-        ) {
-            Text(
-                text = stringResource(R.string.onboarding_get_started),
-                style = MaterialTheme.typography.labelLarge
-            )
-        }
+                .padding(vertical = 12.dp),
+            label = stringResource(R.string.onboarding_get_started)
+        )
     }
 }

@@ -18,6 +18,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.compose.ui.res.stringResource
 import com.focuslock.R
+import com.focuslock.ui.components.*
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -96,52 +97,37 @@ fun UnlockRequestScreen(
                 )
             }
             
-            Button(
-                onClick = { 
-                    viewModel.requestUnlock()
-                    // Navigation will be triggered via LaunchedEffect observing state in the navigation layer
-                },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(56.dp),
-                shape = RoundedCornerShape(16.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    contentColor = MaterialTheme.colorScheme.onPrimary
-                ),
-                enabled = state !is UnlockUiState.Requesting
-            ) {
-                if (state is UnlockUiState.Requesting) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(24.dp),
-                        strokeWidth = 2.dp,
-                        color = Color.White
-                    )
-                } else {
-                    Text("Send Request to Trusted Contact", fontWeight = FontWeight.SemiBold)
-                }
+            if (state is UnlockUiState.Requesting) {
+                com.focuslock.ui.common.CyberpunkLoadingIndicator(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(48.dp)
+                        .padding(vertical = 24.dp)
+                )
+            } else {
+                PrimaryButton(
+                    label = "Send Request to Trusted Contact",
+                    onClick = { viewModel.requestUnlock() },
+                    enabled = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
             }
             
             Spacer(modifier = Modifier.height(16.dp))
             
-            OutlinedButton(
+            PrimaryButton(
+                label = "Cancel",
                 onClick = onNavigateBack,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(56.dp),
-                shape = RoundedCornerShape(16.dp)
-            ) {
-                Text("Cancel", fontWeight = FontWeight.SemiBold)
-            }
+                modifier = Modifier.fillMaxWidth()
+            )
             
             Spacer(modifier = Modifier.height(32.dp))
             
-            TextButton(
+            PrimaryButton(
+                label = "Emergency Bypass",
                 onClick = onNavigateToEmergency,
                 modifier = Modifier.fillMaxWidth()
-            ) {
-                Text("Emergency Bypass", color = MaterialTheme.colorScheme.error)
-            }
+            )
         }
     }
 }

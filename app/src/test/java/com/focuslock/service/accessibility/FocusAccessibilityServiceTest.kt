@@ -4,7 +4,7 @@ import android.content.Context
 import com.focuslock.di.BlockingServiceEntryPoint
 import com.focuslock.domain.model.BlockCheckResult
 import com.focuslock.domain.model.BlockReason
-import com.focuslock.domain.repository.SessionRepository
+import com.focuslock.data.repository.SessionRepository
 import com.focuslock.domain.usecase.CheckUrlForBlockedContentUseCase
 import com.focuslock.domain.usecase.GetAllBlockedDomainsFlowUseCase
 import com.focuslock.domain.usecase.GetActiveKeywordsUseCase

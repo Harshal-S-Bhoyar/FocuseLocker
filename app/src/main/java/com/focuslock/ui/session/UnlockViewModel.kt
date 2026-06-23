@@ -3,10 +3,10 @@ package com.focuslock.ui.session
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.focuslock.domain.model.UnlockRequestStatus
-import com.focuslock.domain.repository.BlockingRepository
-import com.focuslock.domain.repository.SessionRepository
-import com.focuslock.domain.repository.TrustedContactRepository
-import com.focuslock.domain.repository.UnlockRepository
+import com.focuslock.data.repository.BlockingRepository
+import com.focuslock.data.repository.SessionRepository
+import com.focuslock.data.repository.TrustedContactRepository
+import com.focuslock.data.repository.UnlockRepository
 import com.focuslock.domain.usecase.GetSessionRemainingTimeUseCase
 import com.focuslock.domain.usecase.RequestUnlockUseCase
 import com.focuslock.domain.usecase.StartEmergencyBypassUseCase

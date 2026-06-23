@@ -1,8 +1,8 @@
 package com.focuslock.domain.usecase
 
 
-import com.focuslock.domain.repository.SessionRepository
-import com.focuslock.domain.repository.TrustedContactRepository
+import com.focuslock.data.repository.SessionRepository
+import com.focuslock.data.repository.TrustedContactRepository
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk

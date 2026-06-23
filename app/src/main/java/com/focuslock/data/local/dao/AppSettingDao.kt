@@ -22,7 +22,7 @@ interface AppSettingDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertSetting(setting: AppSettingEntity)
     
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insertSettings(settings: List<AppSettingEntity>)
     
     @Query("UPDATE app_settings SET value = :value WHERE key = :key")

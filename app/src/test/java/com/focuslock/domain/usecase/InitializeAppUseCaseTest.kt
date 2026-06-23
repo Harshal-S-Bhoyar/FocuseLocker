@@ -2,8 +2,8 @@ package com.focuslock.domain.usecase
 
 import android.content.Context
 import androidx.work.WorkManager
-import com.focuslock.domain.repository.AppSettingsRepository
-import com.focuslock.domain.repository.BlockingRepository
+import com.focuslock.data.repository.AppSettingsRepository
+import com.focuslock.data.repository.BlockingRepository
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk

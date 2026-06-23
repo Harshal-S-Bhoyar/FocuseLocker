@@ -5,7 +5,7 @@ import androidx.hilt.work.HiltWorker
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import com.focuslock.domain.model.SessionStatus
-import com.focuslock.domain.repository.SessionRepository
+import com.focuslock.data.repository.SessionRepository
 import com.focuslock.domain.usecase.DeactivateSessionUseCase
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject

@@ -105,40 +105,27 @@ fun OtpEntryScreen(
             
             Spacer(modifier = Modifier.height(24.dp))
             
-            Button(
-                onClick = { viewModel.verifyOtp(otpValue) },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(56.dp),
-                shape = RoundedCornerShape(16.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    contentColor = MaterialTheme.colorScheme.onPrimary
-                ),
-                enabled = otpValue.length == 6 && state !is UnlockUiState.VerifyingOtp
-            ) {
-                if (state is UnlockUiState.VerifyingOtp) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(24.dp),
-                        strokeWidth = 2.dp,
-                        color = Color.White
-                    )
-                } else {
-                    Text("Verify Code", fontWeight = FontWeight.SemiBold)
-                }
+            if (state is UnlockUiState.VerifyingOtp) {
+                com.focuslock.ui.common.CyberpunkLoadingIndicator(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(48.dp)
+                        .padding(vertical = 16.dp)
+                )
+            } else {
+                com.focuslock.ui.components.PrimaryButton(
+                    label = "VERIFY CODE",
+                    onClick = { viewModel.verifyOtp(otpValue) },
+                    enabled = otpValue.length == 6
+                )
             }
             
             Spacer(modifier = Modifier.height(16.dp))
             
-            OutlinedButton(
-                onClick = onNavigateBack,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(56.dp),
-                shape = RoundedCornerShape(16.dp)
-            ) {
-                Text("Cancel", fontWeight = FontWeight.SemiBold)
-            }
+            com.focuslock.ui.components.PrimaryButton(
+                label = "CANCEL",
+                onClick = onNavigateBack
+            )
         }
     }
 }

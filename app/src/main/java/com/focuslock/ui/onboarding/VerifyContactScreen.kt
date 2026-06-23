@@ -8,9 +8,10 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material3.Button
-import androidx.compose.material3.CircularProgressIndicator
+import com.focuslock.ui.components.PrimaryButton
+import com.focuslock.ui.common.CyberpunkLoadingIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Snackbar
@@ -109,25 +110,19 @@ private fun VerifyContactContent(
 
         Spacer(modifier = Modifier.height(24.dp))
 
-        Button(
-            onClick = onVerifyClicked,
-            enabled = !state.isLoading && state.otp.length == 6 && state.attemptsRemaining > 0,
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(52.dp)
-        ) {
-            if (state.isLoading) {
-                CircularProgressIndicator(
-                    color = androidx.compose.ui.graphics.Color.White,
-                    strokeWidth = 2.dp,
-                    modifier = Modifier.height(20.dp)
-                )
-            } else {
-                Text(
-                    text = stringResource(R.string.verify_contact_verify_button),
-                    style = MaterialTheme.typography.labelLarge
-                )
-            }
+        if (state.isLoading) {
+            CyberpunkLoadingIndicator(
+                modifier = Modifier.fillMaxWidth().height(52.dp)
+            )
+        } else {
+            PrimaryButton(
+                label = stringResource(R.string.verify_contact_verify_button),
+                onClick = onVerifyClicked,
+                enabled = state.otp.length == 6 && state.attemptsRemaining > 0,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(52.dp)
+            )
         }
 
         Spacer(modifier = Modifier.height(16.dp))
@@ -141,18 +136,13 @@ private fun VerifyContactContent(
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)
             )
-            TextButton(
-                onClick = onResendClicked,
-                enabled = !state.isResending
-            ) {
-                if (state.isResending) {
-                    CircularProgressIndicator(color = androidx.compose.ui.graphics.Color.White, strokeWidth = 2.dp, modifier = Modifier.height(16.dp))
-                } else {
-                    Text(
-                        text = stringResource(R.string.verify_contact_resend),
-                        style = MaterialTheme.typography.bodySmall
-                    )
-                }
+            if (state.isResending) {
+                CyberpunkLoadingIndicator(modifier = Modifier.width(100.dp).height(36.dp))
+            } else {
+                PrimaryButton(
+                    label = stringResource(R.string.verify_contact_resend),
+                    onClick = onResendClicked
+                )
             }
         }
 

@@ -1,7 +1,7 @@
 package com.focuslock.domain.usecase
 
 import com.focuslock.domain.model.UnlockRequestStatus
-import com.focuslock.domain.repository.UnlockRepository
+import com.focuslock.data.repository.UnlockRepository
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk

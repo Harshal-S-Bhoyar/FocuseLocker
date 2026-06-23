@@ -1,6 +1,6 @@
 package com.focuslock.domain.usecase
 
-import com.focuslock.domain.repository.BlockingRepository
+import com.focuslock.data.repository.BlockingRepository
 import javax.inject.Inject
 
 class GetActiveBlockedDomainsUseCase @Inject constructor(

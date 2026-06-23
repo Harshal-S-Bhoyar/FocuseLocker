@@ -1,8 +1,9 @@
 package com.focuslock.domain.usecase
 
 import com.focuslock.domain.model.UnlockRequestStatus
-import com.focuslock.domain.repository.UnlockRepository
-import com.focuslock.domain.worker.UnlockWorkerScheduler
+import com.focuslock.data.repository.UnlockRepository
+import com.focuslock.data.repository.SessionRepository
+import com.focuslock.data.worker.UnlockWorkerScheduler
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
@@ -17,15 +18,18 @@ import org.junit.Test
 class VerifyUnlockOtpUseCaseTest {
 
     private lateinit var unlockRepository: UnlockRepository
+    private lateinit var sessionRepository: SessionRepository
     private lateinit var unlockWorkerScheduler: UnlockWorkerScheduler
     private lateinit var useCase: VerifyUnlockOtpUseCase
 
     @Before
     fun setup() {
         unlockRepository = mockk(relaxed = true)
+        sessionRepository = mockk(relaxed = true)
         unlockWorkerScheduler = mockk(relaxed = true)
         useCase = VerifyUnlockOtpUseCase(
             unlockRepository = unlockRepository,
+            sessionRepository = sessionRepository,
             unlockWorkerScheduler = unlockWorkerScheduler
         )
     }

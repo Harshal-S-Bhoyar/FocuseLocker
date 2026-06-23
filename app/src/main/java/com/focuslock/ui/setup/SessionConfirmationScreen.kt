@@ -9,10 +9,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
-import androidx.compose.material3.CircularProgressIndicator
+import com.focuslock.ui.common.CyberpunkLoadingIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -51,23 +49,16 @@ fun SessionConfirmationScreen(
             TopAppBar(title = { Text(stringResource(R.string.session_confirmation_title)) })
         },
         bottomBar = {
-            Button(
-                onClick = viewModel::lockInSession,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(dimensionResource(R.dimen.spacing_lg))
-                    .height(dimensionResource(R.dimen.confirmation_button_height)),
-                enabled = activationState !is ActivationState.Loading,
-                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
-            ) {
-                if (activationState is ActivationState.Loading) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(dimensionResource(R.dimen.progress_indicator_size)),
-                        color = androidx.compose.ui.graphics.Color.White
-                    )
-                } else {
-                    Text(stringResource(R.string.session_lock_in), style = MaterialTheme.typography.titleLarge)
-                }
+            if (activationState is ActivationState.Loading) {
+                CyberpunkLoadingIndicator(modifier = Modifier.fillMaxWidth().height(dimensionResource(R.dimen.progress_indicator_size)).padding(dimensionResource(R.dimen.spacing_lg)))
+            } else {
+                com.focuslock.ui.components.PrimaryButton(
+                    onClick = viewModel::lockInSession,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(dimensionResource(R.dimen.spacing_lg)),
+                    label = stringResource(R.string.session_lock_in)
+                )
             }
         }
     ) { paddingValues ->

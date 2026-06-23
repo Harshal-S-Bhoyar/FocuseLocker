@@ -26,14 +26,16 @@ class VpnPacketLoop(
     private val vpnInterface: ParcelFileDescriptor,
     private val dnsConfig: DnsConfig,
     private val okHttpClient: OkHttpClient,
-    private val isDomainBlocked: (String) -> Boolean
+    private val isDomainBlocked: (String) -> Boolean,
+    private val injectedInputStream: java.io.InputStream? = null,
+    private val injectedOutputStream: java.io.OutputStream? = null
 ) {
     private val TAG = "SVC_VPN_PACKET"
     private val loopScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     suspend fun runLoop() = withContext(Dispatchers.IO) {
-        val inputStream = FileInputStream(vpnInterface.fileDescriptor)
-        val outputStream = FileOutputStream(vpnInterface.fileDescriptor)
+        val inputStream = injectedInputStream ?: FileInputStream(vpnInterface.fileDescriptor)
+        val outputStream = injectedOutputStream ?: FileOutputStream(vpnInterface.fileDescriptor)
         
         val packet = ByteBuffer.allocate(32767)
         
@@ -74,11 +76,13 @@ class VpnPacketLoop(
                         }
 
                         if (!isUdp) {
+                            Timber.tag(TAG).d("PACKET IGNORED: Non-UDP packet")
                             continue
                         }
 
                         val destPort = ((packet.get(udpOffset + 2).toInt() and 0xFF) shl 8) or (packet.get(udpOffset + 3).toInt() and 0xFF)
                         if (destPort != 53) {
+                            Timber.tag(TAG).d("PACKET IGNORED: Non-DNS UDP packet (port $destPort)")
                             continue
                         }
 
@@ -112,6 +116,8 @@ class VpnPacketLoop(
                                     )
                                 }
                             }
+                        } else {
+                            Timber.tag(TAG).w("DNS PARSE FAILED: Could not extract domain from packet")
                         }
                     }
                     length == 0 -> {
@@ -136,7 +142,7 @@ class VpnPacketLoop(
     
     private suspend fun forwardDnsViaDoH(
         packetBytes: ByteArray,
-        outputStream: FileOutputStream,
+        outputStream: java.io.OutputStream,
         domain: String,
         dnsPayload: ByteArray,
         isIpv6: Boolean,

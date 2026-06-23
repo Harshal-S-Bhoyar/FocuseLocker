@@ -1,7 +1,7 @@
 package com.focuslock.domain.usecase
 
 import com.focuslock.domain.model.BlockedCategory
-import com.focuslock.domain.repository.BlockingRepository
+import com.focuslock.data.repository.BlockingRepository
 import kotlinx.coroutines.flow.Flow
 import javax.inject.Inject
 

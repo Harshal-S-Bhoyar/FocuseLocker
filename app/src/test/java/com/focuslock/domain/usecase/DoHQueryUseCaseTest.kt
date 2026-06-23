@@ -3,7 +3,7 @@ package com.focuslock.domain.usecase
 import android.content.Context
 import android.content.SharedPreferences
 import com.focuslock.domain.model.DoHResult
-import com.focuslock.domain.repository.BlockingRepository
+import com.focuslock.data.repository.BlockingRepository
 import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
@@ -40,9 +40,11 @@ class DoHQueryUseCaseTest {
         val builder = mockk<OkHttpClient.Builder>(relaxed = true)
         every { okHttpClient.newBuilder() } returns builder
         every { builder.dns(any()) } returns builder
+        every { builder.connectionPool(any()) } returns builder
         every { builder.connectTimeout(any(), any()) } returns builder
         every { builder.readTimeout(any(), any()) } returns builder
         every { builder.writeTimeout(any(), any()) } returns builder
+        every { builder.proxy(any()) } returns builder
         every { builder.build() } returns okHttpClient
 
         useCase = DoHQueryUseCase(blockingRepository, context, okHttpClient)

@@ -12,7 +12,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Remove
-import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -24,6 +23,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.res.dimensionResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -52,15 +52,14 @@ fun TimerSetupScreen(
             )
         },
         bottomBar = {
-            Button(
+            com.focuslock.ui.components.PrimaryButton(
+                label = stringResource(R.string.timer_review),
                 onClick = { onNavigateNext(viewModel.getDurationMillis(), hasVerifiedContact) },
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(dimensionResource(R.dimen.spacing_lg)),
                 enabled = viewModel.isValid()
-            ) {
-                Text(stringResource(R.string.timer_review))
-            }
+            )
         }
     ) { paddingValues ->
         Column(
@@ -134,16 +133,22 @@ fun NumberPicker(
 ) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Text(text = label, style = MaterialTheme.typography.labelLarge)
-        IconButton(onClick = onIncrement, enabled = enabledIncrement) {
-            Icon(Icons.Default.Add, contentDescription = stringResource(R.string.number_picker_increase, label))
-        }
+        com.focuslock.ui.components.HexFAB(
+            icon = Icons.Default.Add,
+            contentDescription = stringResource(R.string.number_picker_increase, label),
+            onClick = { if (enabledIncrement) onIncrement() },
+            modifier = androidx.compose.ui.Modifier.graphicsLayer { alpha = if (enabledIncrement) 1f else 0.5f }
+        )
         Text(
             text = value.toString().padStart(2, '0'),
             style = MaterialTheme.typography.displayMedium,
             fontWeight = FontWeight.Bold
         )
-        IconButton(onClick = onDecrement, enabled = enabledDecrement) {
-            Icon(Icons.Default.Remove, contentDescription = stringResource(R.string.number_picker_decrease, label))
-        }
+        com.focuslock.ui.components.HexFAB(
+            icon = Icons.Default.Remove,
+            contentDescription = stringResource(R.string.number_picker_decrease, label),
+            onClick = { if (enabledDecrement) onDecrement() },
+            modifier = androidx.compose.ui.Modifier.graphicsLayer { alpha = if (enabledDecrement) 1f else 0.5f }
+        )
     }
 }

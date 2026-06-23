@@ -11,7 +11,7 @@ import timber.log.Timber
 import androidx.core.app.NotificationCompat
 import com.focuslock.R
 import com.focuslock.di.BlockingServiceEntryPoint
-import com.focuslock.domain.repository.SessionRepository
+import com.focuslock.data.repository.SessionRepository
 import com.focuslock.domain.usecase.GetActiveBlockedDomainsUseCase
 import com.focuslock.domain.usecase.GetAllBlockedDomainsFlowUseCase
 import dagger.hilt.android.EntryPointAccessors

@@ -1,7 +1,7 @@
 package com.focuslock.domain.usecase
 
-import com.focuslock.domain.repository.SessionRepository
-import com.focuslock.domain.repository.TrustedContactRepository
+import com.focuslock.data.repository.SessionRepository
+import com.focuslock.data.repository.TrustedContactRepository
 import timber.log.Timber
 import javax.inject.Inject
 

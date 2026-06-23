@@ -1,8 +1,8 @@
 package com.focuslock.ui.onboarding
 
 import com.focuslock.domain.model.TrustedContact
-import com.focuslock.domain.repository.AppSettingsRepository
-import com.focuslock.domain.repository.TrustedContactRepository
+import com.focuslock.data.repository.AppSettingsRepository
+import com.focuslock.data.repository.TrustedContactRepository
 import com.focuslock.domain.usecase.SaveContactResult
 import com.focuslock.domain.usecase.SaveTrustedContactUseCase
 import com.focuslock.domain.usecase.VerifyContactOtpUseCase

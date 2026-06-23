@@ -15,6 +15,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import kotlinx.coroutines.delay
 import androidx.compose.ui.res.stringResource
 import com.focuslock.R
+import com.focuslock.ui.components.PrimaryButton
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -119,19 +120,11 @@ fun UnlockCooldownScreen(
 
             Spacer(modifier = Modifier.height(32.dp))
 
-            Button(
+            PrimaryButton(
+                label = "Return to Active Session",
                 onClick = onNavigateToHome,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(56.dp),
-                shape = RoundedCornerShape(16.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    contentColor = MaterialTheme.colorScheme.onPrimary
-                )
-            ) {
-                Text("Return to Active Session", fontWeight = FontWeight.SemiBold)
-            }
+                modifier = Modifier.fillMaxWidth()
+            )
         }
     }
 }

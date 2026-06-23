@@ -2,6 +2,7 @@ package com.focuslock.data.parser
 
 import com.focuslock.data.local.entity.BlockedDomainEntity
 import com.focuslock.data.local.entity.CategoryKey
+import timber.log.Timber
 
 object StevenBlackConfig {
     val categoryToUrlMap = mapOf(
@@ -37,8 +38,10 @@ object StevenBlackParser {
                 domain = domain.substring(4)
             }
             
-            // basic check to ensure domain is somewhat valid and not a comment
-            if (domain.contains("#") || domain.contains("<") || domain.contains(">")) continue
+            if (domain.contains("#") || domain.contains("<") || domain.contains(">")) {
+                Timber.w("STEVEN_BLACK: Domain parse skipped due to invalid characters: $domain")
+                continue
+            }
 
             result.add(
                 BlockedDomainEntity(

@@ -2,7 +2,7 @@ package com.focuslock.domain.usecase
 
 import android.content.Context
 import com.focuslock.domain.model.DoHResult
-import com.focuslock.domain.repository.BlockingRepository
+import com.focuslock.data.repository.BlockingRepository
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -43,7 +43,8 @@ class DoHQueryUseCase @Inject constructor(
             // NetworkModule's dnsCache whose BootstrapDns has vpnService=null — causing UDP DNS
             // to be intercepted by the TUN interface = recursion loop.
             val bootstrapDns = com.focuslock.service.vpn.BootstrapDns()
-            val customClient = OkHttpClient.Builder()
+            val customClient = okHttpClient.newBuilder()
+                .connectionPool(okhttp3.ConnectionPool(0, 1, java.util.concurrent.TimeUnit.NANOSECONDS))
                 .dns(bootstrapDns)
                 .connectTimeout(2, TimeUnit.SECONDS)
                 .readTimeout(2, TimeUnit.SECONDS)

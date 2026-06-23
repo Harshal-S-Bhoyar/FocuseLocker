@@ -8,8 +8,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material3.Button
-import androidx.compose.material3.CircularProgressIndicator
+import com.focuslock.ui.components.PrimaryButton
+import com.focuslock.ui.common.CyberpunkLoadingIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -126,25 +126,17 @@ private fun TrustedContactSetupContent(
 
         Spacer(modifier = Modifier.height(24.dp))
 
-        Button(
-            onClick = onSendOtpClicked,
-            enabled = !isLoading && android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches(),
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(52.dp)
-        ) {
-            if (isLoading) {
-                CircularProgressIndicator(
-                    color = androidx.compose.ui.graphics.Color.White,
-                    strokeWidth = 2.dp,
-                    modifier = Modifier.height(20.dp)
-                )
-            } else {
-                Text(
-                    text = stringResource(R.string.trusted_contact_send_otp),
-                    style = MaterialTheme.typography.labelLarge
-                )
-            }
+        if (isLoading) {
+            CyberpunkLoadingIndicator(modifier = Modifier.fillMaxWidth().height(52.dp))
+        } else {
+            PrimaryButton(
+                label = stringResource(R.string.trusted_contact_send_otp),
+                onClick = onSendOtpClicked,
+                enabled = android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(52.dp)
+            )
         }
 
         Spacer(modifier = Modifier.height(16.dp))

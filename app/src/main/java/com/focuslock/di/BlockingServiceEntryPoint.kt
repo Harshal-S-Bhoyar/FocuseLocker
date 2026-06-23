@@ -1,6 +1,6 @@
 package com.focuslock.di
 
-import com.focuslock.domain.repository.SessionRepository
+import com.focuslock.data.repository.SessionRepository
 import com.focuslock.domain.usecase.CheckUrlForBlockedContentUseCase
 import com.focuslock.domain.usecase.GetActiveBlockedDomainsUseCase
 import com.focuslock.domain.usecase.GetAllBlockedDomainsFlowUseCase

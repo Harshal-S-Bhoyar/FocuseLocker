@@ -1,8 +1,9 @@
 package com.focuslock.domain.usecase
 
 import com.focuslock.domain.model.UnlockRequestStatus
-import com.focuslock.domain.repository.UnlockRepository
-import com.focuslock.domain.worker.UnlockWorkerScheduler
+import com.focuslock.data.repository.SessionRepository
+import com.focuslock.data.repository.UnlockRepository
+import com.focuslock.data.worker.UnlockWorkerScheduler
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
@@ -16,6 +17,7 @@ sealed class VerifyUnlockResult {
 
 class VerifyUnlockOtpUseCase @Inject constructor(
     private val unlockRepository: UnlockRepository,
+    private val sessionRepository: SessionRepository,
     private val unlockWorkerScheduler: UnlockWorkerScheduler
 ) {
     suspend operator fun invoke(
@@ -39,7 +41,12 @@ class VerifyUnlockOtpUseCase @Inject constructor(
             if (result.isSuccess) {
                 val isValid = result.getOrNull() == true
                 if (isValid) {
-                    val endsAt = System.currentTimeMillis() + 10 * 60 * 1000L
+                    val defaultCooldown = 10 * 60 * 1000L
+                    val session = sessionRepository.getActiveSessionSync()
+                    val remainingTime = session?.let { it.expiresAt - System.currentTimeMillis() } ?: defaultCooldown
+                    val cooldownDuration = if (remainingTime in 1..<defaultCooldown) remainingTime else defaultCooldown
+                    val endsAt = System.currentTimeMillis() + cooldownDuration
+                    
                     unlockRepository.updateStatus(requestId, UnlockRequestStatus.COOLDOWN)
                     unlockRepository.setCooldownEndsAt(requestId, endsAt)
                     unlockWorkerScheduler.scheduleCooldownTimer(endsAt)

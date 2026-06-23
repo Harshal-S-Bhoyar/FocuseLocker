@@ -9,7 +9,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material3.Button
+import com.focuslock.ui.components.PrimaryButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -54,12 +54,11 @@ fun SessionCompleteScreen(
                 textAlign = TextAlign.Center
             )
             Spacer(modifier = Modifier.height(dimensionResource(R.dimen.spacing_xxl)))
-            Button(
+            PrimaryButton(
+                label = stringResource(R.string.session_complete_start_another),
                 onClick = onStartAnotherSession,
                 modifier = Modifier.fillMaxWidth()
-            ) {
-                Text(stringResource(R.string.session_complete_start_another))
-            }
+            )
         }
     }
 }

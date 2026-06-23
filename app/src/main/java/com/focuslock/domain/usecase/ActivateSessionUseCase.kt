@@ -1,9 +1,9 @@
 package com.focuslock.domain.usecase
 
 import com.focuslock.domain.model.SessionStatus
-import com.focuslock.domain.repository.SessionRepository
+import com.focuslock.data.repository.SessionRepository
 import com.focuslock.domain.session.SessionRuntimeController
-import com.focuslock.domain.worker.SessionWorkerScheduler
+import com.focuslock.data.worker.SessionWorkerScheduler
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.withContext
