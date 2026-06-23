@@ -1,7 +1,7 @@
 package com.focuslock.domain.usecase
 
 import com.focuslock.domain.model.SessionStatus
-import com.focuslock.domain.repository.SessionRepository
+import com.focuslock.data.repository.SessionRepository
 import javax.inject.Inject
 
 /**

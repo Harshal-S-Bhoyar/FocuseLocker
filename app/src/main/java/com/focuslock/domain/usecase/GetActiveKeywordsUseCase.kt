@@ -1,6 +1,6 @@
 package com.focuslock.domain.usecase
 
-import com.focuslock.domain.repository.BlockingRepository
+import com.focuslock.data.repository.BlockingRepository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import javax.inject.Inject

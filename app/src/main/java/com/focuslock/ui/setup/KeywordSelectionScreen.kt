@@ -13,7 +13,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material3.Button
+import com.focuslock.ui.components.PrimaryButton
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -61,14 +61,13 @@ fun KeywordSelectionScreen(
             )
         },
         bottomBar = {
-            Button(
+            PrimaryButton(
+                label = stringResource(R.string.next),
                 onClick = onNavigateNext,
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(dimensionResource(R.dimen.spacing_lg))
-            ) {
-                Text(stringResource(R.string.next))
-            }
+            )
         }
     ) { paddingValues ->
         Column(
@@ -94,7 +93,8 @@ fun KeywordSelectionScreen(
                     isError = error != null
                 )
                 Spacer(modifier = Modifier.width(dimensionResource(R.dimen.spacing_sm)))
-                Button(
+                PrimaryButton(
+                    label = stringResource(R.string.keyword_add),
                     onClick = {
                         if (inputText.isNotBlank()) {
                             viewModel.addKeyword(inputText)
@@ -104,9 +104,7 @@ fun KeywordSelectionScreen(
                         }
                     },
                     enabled = keywords.size < maxKeywords && inputText.isNotBlank()
-                ) {
-                    Text(stringResource(R.string.keyword_add))
-                }
+                )
             }
             
             // Error Message Display

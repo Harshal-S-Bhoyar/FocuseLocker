@@ -7,9 +7,9 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Button
+import com.focuslock.ui.components.PrimaryButton
+import com.focuslock.ui.components.PrimaryButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -57,14 +57,14 @@ fun BlockingOverlayScreen(
             textAlign = TextAlign.Center
         )
         Spacer(modifier = Modifier.height(dimensionResource(R.dimen.spacing_xxl)))
-        Button(
+        PrimaryButton(
+            label = stringResource(R.string.overlay_return),
             onClick = onReturnToApp,
             modifier = Modifier.padding(bottom = dimensionResource(R.dimen.spacing_lg))
-        ) {
-            Text(stringResource(R.string.overlay_return))
-        }
-        OutlinedButton(onClick = onRequestEarlyUnlock) {
-            Text(stringResource(R.string.active_session_request_unlock))
-        }
+        )
+        PrimaryButton(
+            label = stringResource(R.string.active_session_request_unlock),
+            onClick = onRequestEarlyUnlock
+        )
     }
 }

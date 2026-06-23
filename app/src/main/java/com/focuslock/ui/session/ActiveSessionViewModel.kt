@@ -14,8 +14,8 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.combine
 import javax.inject.Inject
 
-import com.focuslock.domain.repository.SessionRepository
-import com.focuslock.domain.repository.UnlockRepository
+import com.focuslock.data.repository.SessionRepository
+import com.focuslock.data.repository.UnlockRepository
 import com.focuslock.domain.usecase.DeactivateSessionUseCase
 import com.focuslock.domain.model.SessionStatus
 import kotlinx.coroutines.ExperimentalCoroutinesApi

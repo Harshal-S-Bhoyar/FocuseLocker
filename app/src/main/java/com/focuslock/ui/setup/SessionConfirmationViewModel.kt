@@ -6,7 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.focuslock.domain.model.BlockedCategory
 import com.focuslock.domain.model.BlockedKeyword
 import com.focuslock.domain.model.TrustedContact
-import com.focuslock.domain.repository.TrustedContactRepository
+import com.focuslock.data.repository.TrustedContactRepository
 import com.focuslock.domain.usecase.ActivateSessionUseCase
 import com.focuslock.domain.usecase.GetAllCategoriesUseCase
 import com.focuslock.domain.usecase.GetAllKeywordsUseCase

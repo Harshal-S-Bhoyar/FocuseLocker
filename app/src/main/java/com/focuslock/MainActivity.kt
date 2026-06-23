@@ -18,7 +18,7 @@ import com.focuslock.ui.navigation.Screen
 import com.focuslock.ui.theme.FocusLockTheme
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
-import com.focuslock.domain.repository.SessionRepository
+import com.focuslock.data.repository.SessionRepository
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {

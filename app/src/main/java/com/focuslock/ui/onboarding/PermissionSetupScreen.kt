@@ -24,12 +24,11 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Warning
-import androidx.compose.material3.Button
+import com.focuslock.ui.components.PrimaryButton
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -222,21 +221,17 @@ private fun PermissionSetupContent(
 
         Spacer(modifier = Modifier.height(dimensionResource(R.dimen.spacing_sm)))
 
-        Button(
+        PrimaryButton(
+            label = if (permissions.allCriticalGranted)
+                stringResource(R.string.permission_continue)
+            else
+                stringResource(R.string.permission_grant_required),
             onClick = onContinue,
             enabled = permissions.allCriticalGranted,
             modifier = Modifier
                 .fillMaxWidth()
                 .height(dimensionResource(R.dimen.button_height))
-        ) {
-            Text(
-                text = if (permissions.allCriticalGranted)
-                    stringResource(R.string.permission_continue)
-                else
-                    stringResource(R.string.permission_grant_required),
-                style = MaterialTheme.typography.labelLarge
-            )
-        }
+        )
     }
 }
 
@@ -300,9 +295,10 @@ private fun PermissionRow(
             }
 
             if (!isGranted) {
-                OutlinedButton(onClick = onGrant) {
-                    Text(text = stringResource(R.string.permission_grant_button))
-                }
+                PrimaryButton(
+                    label = stringResource(R.string.permission_grant_button),
+                    onClick = onGrant
+                )
             }
         }
     }

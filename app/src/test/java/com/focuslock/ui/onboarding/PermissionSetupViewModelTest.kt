@@ -2,7 +2,7 @@ package com.focuslock.ui.onboarding
 
 import com.focuslock.domain.permission.AppPermissionStatus
 import com.focuslock.domain.permission.AppPermissionStatusProvider
-import com.focuslock.domain.repository.AppSettingsRepository
+import com.focuslock.data.repository.AppSettingsRepository
 import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk

@@ -9,7 +9,6 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface BlockedDomainDao {
-    
     @Query("""
         SELECT bd.* FROM blocked_domains bd
         INNER JOIN blocked_categories bc ON bd.category_key = bc.category_key

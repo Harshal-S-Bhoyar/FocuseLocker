@@ -2,7 +2,7 @@ package com.focuslock.domain.usecase
 
 
 import com.focuslock.domain.model.TrustedContact
-import com.focuslock.domain.repository.TrustedContactRepository
+import com.focuslock.data.repository.TrustedContactRepository
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk

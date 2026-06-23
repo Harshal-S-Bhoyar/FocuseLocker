@@ -1,7 +1,7 @@
 package com.focuslock.ui.session
 
-import com.focuslock.domain.repository.SessionRepository
-import com.focuslock.domain.repository.UnlockRepository
+import com.focuslock.data.repository.SessionRepository
+import com.focuslock.data.repository.UnlockRepository
 import com.focuslock.domain.usecase.GetSessionRemainingTimeUseCase
 import com.focuslock.domain.usecase.DeactivateSessionUseCase
 import com.focuslock.domain.session.SessionProtectionStatus

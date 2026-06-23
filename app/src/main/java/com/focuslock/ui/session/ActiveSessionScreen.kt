@@ -14,10 +14,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Error
 import androidx.compose.material.icons.filled.HourglassEmpty
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
-import androidx.compose.material3.CircularProgressIndicator
+import com.focuslock.ui.common.CyberpunkLoadingIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -114,10 +112,11 @@ fun ActiveSessionScreen(
             // Countdown Timer Display
             if (remainingTimeMillis == -1L) {
                 // Initial loading state
-                CircularProgressIndicator(
-                    color = MaterialTheme.colorScheme.primary,
-                    strokeWidth = 3.dp,
-                    modifier = Modifier.size(32.dp)
+                CyberpunkLoadingIndicator(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(60.dp)
+                        .padding(horizontal = 32.dp, vertical = 16.dp)
                 )
             } else {
                 Text(
@@ -239,23 +238,10 @@ fun ActiveSessionScreen(
             }
             
             // Early Unlock Button
-            Button(
-                onClick = onNavigateToUnlockRequest,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(56.dp),
-                shape = RoundedCornerShape(16.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.onBackground,
-                    contentColor = MaterialTheme.colorScheme.background
-                )
-            ) {
-                Text(
-                    text = stringResource(R.string.active_session_request_unlock), 
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold
-                )
-            }
+            com.focuslock.ui.components.PrimaryButton(
+                label = stringResource(R.string.active_session_request_unlock).uppercase(),
+                onClick = onNavigateToUnlockRequest
+            )
         }
     }
 }

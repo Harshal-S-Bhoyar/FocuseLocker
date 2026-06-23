@@ -15,6 +15,8 @@ backend/.env
 .gradle-local/
 build/
 app/build/
+app/build_test/
+build_test/
 local.properties
 .navigation/
 captures/
@@ -47,6 +49,14 @@ Thumbs.db
 .codex/
 .agents/
 .kotlin/
+.antigravity/
+.understand-anything/
+.planning/
+.loop/
+.kiro/
+.paul/
+projects/
+ponytail-audit/
 graphify-out/
 .graphify_python
 .mcp.json
@@ -56,9 +66,16 @@ otp_architecture.md
 test_memory.js
 test_mcp.js
 *.bin
-.antigravity
-.understand-anything
-logs
+*.log
+
+# --- Logs & Temp Dumps ---
+logs/
+log/
+device_logs/
+device logs/
 *.txt
-log
-device logs
+
+# --- AI & Project Audits ---
+Architectur/
+Audits/
+Threat_Detection/

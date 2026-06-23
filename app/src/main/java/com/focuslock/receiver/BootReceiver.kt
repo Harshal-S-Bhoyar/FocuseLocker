@@ -5,9 +5,9 @@ import android.content.Context
 import android.content.Intent
 import com.focuslock.domain.model.SessionStatus
 import timber.log.Timber
-import com.focuslock.domain.repository.SessionRepository
+import com.focuslock.data.repository.SessionRepository
 import com.focuslock.domain.session.SessionRuntimeController
-import com.focuslock.domain.worker.SessionWorkerScheduler
+import com.focuslock.data.worker.SessionWorkerScheduler
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CancellationException

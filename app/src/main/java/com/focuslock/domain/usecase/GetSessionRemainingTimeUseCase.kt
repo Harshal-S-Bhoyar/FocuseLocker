@@ -1,6 +1,6 @@
 package com.focuslock.domain.usecase
 
-import com.focuslock.domain.repository.SessionRepository
+import com.focuslock.data.repository.SessionRepository
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow

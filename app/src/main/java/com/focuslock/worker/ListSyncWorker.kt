@@ -7,7 +7,7 @@ import androidx.work.WorkerParameters
 import com.focuslock.data.local.dao.BlockedDomainDao
 import com.focuslock.data.parser.StevenBlackConfig
 import com.focuslock.data.parser.StevenBlackParser
-import com.focuslock.domain.repository.BlockingRepository
+import com.focuslock.data.repository.BlockingRepository
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 import kotlinx.coroutines.Dispatchers

@@ -1,7 +1,7 @@
 package com.focuslock.ui.setup
 
 import androidx.lifecycle.SavedStateHandle
-import com.focuslock.domain.repository.TrustedContactRepository
+import com.focuslock.data.repository.TrustedContactRepository
 import com.focuslock.domain.usecase.ActivateSessionUseCase
 import com.focuslock.domain.usecase.GetAllCategoriesUseCase
 import com.focuslock.domain.usecase.GetAllKeywordsUseCase

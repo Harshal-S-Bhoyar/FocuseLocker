@@ -1,7 +1,7 @@
 package com.focuslock.domain.usecase
 
-import com.focuslock.domain.repository.AppSettingsRepository
-import com.focuslock.domain.repository.BlockingRepository
+import com.focuslock.data.repository.AppSettingsRepository
+import com.focuslock.data.repository.BlockingRepository
 import android.content.Context
 import androidx.work.Constraints
 import androidx.work.ExistingPeriodicWorkPolicy

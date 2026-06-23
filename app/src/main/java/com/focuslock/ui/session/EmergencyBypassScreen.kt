@@ -16,6 +16,10 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import kotlinx.coroutines.delay
 import androidx.compose.ui.res.stringResource
 import com.focuslock.R
+import com.focuslock.ui.components.PrimaryButton
+import com.focuslock.ui.components.PrimaryButton
+import com.focuslock.ui.components.PrimaryButton
+import com.focuslock.ui.common.CyberpunkLoadingIndicator
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -104,51 +108,31 @@ fun EmergencyBypassScreen(
                 
                 Spacer(modifier = Modifier.height(32.dp))
                 
-                Button(
+                PrimaryButton(
+                    label = "Return to Home",
                     onClick = onNavigateToHome,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(56.dp),
-                    shape = RoundedCornerShape(16.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.primary,
-                        contentColor = MaterialTheme.colorScheme.onPrimary
-                    )
-                ) {
-                    Text("Return to Home", fontWeight = FontWeight.SemiBold)
-                }
+                    modifier = Modifier.fillMaxWidth()
+                )
             } else {
-                Button(
-                    onClick = { viewModel.startEmergencyBypass() },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(56.dp),
-                    shape = RoundedCornerShape(16.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
-                    enabled = state !is UnlockUiState.Requesting
-                ) {
-                    if (state is UnlockUiState.Requesting) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(24.dp),
-                            strokeWidth = 2.dp,
-                            color = Color.White
-                        )
-                    } else {
-                        Text("Start 24-Hour Wait", fontWeight = FontWeight.SemiBold)
-                    }
+                if (state is UnlockUiState.Requesting) {
+                    CyberpunkLoadingIndicator(
+                        modifier = Modifier.fillMaxWidth().height(48.dp)
+                    )
+                } else {
+                    PrimaryButton(
+                        label = "Start 24-Hour Wait",
+                        onClick = { viewModel.startEmergencyBypass() },
+                        modifier = Modifier.fillMaxWidth()
+                    )
                 }
                 
                 Spacer(modifier = Modifier.height(16.dp))
                 
-                OutlinedButton(
+                PrimaryButton(
+                    label = "Cancel",
                     onClick = onNavigateBack,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(56.dp),
-                    shape = RoundedCornerShape(16.dp)
-                ) {
-                    Text("Cancel", fontWeight = FontWeight.SemiBold)
-                }
+                    modifier = Modifier.fillMaxWidth()
+                )
             }
         }
     }

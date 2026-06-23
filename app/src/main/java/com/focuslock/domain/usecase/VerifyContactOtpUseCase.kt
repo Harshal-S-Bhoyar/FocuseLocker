@@ -1,6 +1,6 @@
 package com.focuslock.domain.usecase
 
-import com.focuslock.domain.repository.TrustedContactRepository
+import com.focuslock.data.repository.TrustedContactRepository
 import javax.inject.Inject
 
 sealed class VerifyOtpResult {

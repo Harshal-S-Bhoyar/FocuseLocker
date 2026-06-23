@@ -1,7 +1,7 @@
 package com.focuslock.domain.usecase
 
 import com.focuslock.domain.model.BlockedKeyword
-import com.focuslock.domain.repository.BlockingRepository
+import com.focuslock.data.repository.BlockingRepository
 import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.flow.first

@@ -2,7 +2,7 @@ package com.focuslock.domain.usecase
 
 import com.focuslock.domain.model.FetchOutcome
 import com.focuslock.domain.model.SmartScanResult
-import com.focuslock.domain.repository.BlockingRepository
+import com.focuslock.data.repository.BlockingRepository
 import android.util.LruCache
 import kotlinx.coroutines.ensureActive
 import javax.inject.Inject
