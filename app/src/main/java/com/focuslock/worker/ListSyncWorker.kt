@@ -33,10 +33,18 @@ class ListSyncWorker @AssistedInject constructor(
 
             val activeCategories = blockingRepository.getActiveCategoryKeys()
             
+            val sharedPreferences = context.getSharedPreferences("focuslock_prefs", Context.MODE_PRIVATE)
+            val editor = sharedPreferences.edit()
+            
+            val customClient = okHttpClient.newBuilder()
+                .apply {
+                    interceptors().removeAll { it is okhttp3.logging.HttpLoggingInterceptor }
+                }
+                .build()
+
             for (categoryKey in activeCategories) {
                 val url = StevenBlackConfig.categoryToUrlMap[categoryKey] ?: continue
                 
-                val sharedPreferences = context.getSharedPreferences("focuslock_prefs", Context.MODE_PRIVATE)
                 val lastETag = sharedPreferences.getString("etag_$categoryKey", null)
                 
                 val requestBuilder = Request.Builder().url(url)
@@ -44,40 +52,32 @@ class ListSyncWorker @AssistedInject constructor(
                     requestBuilder.header("If-None-Match", lastETag)
                 }
 
-                val customClient = okHttpClient.newBuilder()
-                    .apply {
-                        interceptors().removeAll { it is okhttp3.logging.HttpLoggingInterceptor }
-                    }
-                    .build()
-                
-                val response = customClient.newCall(requestBuilder.build()).execute()
-                
-                if (response.code == 304) {
-                    // Not modified, skip
-                    continue
-                }
-
-                if (response.isSuccessful) {
-                    val newETag = response.header("ETag")
-                    if (newETag != null) {
-                        sharedPreferences.edit().putString("etag_$categoryKey", newETag).apply()
+                customClient.newCall(requestBuilder.build()).execute().use { response ->
+                    if (response.code == 304) {
+                        return@use // Not modified, skip
                     }
 
-                    response.body?.string()?.let { raw ->
-                        val entities = StevenBlackParser.parseHostsFile(raw, categoryKey)
-                        // Insert in chunks to avoid SQLite transaction too large exception
-                        entities.chunked(1000).forEach { batch ->
-                            blockedDomainDao.insertDomains(batch)
+                    if (response.isSuccessful) {
+                        val newETag = response.header("ETag")
+                        if (newETag != null) {
+                            editor.putString("etag_$categoryKey", newETag)
                         }
+
+                        response.body?.byteStream()?.let { inputStream ->
+                            val entities = StevenBlackParser.parseHostsFile(inputStream, categoryKey)
+                            // Insert in chunks to avoid SQLite transaction too large exception
+                            entities.chunked(1000).forEach { batch ->
+                                blockedDomainDao.insertDomains(batch)
+                            }
+                        }
+                    } else {
+                        return@withContext Result.retry()
                     }
-                } else {
-                    return@withContext Result.retry()
                 }
             }
             
             // Save last sync timestamp
-            val sharedPreferences = context.getSharedPreferences("focuslock_prefs", Context.MODE_PRIVATE)
-            sharedPreferences.edit().putLong("last_stevenblack_sync", System.currentTimeMillis()).apply()
+            editor.putLong("last_stevenblack_sync", System.currentTimeMillis()).apply()
             
             timber.log.Timber.i("ListSyncWorker completed successfully.")
             Result.success()

@@ -6,7 +6,7 @@ import android.content.Intent
 import com.focuslock.domain.model.SessionStatus
 import timber.log.Timber
 import com.focuslock.data.repository.SessionRepository
-import com.focuslock.domain.session.SessionRuntimeController
+import com.focuslock.data.session.SessionRuntimeController
 import com.focuslock.data.worker.SessionWorkerScheduler
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
@@ -47,18 +47,16 @@ class BootReceiver : BroadcastReceiver() {
             receiverScope.launch {
                 try {
                     val session = sessionRepository.getActiveSessionSync()
-                    when (val decision = BootRecoveryDecision.evaluate(session?.expiresAt, System.currentTimeMillis())) {
-                        BootRecoveryDecision.NoSession -> Unit
-                        is BootRecoveryDecision.Recover -> {
+                    val expiresAt = session?.expiresAt
+                    if (expiresAt != null) {
+                        val remainingMillis = expiresAt - System.currentTimeMillis()
+                        if (remainingMillis > 0) {
                             Timber.tag(TAG).d("Active session found. Recovering timers and notification.")
-                            session?.let {
-                                sessionWorkerScheduler.scheduleSessionTimers(it.expiresAt)
-                                sessionRuntimeController.startRuntime(decision.remainingMillis)
-                            }
-                        }
-                        BootRecoveryDecision.CompleteExpired -> {
+                            sessionWorkerScheduler.scheduleSessionTimers(expiresAt)
+                            sessionRuntimeController.startRuntime(remainingMillis)
+                        } else {
                             Timber.tag(TAG).d("Session expired while device was off.")
-                            session?.let { sessionRepository.endSession(it.id, SessionStatus.COMPLETED) }
+                            sessionRepository.endSession(session.id, SessionStatus.COMPLETED)
                             sessionRuntimeController.stopRuntime()
                         }
                     }

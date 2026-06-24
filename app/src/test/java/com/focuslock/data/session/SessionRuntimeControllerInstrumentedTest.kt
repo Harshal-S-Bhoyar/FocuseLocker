@@ -9,13 +9,13 @@ import org.junit.Test
 import org.junit.runner.RunWith
 
 @RunWith(AndroidJUnit4::class)
-class AndroidSessionRuntimeControllerInstrumentedTest {
+class SessionRuntimeControllerInstrumentedTest {
 
     @Test
     fun stopRuntimeClearsEnforcementState() {
         val context = ApplicationProvider.getApplicationContext<android.content.Context>()
         val stateStore = FakeSessionEnforcementStateStore(isActive = true)
-        val controller = AndroidSessionRuntimeController(
+        val controller = SessionRuntimeController(
             context = context,
             notificationManager = SessionNotificationManager(context),
             enforcementStateStore = stateStore

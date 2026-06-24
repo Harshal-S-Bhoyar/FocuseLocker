@@ -26,7 +26,12 @@ class InitializeAppUseCase @Inject constructor(
     suspend operator fun invoke() {
         cleanupStaleSessionUseCase()  // Purge any stale ACTIVE sessions from DB before routing
         appSettingsRepository.initializeDefaultSettings()
-        blockingRepository.seedDomainDataIfNeeded()
+        
+        // ponytail: skip 3-8s blocking I/O if domains are already seeded
+        if (!appSettingsRepository.isDomainSeeded()) {
+            blockingRepository.seedDomainDataIfNeeded()
+            appSettingsRepository.setDomainSeeded()
+        }
         
         scheduleListSyncWorker(context)
     }

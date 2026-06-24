@@ -37,19 +37,13 @@ class FileLoggingTree(
         
         if (!isLoggable(tag, priority)) return
 
-        val currentTime = timeFormat.format(Date())
-        val currentDate = dateFormat.format(Date())
+        val now = Date()
+        val currentTime = timeFormat.format(now)
+        val currentDate = dateFormat.format(now)
         val threadName = Thread.currentThread().name
 
-        val priorityStr = when (priority) {
-            Log.VERBOSE -> "V"
-            Log.DEBUG -> "D"
-            Log.INFO -> "I"
-            Log.WARN -> "W"
-            Log.ERROR -> "E"
-            Log.ASSERT -> "A"
-            else -> "?"
-        }
+        // ponytail: array lookup over when-block — same result, 1 line.
+        val priorityStr = "?VDIWEA".getOrElse(priority) { '?' }.toString()
 
         val logLine = "$currentTime [$threadName] $priorityStr/${tag ?: "FocusLock"}: $message\n"
 

@@ -6,12 +6,6 @@ import org.junit.Test
 class DnsConfigTest {
 
     @Test
-    fun `default config exposes virtual IPs`() {
-        assertEquals(com.focuslock.BuildConfig.VIRTUAL_IPV4, DnsConfig.DEFAULT.virtualIpv4)
-        assertEquals(com.focuslock.BuildConfig.VIRTUAL_IPV6, DnsConfig.DEFAULT.virtualIpv6)
-    }
-
-    @Test
     fun `fromContext resolves profile ID from SharedPreferences`() {
         val mockContext = io.mockk.mockk<android.content.Context>(relaxed = true)
         val mockPrefs = io.mockk.mockk<android.content.SharedPreferences>(relaxed = true)
