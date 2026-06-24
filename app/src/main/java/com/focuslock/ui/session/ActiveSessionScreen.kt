@@ -207,13 +207,15 @@ fun ActiveSessionScreen(
                         elevation = androidx.compose.material3.CardDefaults.cardElevation(0.dp)
                     ) {
                         Column(
-                            modifier = Modifier.padding(24.dp),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(24.dp),
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
                             Icon(
                                 imageVector = Icons.Default.HourglassEmpty,
                                 contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary,
+                                tint = MaterialTheme.colorScheme.error,
                                 modifier = Modifier.size(32.dp)
                             )
                             Spacer(modifier = Modifier.height(8.dp))
@@ -228,7 +230,7 @@ fun ActiveSessionScreen(
                                 text = countdownText,
                                 style = MaterialTheme.typography.displaySmall,
                                 fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.primary
+                                color = MaterialTheme.colorScheme.error
                             )
                         }
                     }
