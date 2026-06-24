@@ -90,11 +90,11 @@ class BlockingRepository @Inject constructor(
     }
 
     suspend fun getAllBlockedDomains(): List<String> {
-        return domainDao.getAllBlockedDomainList()
+        return domainDao.getActiveBlockedDomainList()
     }
 
     fun getAllBlockedDomainsFlow(): Flow<List<String>> {
-        return domainDao.getAllBlockedDomainListFlow()
+        return domainDao.getActiveBlockedDomainListFlow()
     }
 
     suspend fun getCachedDomainStatus(domain: String): String? = withContext(Dispatchers.IO) {
@@ -145,8 +145,8 @@ class BlockingRepository @Inject constructor(
             val entities = domainList.map { entry ->
                 BlockedDomainEntity(domain = entry.domain, categoryKey = entry.category)
             }
-            // Insert in batches of 500 to avoid SQLite limits
-            entities.chunked(500).forEach { batch ->
+            // Insert in batches of 1000 to avoid SQLite limits
+            entities.chunked(1000).forEach { batch ->
                 domainDao.insertDomains(batch)
             }
         } catch (e: Exception) {
@@ -156,11 +156,8 @@ class BlockingRepository @Inject constructor(
 
     private suspend fun loadHostsFromAssets() {
         try {
-            val raw = context.assets.open("hosts.txt")
-                .bufferedReader()
-                .use { it.readText() }
-            
-            val entities = com.focuslock.data.parser.StevenBlackParser.parseHostsFile(raw, CategoryKey.GENERAL)
+            val inputStream = context.assets.open("hosts.txt")
+            val entities = com.focuslock.data.parser.StevenBlackParser.parseHostsFile(inputStream, CategoryKey.GENERAL)
             entities.chunked(1000).forEach { batch ->
                 domainDao.insertDomains(batch)
             }

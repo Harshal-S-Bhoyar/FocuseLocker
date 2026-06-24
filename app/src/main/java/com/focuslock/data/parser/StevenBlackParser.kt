@@ -15,45 +15,45 @@ object StevenBlackConfig {
 }
 
 object StevenBlackParser {
-    fun parseHostsFile(raw: String, categoryKey: String): List<BlockedDomainEntity> {
+    fun parseHostsFile(inputStream: java.io.InputStream, categoryKey: String): List<BlockedDomainEntity> {
         val result = mutableListOf<BlockedDomainEntity>()
-        val lines = raw.split("\n")
-        
-        for (line in lines) {
-            val trimmed = line.trim()
-            if (trimmed.isEmpty() || trimmed.startsWith("#")) continue
-            
-            var domain = if (trimmed.startsWith("0.0.0.0 ") || trimmed.startsWith("127.0.0.1 ")) {
-                val parts = trimmed.split("\\s+".toRegex())
-                if (parts.size >= 2) parts[1] else continue
-            } else {
-                // Plain domain list
-                val parts = trimmed.split("\\s+".toRegex())
-                parts[0] // take the first token to avoid inline comments if any
-            }
-            
-            if (domain == "0.0.0.0" || domain == "localhost" || domain == "127.0.0.1" || domain == "255.255.255.255" || domain == "broadcasthost") continue
-            
-            if (domain.startsWith("www.")) {
-                domain = domain.substring(4)
-            }
-            
-            if (domain.contains("#") || domain.contains("<") || domain.contains(">")) {
-                Timber.w("STEVEN_BLACK: Domain parse skipped due to invalid characters: $domain")
-                continue
-            }
+        inputStream.bufferedReader().useLines { lines ->
+            for (line in lines) {
+                val trimmed = line.trim()
+                if (trimmed.isEmpty() || trimmed.startsWith("#")) continue
+                
+                var domain = if (trimmed.startsWith("0.0.0.0 ") || trimmed.startsWith("127.0.0.1 ")) {
+                    val parts = trimmed.split("\\s+".toRegex())
+                    if (parts.size >= 2) parts[1] else continue
+                } else {
+                    // Plain domain list
+                    val parts = trimmed.split("\\s+".toRegex())
+                    parts[0] // take the first token to avoid inline comments if any
+                }
+                
+                if (domain == "0.0.0.0" || domain == "localhost" || domain == "127.0.0.1" || domain == "255.255.255.255" || domain == "broadcasthost") continue
+                
+                if (domain.startsWith("www.")) {
+                    domain = domain.substring(4)
+                }
+                
+                if (domain.contains("#") || domain.contains("<") || domain.contains(">")) {
+                    Timber.w("STEVEN_BLACK: Domain parse skipped due to invalid characters: $domain")
+                    continue
+                }
 
-            result.add(
-                BlockedDomainEntity(
-                    domain = domain,
-                    categoryKey = categoryKey,
-                    isAutoBlocked = false,
-                    matchedKeyword = null,
-                    autoBlockedAt = null,
-                    blockStatus = "PERMANENT",
-                    expiresAt = null
+                result.add(
+                    BlockedDomainEntity(
+                        domain = domain,
+                        categoryKey = categoryKey,
+                        isAutoBlocked = false,
+                        matchedKeyword = null,
+                        autoBlockedAt = null,
+                        blockStatus = "PERMANENT",
+                        expiresAt = null
+                    )
                 )
-            )
+            }
         }
         
         return result

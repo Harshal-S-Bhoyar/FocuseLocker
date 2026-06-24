@@ -34,15 +34,5 @@ data class DnsConfig(
             )
         }
 
-        // ponytail: kept for tests that don't need a Context. Uses BuildConfig default.
-        val DEFAULT = DnsConfig(
-            virtualIpv4 = com.focuslock.BuildConfig.VIRTUAL_IPV4,
-            virtualIpv6 = com.focuslock.BuildConfig.VIRTUAL_IPV6,
-            dohEndpoint = if (com.focuslock.BuildConfig.NEXTDNS_PROFILE_ID.isBlank()) {
-                com.focuslock.BuildConfig.FALLBACK_DNS_ENDPOINT
-            } else {
-                "${com.focuslock.BuildConfig.NEXTDNS_BASE_URL}${com.focuslock.BuildConfig.NEXTDNS_PROFILE_ID}"
-            }
-        )
     }
 }

@@ -7,7 +7,7 @@ import com.focuslock.data.local.FocusDatabase
 import com.focuslock.data.repository.SessionRepository
 import com.focuslock.data.worker.SessionWorkerScheduler
 import com.focuslock.domain.model.SessionStatus
-import com.focuslock.domain.session.SessionRuntimeController
+import com.focuslock.data.session.SessionRuntimeController
 import com.focuslock.domain.usecase.ActivateSessionUseCase
 import com.focuslock.domain.usecase.CleanupStaleSessionUseCase
 import com.focuslock.domain.usecase.DeactivateSessionUseCase

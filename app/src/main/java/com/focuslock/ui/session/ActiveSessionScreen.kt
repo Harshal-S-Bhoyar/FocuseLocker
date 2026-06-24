@@ -12,8 +12,8 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Error
-import androidx.compose.material.icons.filled.HourglassEmpty
+import androidx.compose.material.icons.filled.Warning
+// import removed
 import androidx.compose.material3.Card
 import com.focuslock.ui.common.CyberpunkLoadingIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -207,13 +207,15 @@ fun ActiveSessionScreen(
                         elevation = androidx.compose.material3.CardDefaults.cardElevation(0.dp)
                     ) {
                         Column(
-                            modifier = Modifier.padding(24.dp),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(24.dp),
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
                             Icon(
-                                imageVector = Icons.Default.HourglassEmpty,
+                                imageVector = com.focuslock.ui.theme.CustomIcons.HourglassEmpty,
                                 contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary,
+                                tint = MaterialTheme.colorScheme.error,
                                 modifier = Modifier.size(32.dp)
                             )
                             Spacer(modifier = Modifier.height(8.dp))
@@ -228,7 +230,7 @@ fun ActiveSessionScreen(
                                 text = countdownText,
                                 style = MaterialTheme.typography.displaySmall,
                                 fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.primary
+                                color = MaterialTheme.colorScheme.error
                             )
                         }
                     }
@@ -269,7 +271,7 @@ fun StatusRow(label: String, isActive: Boolean, onClick: (() -> Unit)? = null) {
         modifier = if (onClick != null) Modifier.clickable { onClick() } else Modifier
     ) {
         Icon(
-            imageVector = if (isActive) Icons.Default.CheckCircle else Icons.Default.Error,
+            imageVector = if (isActive) Icons.Default.CheckCircle else Icons.Default.Warning,
             contentDescription = stringResource(if (isActive) R.string.status_active else R.string.status_inactive),
             tint = if (isActive) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error,
             modifier = Modifier.size(20.dp)

@@ -11,7 +11,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Remove
+import com.focuslock.ui.theme.CustomIcons
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -145,7 +145,7 @@ fun NumberPicker(
             fontWeight = FontWeight.Bold
         )
         com.focuslock.ui.components.HexFAB(
-            icon = Icons.Default.Remove,
+            icon = CustomIcons.Remove,
             contentDescription = stringResource(R.string.number_picker_decrease, label),
             onClick = { if (enabledDecrement) onDecrement() },
             modifier = androidx.compose.ui.Modifier.graphicsLayer { alpha = if (enabledDecrement) 1f else 0.5f }

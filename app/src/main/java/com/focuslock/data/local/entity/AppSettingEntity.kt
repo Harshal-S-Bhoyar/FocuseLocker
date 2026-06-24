@@ -19,4 +19,5 @@ object AppSettingKey {
     const val ACCESSIBILITY_ACTIVE = "accessibility_active"
     const val VPN_ACTIVE = "vpn_active"
     const val FIRST_INSTALL_DATE = "first_install_date"
+    const val DOMAINS_SEEDED = "domains_seeded"
 }

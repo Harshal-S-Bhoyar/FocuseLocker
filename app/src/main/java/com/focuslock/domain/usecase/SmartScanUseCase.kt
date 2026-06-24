@@ -81,12 +81,17 @@ class SmartScanUseCase @Inject constructor(
         when (outcome) {
             is FetchOutcome.FetchTimeout, is FetchOutcome.FetchEmpty -> {
                 // FAIL-OPEN: No content evidence available — do NOT block.
-                // Re-scan on next visit. Cache nothing to avoid stale false-negatives.
-                return SmartScanResult.FetchFailed("fetch_incomplete")
+                // Cache briefly to prevent log spam and rapid retries.
+                val result = SmartScanResult.FetchFailed("fetch_incomplete")
+                memoryCache.put(domain, CacheEntry(result, System.currentTimeMillis()))
+                return result
             }
             is FetchOutcome.FetchError -> {
-                // Network error — allow, do NOT cache (will re-scan next visit)
-                return SmartScanResult.FetchFailed(outcome.reason)
+                // Network error (e.g. ISP Connection Reset on blocked SNI) — allow, but cache briefly
+                // to prevent log spam and battery drain from rapid-fire retries.
+                val result = SmartScanResult.FetchFailed(outcome.reason)
+                memoryCache.put(domain, CacheEntry(result, System.currentTimeMillis()))
+                return result
             }
             is FetchOutcome.Success -> {
                 val signals = outcome.signals

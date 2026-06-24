@@ -27,7 +27,7 @@ interface BlockedDomainDao {
           AND (bd.expires_at IS NULL OR bd.expires_at > :now)
     """)
     suspend fun getActiveBlockedDomainList(now: Long = System.currentTimeMillis()): List<String>
-    
+
     @Query("""
         SELECT DISTINCT bd.domain 
         FROM blocked_domains bd
@@ -36,17 +36,7 @@ interface BlockedDomainDao {
           AND (bd.block_status IS NULL OR bd.block_status = 'PERMANENT')
           AND (bd.expires_at IS NULL OR bd.expires_at > :now)
     """)
-    suspend fun getAllBlockedDomainList(now: Long = System.currentTimeMillis()): List<String>
-    
-    @Query("""
-        SELECT DISTINCT bd.domain 
-        FROM blocked_domains bd
-        INNER JOIN blocked_categories bc ON bd.category_key = bc.category_key
-        WHERE bc.is_active = 1 
-          AND (bd.block_status IS NULL OR bd.block_status = 'PERMANENT')
-          AND (bd.expires_at IS NULL OR bd.expires_at > :now)
-    """)
-    fun getAllBlockedDomainListFlow(now: Long = System.currentTimeMillis()): Flow<List<String>>
+    fun getActiveBlockedDomainListFlow(now: Long = System.currentTimeMillis()): Flow<List<String>>
     
     @Query("SELECT * FROM blocked_domains WHERE category_key = :categoryKey")
     fun getDomainsByCategory(categoryKey: String): Flow<List<BlockedDomainEntity>>

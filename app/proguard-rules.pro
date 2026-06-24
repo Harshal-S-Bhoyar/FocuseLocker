@@ -42,3 +42,10 @@
     public static *** d(...);
     public static *** v(...);
 }
+
+# Strip Timber log calls
+-assumenosideeffects class timber.log.Timber {
+    public static *** d(...);
+    public static *** v(...);
+    public static *** i(...);
+}

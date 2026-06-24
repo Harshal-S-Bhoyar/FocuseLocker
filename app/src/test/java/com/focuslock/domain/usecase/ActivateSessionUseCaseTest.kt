@@ -1,7 +1,7 @@
 package com.focuslock.domain.usecase
 
 import com.focuslock.data.repository.SessionRepository
-import com.focuslock.domain.session.SessionRuntimeController
+import com.focuslock.data.session.SessionRuntimeController
 import com.focuslock.data.worker.SessionWorkerScheduler
 import io.mockk.coEvery
 import io.mockk.coVerify

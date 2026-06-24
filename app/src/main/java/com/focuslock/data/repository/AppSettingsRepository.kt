@@ -44,4 +44,12 @@ class AppSettingsRepository @Inject constructor(
     suspend fun setOnboardingComplete() {
         appSettingDao.updateSettingValue(AppSettingKey.ONBOARDING_COMPLETE, "true")
     }
+
+    suspend fun isDomainSeeded(): Boolean {
+        return appSettingDao.getSettingValue(AppSettingKey.DOMAINS_SEEDED) == "true"
+    }
+
+    suspend fun setDomainSeeded() {
+        appSettingDao.updateSettingValue(AppSettingKey.DOMAINS_SEEDED, "true")
+    }
 }
