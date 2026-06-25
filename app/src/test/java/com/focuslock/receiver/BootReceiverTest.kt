@@ -111,6 +111,7 @@ class BootReceiverTest {
         coEvery { sessionRepository.getActiveSessionSync() } returns activeSession
         // Simulate Accessibility being killed by OEM
         every { PermissionChecker.isAccessibilityServiceEnabled(any<Context>()) } returns false
+        every { PermissionChecker.isOverlayPermissionGranted(any<Context>()) } returns true
 
         bootReceiver.processBootIntent(context, intent)
         advanceUntilIdle()
