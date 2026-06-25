@@ -34,7 +34,7 @@
 
 ---
 
-## 🧠 `> SYSTEM.DESCRIBE()`
+## 🧠 System Description
 
 FocusLock is a **self-discipline Android app** that blocks distracting browser content for a set time period — and makes it **genuinely impossible** to undo alone.
 
@@ -42,7 +42,7 @@ FocusLock is a **self-discipline Android app** that blocks distracting browser c
 
 Unlike other blocker apps where a single tap removes the block, FocusLock creates **real accountability** by requiring a trusted human contact to authorize early termination.
 
-### `> IDENTIFY_USER()`
+### Identify User
 
 | Profile | Match |
 |---------|-------|
@@ -52,9 +52,9 @@ Unlike other blocker apps where a single tap removes the block, FocusLock create
 
 ---
 
-## ✨ `> CORE_MODULES.LIST()`
+## ✨ Core Modules
 
-### 🔒 `MODULE_01` — Keyword & Category Blocking
+### 🔒 Keyword & Category Blocking
 
 | Method | Mechanism | Engine |
 |--------|-----------|--------|
@@ -66,17 +66,20 @@ Unlike other blocker apps where a single tap removes the block, FocusLock create
 - ⚡ **Zero data exfiltration** — no browsing data leaves the device
 - ⚡ **Smart Scan** — async metadata + DoH race for dynamic blocking
 
-### ⏱️ `MODULE_02` — Timer Lock
+### ⏱️ Timer Lock
 
 - Set blocking sessions from **15 minutes → 72 hours**
 - Once activated, the session **cannot be stopped** until timer expires
 - Timer persists across **app restarts, process death, and device reboots**
 - **Device Admin API** prevents uninstallation during active sessions
 
-### `MODULE_03` — Trusted Contact Unlock
+### 🔐 Trusted Contact Unlock
 
 ```mermaid
 flowchart TD
+    %% Cyberpunk Theme Styling
+    %%{init: {'theme': 'base', 'themeVariables': { 'background': '#050510', 'primaryColor': '#110D26', 'primaryBorderColor': '#00FFFF', 'primaryTextColor': '#FFFFFF', 'lineColor': '#FF0055', 'clusterBkg': '#1A0B2E', 'clusterBorder': '#00FF41' }}}%%
+
     Start([User taps 'Request Early Unlock']) --> Email[OTP + Context Message sent to Contact]
     
     subgraph Context[Email Contents]
@@ -99,15 +102,17 @@ flowchart TD
     
     Fallback[Emergency Bypass] -.->|24-hour wait| Unlocked
     
-    classDef default fill:#1E1E1E,stroke:#00FF41,stroke-width:2px,color:#FFF
-    classDef highlight fill:#4285F4,stroke:#FFF,color:#FFF
-    classDef error fill:#FF003C,stroke:#FFF,color:#FFF
+    classDef default fill:#1E1E1E,stroke:#00FFFF,stroke-width:2px,color:#FFFFFF
+    classDef highlight fill:#1E1E1E,stroke:#FF00FF,stroke-width:2px,color:#FF00FF,shadow:true
+    classDef error fill:#1E1E1E,stroke:#FF003C,stroke-width:2px,color:#FF003C
     
     class Start,Unlocked highlight
     class Blocked,NewRequest error
+    
+    linkStyle default stroke:#00FF41,stroke-width:2px;
 ```
 
-### 🛡️ `MODULE_04` — Settings Protection
+### 🛡️ Settings Protection
 
 During an active session, the app **blocks attempts** to:
 - `[ BLOCKED ]` Disable the Accessibility Service
@@ -119,10 +124,13 @@ A **full-screen overlay** deploys when the user navigates to protected settings.
 
 ---
 
-## `> EXECUTION_FLOW.TRACE()`
+## 🌊 Execution Flow
 
 ```mermaid
 flowchart TD
+    %% Cyberpunk Theme Styling
+    %%{init: {'theme': 'base', 'themeVariables': { 'background': '#050510', 'primaryColor': '#110D26', 'primaryBorderColor': '#00FFFF', 'primaryTextColor': '#FFFFFF', 'lineColor': '#FF0055', 'clusterBkg': '#1A0B2E', 'clusterBorder': '#00FF41' }}}%%
+
     Install([Install FocusLock]) --> Perms[01. Grant Permissions]
     
     subgraph P[System Integrations]
@@ -153,19 +161,24 @@ flowchart TD
     Bypass --> Done
     OTP --> Done
     
-    classDef default fill:#1E1E1E,stroke:#7F52FF,stroke-width:2px,color:#FFF
-    classDef active fill:#00FF41,stroke:#000,color:#000,stroke-width:3px
+    classDef default fill:#1E1E1E,stroke:#00FFFF,stroke-width:2px,color:#FFFFFF
+    classDef active fill:#0D0D0D,stroke:#FF00FF,color:#00FF41,stroke-width:3px,shadow:true
     class Active active
+    
+    linkStyle default stroke:#FF00FF,stroke-width:2px;
 ```
 
 ---
 
-## `> ARCHITECTURE.RENDER()`
+## 🏗️ Architecture
 
 FocusLock follows **MVVM + Clean Architecture** with strict layer separation:
 
 ```mermaid
 flowchart TB
+    %% Cyberpunk Theme Styling
+    %%{init: {'theme': 'base', 'themeVariables': { 'background': '#050510', 'primaryColor': '#110D26', 'primaryBorderColor': '#00FFFF', 'primaryTextColor': '#FFFFFF', 'lineColor': '#FF0055', 'clusterBkg': '#1A0B2E', 'clusterBorder': '#00FF41' }}}%%
+
     subgraph Device [ANDROID DEVICE]
         direction TB
         
@@ -204,16 +217,15 @@ flowchart TB
     
     Device <-->|HTTPS OTP Only| Backend
     
-    classDef device fill:#1E1E1E,stroke:#4285F4,stroke-width:2px,color:#FFF
-    classDef backend fill:#1E1E1E,stroke:#339933,stroke-width:2px,color:#FFF
-    classDef database fill:#2D2D2D,stroke:#FF00FF,stroke-width:2px,color:#FFF
+    classDef default fill:#1E1E1E,stroke:#00FFFF,stroke-width:2px,color:#FFFFFF
+    classDef database fill:#0D0D0D,stroke:#FF00FF,stroke-width:2px,color:#FF00FF
     
-    class Device device
-    class Backend backend
     class Room,Memory database
+    
+    linkStyle default stroke:#FF00FF,stroke-width:2px;
 ```
 
-### `> HOTSPOTS.SCAN()`
+### 🎯 Hotspots Scan
 
 > Source: graphify-out (2346 nodes · 2122 edges · 404 communities)
 
@@ -232,7 +244,7 @@ flowchart TB
 
 ---
 
-## 🛠️ `> TECH_STACK.DUMP()`
+## 🛠️ Tech Stack
 
 ### Android App
 
@@ -266,7 +278,7 @@ flowchart TB
 
 ---
 
-## 🗄️ `> DATABASE.SCHEMA()`
+## 🗄️ Database Schema
 
 All data is stored **locally on-device** using Room (SQLite). No user data is stored on the backend.
 
@@ -282,7 +294,7 @@ All data is stored **locally on-device** using Room (SQLite). No user data is st
 
 ---
 
-## 🔌 `> API.ENDPOINTS()`
+## 🔌 API Endpoints
 
 | Endpoint | Method | Purpose |
 |----------|--------|---------|
@@ -300,7 +312,7 @@ All data is stored **locally on-device** using Room (SQLite). No user data is st
 
 ---
 
-## 📱 `> PERMISSIONS.MANIFEST()`
+## 📱 Permissions Manifest
 
 | Permission | Engine | If Denied |
 |------------|--------|-----------|
@@ -315,7 +327,7 @@ All data is stored **locally on-device** using Room (SQLite). No user data is st
 
 ---
 
-## 🚀 `> QUICKSTART.INIT()`
+## 🚀 Quickstart
 
 ### Prerequisites
 
@@ -385,7 +397,7 @@ adb reverse tcp:3000 tcp:3000
 
 ---
 
-## 🧪 `> TESTS.EXECUTE()`
+## 🧪 Tests
 
 ### Android
 ```bash
@@ -404,7 +416,7 @@ cd backend && npm test
 
 ---
 
-## 🔐 `> SECURITY.AUDIT()`
+## 🔐 Security Audit
 
 | Vector | Protection |
 |--------|-----------|
@@ -424,7 +436,7 @@ cd backend && npm test
 
 ---
 
-## 📁 `> PROJECT.TREE()`
+## 📁 Project Tree
 
 ```
 FocuseLocker/
@@ -477,7 +489,7 @@ FocuseLocker/
 
 ---
 
-## ⚠️ `> KNOWN_LIMITATIONS.LOG()`
+## ⚠️ Known Limitations
 
 | Limitation | Severity | Status |
 |-----------|----------|--------|
@@ -490,7 +502,7 @@ FocuseLocker/
 
 ---
 
-## 📋 `> DEVELOPMENT_PHASES.STATUS()`
+## 📋 Development Phases
 
 | Phase | Focus | Status |
 |-------|-------|--------|
@@ -504,7 +516,7 @@ FocuseLocker/
 
 ---
 
-## 📊 `> CODEBASE.STATS()`
+## 📊 Codebase Stats
 
 | Metric | Count |
 |--------|-------|
@@ -528,7 +540,7 @@ FocuseLocker/
 
 ---
 
-## 🤝 `> CONTRIBUTING.PROTOCOL()`
+## 🤝 Contributing
 
 1. Fork the repository
 2. Create a feature branch (`git checkout -b feature/your-feature`)
@@ -537,7 +549,7 @@ FocuseLocker/
 5. Test on a **physical Android device**
 6. Submit a pull request
 
-### `> CODING_RULES.ENFORCE()`
+### 📜 Coding Rules
 
 ```
 [ RULE ] Kotlin only — no Java files
@@ -552,7 +564,7 @@ FocuseLocker/
 
 ---
 
-## 📄 `> DOCUMENTATION.INDEX()`
+## 📄 Documentation
 
 | Document | Description |
 |----------|-------------|
@@ -566,7 +578,7 @@ FocuseLocker/
 
 ---
 
-## 🗺️ `> ROADMAP.FUTURE()`
+## 🗺️ Roadmap
 
 ```
 [ ] iOS version
