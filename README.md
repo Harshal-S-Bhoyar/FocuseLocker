@@ -73,22 +73,38 @@ Unlike other blocker apps where a single tap removes the block, FocusLock create
 - Timer persists across **app restarts, process death, and device reboots**
 - **Device Admin API** prevents uninstallation during active sessions
 
-### 📱 `MODULE_03` — Trusted Contact Unlock
+### `MODULE_03` — Trusted Contact Unlock
 
-```
-┌─ REQUEST EARLY UNLOCK ─────────────────────────────────────┐
-│                                                             │
-│  1. User taps "Request Early Unlock"                        │
-│  2. OTP + context message → trusted contact's email         │
-│     ├── What you blocked                                    │
-│     ├── Time remaining                                      │
-│     └── When you asked                                      │
-│  3. Contact decides whether to share OTP                    │
-│  4. Enter OTP → 10-min mandatory cooldown → Unlocked        │
-│  5. Wrong OTP × 3 → Must request new OTP                    │
-│                                                             │
-│  FALLBACK: 24-hour emergency bypass (no OTP needed)         │
-└─────────────────────────────────────────────────────────────┘
+```mermaid
+flowchart TD
+    Start([User taps "Request Early Unlock"]) --> Email[OTP + Context Message sent to Contact]
+    
+    subgraph Context[Email Contents]
+        direction TB
+        A[What is blocked]
+        B[Time remaining]
+        C[Time requested]
+    end
+    Email -.-> Context
+    
+    Email --> Decision{Contact Decides}
+    Decision -- Shares OTP --> Input[User Enters OTP]
+    Decision -- Refuses --> Blocked([Remains Locked])
+    
+    Input -- Correct OTP --> Cooldown[10-min Mandatory Cooldown]
+    Cooldown --> Unlocked([Session Unlocked])
+    
+    Input -- Wrong OTP x 3 --> NewRequest[Must Request New OTP]
+    NewRequest --> Start
+    
+    Fallback[Emergency Bypass] -.->|24-hour wait| Unlocked
+    
+    classDef default fill:#1E1E1E,stroke:#00FF41,stroke-width:2px,color:#FFF
+    classDef highlight fill:#4285F4,stroke:#FFF,color:#FFF
+    classDef error fill:#FF003C,stroke:#FFF,color:#FFF
+    
+    class Start,Unlocked highlight
+    class Blocked,NewRequest error
 ```
 
 ### 🛡️ `MODULE_04` — Settings Protection
@@ -103,90 +119,98 @@ A **full-screen overlay** deploys when the user navigates to protected settings.
 
 ---
 
-## 🔄 `> EXECUTION_FLOW.TRACE()`
+## `> EXECUTION_FLOW.TRACE()`
 
-```
-📱 INSTALL FOCUSLOCK
- │
- ├─ 01. GRANT PERMISSIONS
- │     ├── Accessibility Service ← keyword detection engine
- │     ├── VPN Service ← domain-level DNS blocking
- │     ├── Device Admin ← prevents uninstall
- │     ├── Battery Optimization Exemption ← service survival
- │     └── Overlay Permission ← blocking screen
- │
- ├─ 02. SELECT CONTENT TO BLOCK
- │     ├── Categories: Social Media, Adult, Gambling, News, Gaming, Shopping
- │     └── Custom keywords: up to 50, stored lowercase
- │
- ├─ 03. SET TIMER DURATION
- │     └── 15 minutes → 72 hours
- │
- ├─ 04. REGISTER TRUSTED CONTACT
- │     ├── Enter email → OTP verification (one-time setup)
- │     └── Backend sends context-aware unlock emails
- │
- ├─ 05. CONFIRM & LOCK IN
- │     └── Review summary → "Lock In" → Session starts
- │
- └─ 06. ACTIVE SESSION
-       ├── 🔴 Browser keyword match → BLOCKED (overlay)
-       ├── 🔴 Blocked domain DNS query → NXDOMAIN (VPN)
-       ├── 🔴 Uninstall attempt → PREVENTED (Device Admin)
-       ├── 🔴 Settings tampering → OVERLAY DEPLOYED
-       │
-       ├── ⏰ Timer expires → Session ends automatically
-       │
-       └── 🔓 Early termination?
-             ├── Request Unlock → OTP sent to contact
-             │     ├── Correct OTP → 10-min cooldown → Unlocked
-             │     └── Wrong OTP × 3 → Must request new
-             │
-             └── Emergency Bypass → 24h mandatory wait → Auto-unlock
+```mermaid
+flowchart TD
+    Install([Install FocusLock]) --> Perms[01. Grant Permissions]
+    
+    subgraph P[System Integrations]
+        direction TB
+        P1[Accessibility Service]
+        P2[VPN Service]
+        P3[Device Admin]
+        P4[Overlay Permission]
+    end
+    Perms -.-> P
+    
+    Perms --> Content[02. Select Content to Block]
+    Content --> Timer[03. Set Timer Duration]
+    Timer --> Contact[04. Register Trusted Contact]
+    Contact --> Lock[05. Confirm & Lock In]
+    Lock --> Active((06. ACTIVE SESSION))
+    
+    Active -->|Browser match| B1[Blocked Overlay]
+    Active -->|DNS query| B2[NXDOMAIN VPN]
+    Active -->|Uninstall attempt| B3[Prevented Device Admin]
+    Active -->|Settings tamper| B4[Overlay Deployed]
+    
+    Active -->|Timer expires| Done([Session Ends])
+    
+    Active -->|Early termination| Unlock{Unlock Flow}
+    Unlock -- Request Unlock --> OTP[OTP Verification]
+    Unlock -- Emergency --> Bypass[24h Mandatory Wait]
+    Bypass --> Done
+    OTP --> Done
+    
+    classDef default fill:#1E1E1E,stroke:#7F52FF,stroke-width:2px,color:#FFF
+    classDef active fill:#00FF41,stroke:#000,color:#000,stroke-width:3px
+    class Active active
 ```
 
 ---
 
-## 🏗️ `> ARCHITECTURE.RENDER()`
+## `> ARCHITECTURE.RENDER()`
 
 FocusLock follows **MVVM + Clean Architecture** with strict layer separation:
 
-```
-┌──────────────────────────────────────────────────────────────┐
-│                      ANDROID DEVICE                          │
-│                                                              │
-│  ┌──────────────────┐     ┌────────────────────────────┐     │
-│  │    UI Layer       │     │  Accessibility Service     │     │
-│  │  (Jetpack Compose │     │  (Keyword detection in     │     │
-│  │   + ViewModels)   │     │   browser URL bars)        │     │
-│  └────────┬─────────┘     └─────────────┬──────────────┘     │
-│           │                             │                     │
-│  ┌────────▼─────────────────────────────▼──────────────┐     │
-│  │              Domain Layer (UseCases)                  │     │
-│  │   Pure Kotlin — no Android imports allowed            │     │
-│  │   InitializeAppUseCase (gated seed)                   │     │
-│  │   SmartScanUseCase (AhoCorasick + DoH race)           │     │
-│  └────────┬─────────────────────────────┬──────────────┘     │
-│           │                             │                     │
-│  ┌────────▼──────────┐     ┌────────────▼──────────────┐     │
-│  │  Room Database     │     │     Service Layer          │     │
-│  │  (SQLite — all     │     │  Local VPN + Device Admin  │     │
-│  │   state is local)  │     │  + Overlay + WorkManager   │     │
-│  └───────────────────┘     └───────────────────────────┘     │
-└──────────────────────────────────────────────────────────────┘
-                            │
-                      HTTPS (OTP only)
-                            │
-┌───────────────────────────▼──────────────────────────────────┐
-│                    BACKEND SERVER                             │
-│           Node.js + Express + TypeScript                      │
-│                                                              │
-│    POST /verify-contact    POST /request-unlock               │
-│    POST /confirm-contact   POST /verify-unlock-otp            │
-│                                                              │
-│    ⚠️ Stores NOTHING permanently                              │
-│    OTPs live in memory with 10-minute TTL only                │
-└──────────────────────────────────────────────────────────────┘
+```mermaid
+flowchart TB
+    subgraph Device [ANDROID DEVICE]
+        direction TB
+        
+        subgraph UI [UI Layer]
+            Compose[Jetpack Compose + ViewModels]
+        end
+        
+        subgraph Services [Service Layer]
+            Access[Accessibility Service]
+            VPN[Local VPN + Device Admin]
+            Overlay[Overlay + WorkManager]
+        end
+        
+        subgraph Domain [Domain Layer]
+            direction LR
+            Init[InitializeAppUseCase]
+            Scan[SmartScanUseCase]
+        end
+        
+        subgraph Data [Data Layer]
+            Room[(Room SQLite Database)]
+        end
+        
+        UI --> Domain
+        Access --> Domain
+        Domain --> Data
+        Domain --> Services
+    end
+    
+    subgraph Backend [BACKEND SERVER Node.js + Express]
+        direction TB
+        Routes[API Routes: /verify, /request]
+        Memory[(In-Memory OTP Store TTL 10m)]
+        Routes --> Memory
+    end
+    
+    Device <-->|HTTPS OTP Only| Backend
+    
+    classDef device fill:#1E1E1E,stroke:#4285F4,stroke-width:2px,color:#FFF
+    classDef backend fill:#1E1E1E,stroke:#339933,stroke-width:2px,color:#FFF
+    classDef database fill:#2D2D2D,stroke:#FF00FF,stroke-width:2px,color:#FFF
+    
+    class Device device
+    class Backend backend
+    class Room,Memory database
 ```
 
 ### `> HOTSPOTS.SCAN()`
