@@ -34,7 +34,7 @@
 
 ---
 
-## 🧠 System Description
+## ▰▰▰ SYSTEM DESCRIPTION ▰▰▰
 
 FocusLock is a **self-discipline Android app** that blocks distracting browser content for a set time period — and makes it **genuinely impossible** to undo alone.
 
@@ -42,7 +42,7 @@ FocusLock is a **self-discipline Android app** that blocks distracting browser c
 
 Unlike other blocker apps where a single tap removes the block, FocusLock creates **real accountability** by requiring a trusted human contact to authorize early termination.
 
-### Identify User
+### ↳ Identify User
 
 | Profile | Match |
 |---------|-------|
@@ -52,9 +52,9 @@ Unlike other blocker apps where a single tap removes the block, FocusLock create
 
 ---
 
-## ✨ Core Modules
+## ▰▰▰ CORE MODULES ▰▰▰
 
-### 🔒 Keyword & Category Blocking
+### ▣ Keyword & Category Blocking
 
 | Method | Mechanism | Engine |
 |--------|-----------|--------|
@@ -66,14 +66,14 @@ Unlike other blocker apps where a single tap removes the block, FocusLock create
 - ⚡ **Zero data exfiltration** — no browsing data leaves the device
 - ⚡ **Smart Scan** — async metadata + DoH race for dynamic blocking
 
-### ⏱️ Timer Lock
+### ◷ Timer Lock
 
 - Set blocking sessions from **15 minutes → 72 hours**
 - Once activated, the session **cannot be stopped** until timer expires
 - Timer persists across **app restarts, process death, and device reboots**
 - **Device Admin API** prevents uninstallation during active sessions
 
-### 🔐 Trusted Contact Unlock
+### ⎔ Trusted Contact Unlock
 
 ```mermaid
 flowchart TD
@@ -112,7 +112,7 @@ flowchart TD
     linkStyle default stroke:#00FF41,stroke-width:2px;
 ```
 
-### 🛡️ Settings Protection
+### ◈ Settings Protection
 
 During an active session, the app **blocks attempts** to:
 - `[ BLOCKED ]` Disable the Accessibility Service
@@ -124,7 +124,7 @@ A **full-screen overlay** deploys when the user navigates to protected settings.
 
 ---
 
-## 🌊 Execution Flow
+## ▰▰▰ EXECUTION FLOW ▰▰▰
 
 ```mermaid
 flowchart TD
@@ -170,7 +170,7 @@ flowchart TD
 
 ---
 
-## 🏗️ Architecture
+## ▰▰▰ ARCHITECTURE ▰▰▰
 
 FocusLock follows **MVVM + Clean Architecture** with strict layer separation:
 
@@ -225,7 +225,7 @@ flowchart TB
     linkStyle default stroke:#FF00FF,stroke-width:2px;
 ```
 
-### 🎯 Hotspots Scan
+### ⌖ Hotspots Scan
 
 > Source: graphify-out (2346 nodes · 2122 edges · 404 communities)
 
@@ -244,7 +244,7 @@ flowchart TB
 
 ---
 
-## 🛠️ Tech Stack
+## ▰▰▰ TECH STACK ▰▰▰
 
 ### Android App
 
@@ -278,7 +278,7 @@ flowchart TB
 
 ---
 
-## 🗄️ Database Schema
+## ▰▰▰ DATABASE SCHEMA ▰▰▰
 
 All data is stored **locally on-device** using Room (SQLite). No user data is stored on the backend.
 
@@ -294,7 +294,7 @@ All data is stored **locally on-device** using Room (SQLite). No user data is st
 
 ---
 
-## 🔌 API Endpoints
+## ▰▰▰ API ENDPOINTS ▰▰▰
 
 | Endpoint | Method | Purpose |
 |----------|--------|---------|
@@ -312,7 +312,7 @@ All data is stored **locally on-device** using Room (SQLite). No user data is st
 
 ---
 
-## 📱 Permissions Manifest
+## ▰▰▰ PERMISSIONS MANIFEST ▰▰▰
 
 | Permission | Engine | If Denied |
 |------------|--------|-----------|
@@ -327,7 +327,7 @@ All data is stored **locally on-device** using Room (SQLite). No user data is st
 
 ---
 
-## 🚀 Quickstart
+## ▰▰▰ QUICKSTART ▰▰▰
 
 ### Prerequisites
 
@@ -397,7 +397,7 @@ adb reverse tcp:3000 tcp:3000
 
 ---
 
-## 🧪 Tests
+## ▰▰▰ TESTS ▰▰▰
 
 ### Android
 ```bash
@@ -416,7 +416,7 @@ cd backend && npm test
 
 ---
 
-## 🔐 Security Audit
+## ▰▰▰ SECURITY AUDIT ▰▰▰
 
 | Vector | Protection |
 |--------|-----------|
@@ -436,7 +436,7 @@ cd backend && npm test
 
 ---
 
-## 📁 Project Tree
+## ▰▰▰ PROJECT TREE ▰▰▰
 
 ```
 FocuseLocker/
@@ -489,7 +489,7 @@ FocuseLocker/
 
 ---
 
-## ⚠️ Known Limitations
+## ▰▰▰ KNOWN LIMITATIONS ▰▰▰
 
 | Limitation | Severity | Status |
 |-----------|----------|--------|
@@ -502,7 +502,7 @@ FocuseLocker/
 
 ---
 
-## 📋 Development Phases
+## ▰▰▰ DEVELOPMENT PHASES ▰▰▰
 
 | Phase | Focus | Status |
 |-------|-------|--------|
@@ -516,7 +516,7 @@ FocuseLocker/
 
 ---
 
-## 📊 Codebase Stats
+## ▰▰▰ CODEBASE STATS ▰▰▰
 
 | Metric | Count |
 |--------|-------|
@@ -540,7 +540,7 @@ FocuseLocker/
 
 ---
 
-## 🤝 Contributing
+## ▰▰▰ CONTRIBUTING ▰▰▰
 
 1. Fork the repository
 2. Create a feature branch (`git checkout -b feature/your-feature`)
@@ -549,7 +549,7 @@ FocuseLocker/
 5. Test on a **physical Android device**
 6. Submit a pull request
 
-### 📜 Coding Rules
+### ☷ Coding Rules
 
 ```
 [ RULE ] Kotlin only — no Java files
@@ -564,7 +564,7 @@ FocuseLocker/
 
 ---
 
-## 📄 Documentation
+## ▰▰▰ DOCUMENTATION ▰▰▰
 
 | Document | Description |
 |----------|-------------|
@@ -578,7 +578,7 @@ FocuseLocker/
 
 ---
 
-## 🗺️ Roadmap
+## ▰▰▰ ROADMAP ▰▰▰
 
 ```
 [ ] iOS version
