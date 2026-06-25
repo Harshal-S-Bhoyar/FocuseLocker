@@ -77,7 +77,7 @@ Unlike other blocker apps where a single tap removes the block, FocusLock create
 
 ```mermaid
 flowchart TD
-    Start([User taps "Request Early Unlock"]) --> Email[OTP + Context Message sent to Contact]
+    Start([User taps 'Request Early Unlock']) --> Email[OTP + Context Message sent to Contact]
     
     subgraph Context[Email Contents]
         direction TB
