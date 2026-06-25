@@ -33,9 +33,9 @@ fun getSecret(key: String, default: String): String {
         ?: default
 }
 
-val defaultBackendUrl = "\"http://127.0.0.1:3000\""
-val defaultNextDnsBaseUrl = "\"https://dns.nextdns.io/\""
-val defaultFallbackDns = "\"https://family.adguard-dns.com/dns-query\""
+val defaultBackendUrl = "\"\""
+val defaultNextDnsBaseUrl = "\"\""
+val defaultFallbackDns = "\"\""
 
 android {
     namespace = "com.focuslock"
@@ -61,9 +61,9 @@ android {
         buildConfigField("String", "BACKEND_URL", getSecret("BACKEND_URL", defaultBackendUrl))
         
         // Fast-path IP configuration for DNS bootstrap
-        buildConfigField("String", "BOOTSTRAP_FALLBACK_SERVERS", getSecret("BOOTSTRAP_FALLBACK_SERVERS", "\"8.8.8.8,1.1.1.1\""))
-        buildConfigField("String", "NEXTDNS_FASTPATH_IPS", getSecret("NEXTDNS_FASTPATH_IPS", "\"45.90.28.0,45.90.30.0\""))
-        buildConfigField("String", "ADGUARD_FASTPATH_IPS", getSecret("ADGUARD_FASTPATH_IPS", "\"94.140.14.15,94.140.15.16\""))
+        buildConfigField("String", "BOOTSTRAP_FALLBACK_SERVERS", getSecret("BOOTSTRAP_FALLBACK_SERVERS", "\"\""))
+        buildConfigField("String", "NEXTDNS_FASTPATH_IPS", getSecret("NEXTDNS_FASTPATH_IPS", "\"\""))
+        buildConfigField("String", "ADGUARD_FASTPATH_IPS", getSecret("ADGUARD_FASTPATH_IPS", "\"\""))
         
         // VPN Virtual Network Configuration
         buildConfigField("String", "VIRTUAL_IPV4", getSecret("VIRTUAL_IPV4", "\"10.0.0.2\""))

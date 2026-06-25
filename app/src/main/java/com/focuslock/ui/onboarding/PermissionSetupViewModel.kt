@@ -20,7 +20,7 @@ data class PermissionState(
     val notificationGranted: Boolean = false
 ) {
     val allCriticalGranted: Boolean
-        get() = accessibilityGranted && deviceAdminGranted && overlayGranted && vpnGranted
+        get() = accessibilityGranted && deviceAdminGranted && overlayGranted && vpnGranted && batteryOptimizationIgnored
 }
 
 data class PermissionSetupUiState(
@@ -33,7 +33,6 @@ class PermissionSetupViewModel @Inject constructor(
     private val permissionStatusProvider: AppPermissionStatusProvider,
     private val appSettingsRepository: AppSettingsRepository
 ) : ViewModel() {
-
     private val _uiState = MutableStateFlow(PermissionSetupUiState())
     val uiState: StateFlow<PermissionSetupUiState> = _uiState.asStateFlow()
 

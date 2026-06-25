@@ -38,6 +38,13 @@ class SessionTimerWorker @AssistedInject constructor(
             is SessionWorkerDecision.Active -> {
                 setForeground(notificationManager.getForegroundInfo(decision.remainingMillis))
                 notificationManager.updateNotification(decision.remainingMillis)
+                
+                // --- Health Check ---
+                val isAccessibilityAlive = com.focuslock.util.PermissionChecker.isAccessibilityServiceEnabled(context)
+                val isOverlayGranted = com.focuslock.util.PermissionChecker.isOverlayPermissionGranted(context)
+                if (!isAccessibilityAlive && isOverlayGranted) {
+                    com.focuslock.service.overlay.PermissionEnforcementService.start(context)
+                }
             }
         }
 

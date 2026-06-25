@@ -42,6 +42,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.focuslock.R
 import com.focuslock.service.admin.FocusDeviceAdminReceiver
+import com.focuslock.util.OemAutostartHelper
 
 @Composable
 fun PermissionSetupScreen(
@@ -130,6 +131,17 @@ fun PermissionSetupScreen(
                 notificationLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
             }
         },
+        onGrantAutostart = {
+            val intent = OemAutostartHelper.getAutostartIntent(context)
+            if (intent != null) {
+                try {
+                    context.startActivity(intent)
+                } catch (e: Exception) {
+                    timber.log.Timber.e(e, "Failed to launch autostart intent")
+                }
+            }
+        },
+        hasAutostartIntent = OemAutostartHelper.getAutostartIntent(context) != null,
         onContinue = viewModel::onContinueClicked
     )
 }
@@ -143,6 +155,8 @@ private fun PermissionSetupContent(
     onGrantBattery: () -> Unit,
     onGrantVpn: () -> Unit,
     onGrantNotification: () -> Unit,
+    onGrantAutostart: () -> Unit,
+    hasAutostartIntent: Boolean,
     onContinue: () -> Unit
 ) {
     Column(
@@ -198,7 +212,7 @@ private fun PermissionSetupContent(
         PermissionRow(
             title = stringResource(R.string.permission_battery_title),
             description = stringResource(R.string.permission_battery_description),
-            isCritical = false,
+            isCritical = true,
             isGranted = permissions.batteryOptimizationIgnored,
             onGrant = onGrantBattery
         )
@@ -218,6 +232,16 @@ private fun PermissionSetupContent(
             isGranted = permissions.notificationGranted,
             onGrant = onGrantNotification
         )
+
+        if (hasAutostartIntent) {
+            PermissionRow(
+                title = stringResource(R.string.enforcement_overlay_autostart),
+                description = "Allow FocusLock to start automatically so it can protect you even after a device restart.",
+                isCritical = false,
+                isGranted = false, // Always false since we can't detect it reliably
+                onGrant = onGrantAutostart
+            )
+        }
 
         Spacer(modifier = Modifier.height(dimensionResource(R.dimen.spacing_sm)))
 

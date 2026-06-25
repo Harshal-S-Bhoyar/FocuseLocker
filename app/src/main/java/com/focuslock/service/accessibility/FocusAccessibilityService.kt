@@ -14,6 +14,7 @@ import com.focuslock.domain.usecase.GetAllBlockedDomainsFlowUseCase
 import com.focuslock.domain.usecase.GetActiveKeywordsUseCase
 import com.focuslock.service.overlay.BlockingOverlayService
 import androidx.core.content.ContextCompat
+import com.focuslock.R
 import dagger.hilt.android.EntryPointAccessors
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -83,6 +84,7 @@ class FocusAccessibilityService : AccessibilityService() {
     override fun onServiceConnected() {
         super.onServiceConnected()
         Timber.tag(TAG).d("Accessibility Service successfully connected.")
+        updateForegroundState(true)
 
         val entryPoint = EntryPointAccessors.fromApplication(
             applicationContext,
@@ -121,6 +123,30 @@ class FocusAccessibilityService : AccessibilityService() {
                 activeKeywords.set(keywords)
                 keywordScanner.rebuild(keywords)
             }
+        }
+    }
+
+    private fun updateForegroundState(isActive: Boolean) {
+        if (isActive) {
+            val channel = android.app.NotificationChannel(
+                "accessibility_channel",
+                getString(R.string.accessibility_notification_channel),
+                android.app.NotificationManager.IMPORTANCE_LOW
+            )
+            val manager = getSystemService(android.app.NotificationManager::class.java)
+            manager.createNotificationChannel(channel)
+            
+            val notification = androidx.core.app.NotificationCompat.Builder(this, "accessibility_channel")
+                .setSmallIcon(R.drawable.ic_focuslock_secure)
+                .setContentTitle(getString(R.string.accessibility_notification_title))
+                .setContentText(getString(R.string.accessibility_notification_text))
+                .setPriority(androidx.core.app.NotificationCompat.PRIORITY_LOW)
+                .setOngoing(true)
+                .build()
+                
+            startForeground(1003, notification)
+        } else {
+            stopForeground(STOP_FOREGROUND_REMOVE)
         }
     }
 

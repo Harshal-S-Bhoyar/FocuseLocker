@@ -82,7 +82,8 @@ class PermissionSetupViewModelTest {
             accessibilityGranted = true,
             deviceAdminGranted = true,
             overlayGranted = true,
-            vpnGranted = true
+            vpnGranted = true,
+            batteryOptimizationIgnored = true
         )
 
         viewModel = PermissionSetupViewModel(permissionStatusProvider, appSettingsRepository)
@@ -119,7 +120,8 @@ class PermissionSetupViewModelTest {
             accessibilityGranted = true,
             deviceAdminGranted = true,
             overlayGranted = true,
-            vpnGranted = true
+            vpnGranted = true,
+            batteryOptimizationIgnored = true
         )
 
         viewModel = PermissionSetupViewModel(permissionStatusProvider, appSettingsRepository)
@@ -138,7 +140,8 @@ class PermissionSetupViewModelTest {
             accessibilityGranted = true,
             deviceAdminGranted = true,
             overlayGranted = true,
-            vpnGranted = true
+            vpnGranted = true,
+            batteryOptimizationIgnored = true
         )
 
         viewModel = PermissionSetupViewModel(permissionStatusProvider, appSettingsRepository)
@@ -150,6 +153,29 @@ class PermissionSetupViewModelTest {
 
         viewModel.onNavigationConsumed()
         assertFalse(viewModel.uiState.value.navigateToTrustedContact)
+    }
+
+    @Test
+    fun `onContinueClicked does nothing when batteryOptimizationIgnored is missing`() = runTest {
+        every { permissionStatusProvider.getStatus() } returns permissionStatus(
+            accessibilityGranted = true,
+            deviceAdminGranted = true,
+            overlayGranted = true,
+            vpnGranted = true,
+            batteryOptimizationIgnored = false
+        )
+
+        viewModel = PermissionSetupViewModel(permissionStatusProvider, appSettingsRepository)
+        viewModel.refreshPermissions()
+
+        val permissions = viewModel.uiState.value.permissions
+        assertFalse(permissions.allCriticalGranted)
+
+        viewModel.onContinueClicked()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        assertFalse(viewModel.uiState.value.navigateToTrustedContact)
+        coVerify(exactly = 0) { appSettingsRepository.setSetting(any(), any()) }
     }
 
     private fun permissionStatus(

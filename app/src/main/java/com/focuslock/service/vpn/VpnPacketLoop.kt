@@ -174,33 +174,46 @@ class VpnPacketLoop(
                 .addHeader("Accept", "application/dns-message")
                 .build()
 
-            val response = okHttpClient.newCall(request).execute()
-            if (!response.isSuccessful) {
-                val body = try { response.body?.string()?.take(300) } catch (ex: Exception) { "unreadable" }
-                Timber.tag(TAG).e("DoH FAIL: domain=$domain code=${response.code} ep=$endpoint body=$body")
-                return@withContext
+            var lastException: Exception? = null
+            for (attempt in 0..1) {
+                try {
+                    val response = okHttpClient.newCall(request).execute()
+                    if (!response.isSuccessful) {
+                        val body = try { response.body?.string()?.take(300) } catch (ex: Exception) { "unreadable" }
+                        Timber.tag(TAG).e("DoH FAIL: domain=$domain code=${response.code} ep=$endpoint body=$body")
+                        return@withContext
+                    }
+
+                    val responseData = response.body?.bytes()
+                    if (responseData == null) {
+                        Timber.tag(TAG).e("DoH NULL body: domain=$domain ep=$endpoint")
+                        return@withContext
+                    }
+
+                    Timber.tag(TAG).d("DoH OK: domain=$domain resp=${responseData.size}B")
+
+                    val responseArray = buildTunDnsResponse(
+                        packetBytes = packetBytes,
+                        dnsOffset = dnsOffset,
+                        ipHeaderLength = ipHeaderLength,
+                        udpOffset = udpOffset,
+                        responseData = responseData,
+                        isIpv6 = isIpv6
+                    )
+
+                    synchronized(outputStream) {
+                        outputStream.write(responseArray)
+                    }
+                    return@withContext
+                } catch (e: java.net.ConnectException) {
+                    lastException = e
+                    if (attempt == 0) delay(200L)
+                } catch (e: java.net.SocketException) {
+                    lastException = e
+                    if (attempt == 0) delay(200L)
+                }
             }
-
-            val responseData = response.body?.bytes()
-            if (responseData == null) {
-                Timber.tag(TAG).e("DoH NULL body: domain=$domain ep=$endpoint")
-                return@withContext
-            }
-
-            Timber.tag(TAG).d("DoH OK: domain=$domain resp=${responseData.size}B")
-
-            val responseArray = buildTunDnsResponse(
-                packetBytes = packetBytes,
-                dnsOffset = dnsOffset,
-                ipHeaderLength = ipHeaderLength,
-                udpOffset = udpOffset,
-                responseData = responseData,
-                isIpv6 = isIpv6
-            )
-
-            synchronized(outputStream) {
-                outputStream.write(responseArray)
-            }
+            Timber.tag(TAG).w("DoH UNREACHABLE after retry: domain=$domain ${lastException?.message}")
         } catch (e: Exception) {
             Timber.tag(TAG).e(e, "DoH EXC: domain=$domain ep=${dnsConfig.dohEndpoint} ${e.javaClass.simpleName}:${e.message}")
         }

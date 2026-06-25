@@ -65,6 +65,11 @@ fun AppNavigation(
                     navController.navigate(Screen.ActiveSession.route) {
                         popUpTo(Screen.Onboarding.route) { inclusive = true }
                     }
+                },
+                onNavigateToCategorySelection = {
+                    navController.navigate(Screen.CategorySelection.route) {
+                        popUpTo(Screen.Onboarding.route) { inclusive = true }
+                    }
                 }
             )
         }
@@ -243,7 +248,7 @@ fun AppNavigation(
         composable(Screen.SessionComplete.route) {
             com.focuslock.ui.session.SessionCompleteScreen(
                 onStartAnotherSession = {
-                    navController.navigate(Screen.CategorySelection.route) {
+                    navController.navigate(Screen.Onboarding.route) {
                         popUpTo(Screen.SessionComplete.route) { inclusive = true }
                     }
                 }

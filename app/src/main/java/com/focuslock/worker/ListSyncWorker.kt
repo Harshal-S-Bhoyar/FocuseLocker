@@ -81,6 +81,8 @@ class ListSyncWorker @AssistedInject constructor(
             
             timber.log.Timber.i("ListSyncWorker completed successfully.")
             Result.success()
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e // WorkManager cancelled us — don't retry, don't log as error
         } catch (e: Exception) {
             timber.log.Timber.e(e, "Error syncing list")
             Result.retry()
