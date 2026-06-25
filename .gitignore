@@ -45,7 +45,6 @@ Thumbs.db
 # --- Jetro & AI Agent Context folders ---
 # These are folders used by local AI tools and analysis databases.
 .jetro/
-.code-review-graph/
 .codex/
 .agents/
 .kotlin/
@@ -76,6 +75,6 @@ device logs/
 *.txt
 
 # --- AI & Project Audits ---
-Architectur/
+
 Audits/
 Threat_Detection/

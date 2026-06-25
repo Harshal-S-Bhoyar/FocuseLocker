@@ -40,10 +40,10 @@ People struggle with compulsive and distracted browsing on their phones. Existin
 - App uses Device Admin API to prevent uninstallation during active timer
 
 ### Feature 3 — Trusted Contact Unlock
-- Before starting a session, user registers one trusted contact phone number
-- Phone number is verified via OTP at registration time
-- If user wants to unlock early, the app sends an OTP + context message to the trusted contact's number
-- Context message tells the trusted contact: what was blocked, how much time remains, and timestamp of request
+- Before starting a session, user registers one trusted contact **email address**
+- Email address is verified via OTP at registration time
+- If user wants to unlock early, the app sends an OTP + context email to the trusted contact's address
+- Context email tells the trusted contact: what was blocked, how much time remains, and timestamp of request
 - Trusted contact shares the OTP manually with the user
 - After correct OTP entry, a mandatory 10-minute cooldown applies before the session unlocks
 - If trusted contact is unreachable, a 24-hour emergency delay bypass is available (no OTP needed, just wait)
@@ -86,10 +86,10 @@ People struggle with compulsive and distracted browsing on their phones. Existin
 |---|---|---|
 | Factory reset bypasses everything | High | Nothing can prevent this — accept it |
 | Force stop kills services temporarily | Medium | Foreground service with persistent notification reduces this |
-| Trusted contact can forward OTP without question | High | Context message in SMS reduces this |
-| Accessibility Service may be killed by battery optimization | Medium | Request battery optimization exemption on install |
+| Trusted contact can forward OTP without question | High | Context email reduces this |
+| Accessibility Service may be killed by OEM battery optimization | Medium | Battery exemption + OemAutostartHelper autostart intents |
 | Domain blocking only (no keyword) for non-browser apps | Low | Out of scope for MVP |
-| SMS delivery not guaranteed in all regions | Medium | Show warning if SMS fails, retry option |
+| Email delivery not guaranteed in all regions | Medium | Show warning if email fails, retry option |
 
 ---
 
@@ -97,8 +97,8 @@ People struggle with compulsive and distracted browsing on their phones. Existin
 
 ```
 Install app
-  → Grant permissions (Accessibility, VPN, Device Admin, SMS)
-  → Register trusted contact number (OTP verification)
+  → Grant permissions (Accessibility, VPN, Device Admin, Internet)
+  → Register trusted contact email address (OTP verification)
   → Select keywords / categories to block
   → Set timer duration
   → Activate session
@@ -108,7 +108,7 @@ Install app
       → Timer counts down
           → Timer expires → Session ends automatically
           → User requests early unlock
-              → OTP sent to trusted contact
+              → OTP sent to trusted contact via email (Brevo)
               → Trusted contact shares OTP
               → User enters OTP
               → 10-minute cooldown
