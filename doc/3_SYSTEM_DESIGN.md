@@ -10,7 +10,7 @@ FocusLock has two parts:
 
 **On-device Android app** — handles all blocking, timer, and UI logic locally. The app works offline for all core features.
 
-**Lightweight backend server** — handles only OTP generation, SMS delivery, and trusted contact verification. No usage data, no browsing history, no personal content is ever sent to the server.
+**Lightweight backend server** — handles only OTP generation, email delivery, and trusted contact verification. No usage data, no browsing history, no personal content is ever sent to the server. **Email via Brevo API** (not SMS — contact receives OTP email).
 
 ```
 ┌─────────────────────────────────────────────────────┐
@@ -35,7 +35,7 @@ FocusLock has two parts:
                           │
 ┌─────────────────────────▼───────────────────────────┐
 │                   BACKEND SERVER                    │
-│         Node.js + Express + Twilio SMS              │
+│ Node.js + Express + Brevo Email API │
 │                                                     │
 │   /verify-contact  /request-unlock  /verify-otp     │
 └─────────────────────────────────────────────────────┘
@@ -101,6 +101,23 @@ Single database file on device. No sync. See Data Model document for schema.
 
 Draws a `TYPE_APPLICATION_OVERLAY` window (requires `SYSTEM_ALERT_WINDOW` permission) that covers the screen when blocking triggers. Cannot be dismissed by back button during active session.
 
+### 2.8 Permission Enforcement Service *(Phase 7)*
+**Class:** `PermissionEnforcementService`
+
+Monitors critical permission health at runtime. When `FocusAccessibilityService` or `FocusVpnService` is killed by the OS mid-session, this service detects the state change (via `PreferencesSessionEnforcementStateStore`) and routes the user through the onboarding smart router to the `PermissionSetup` screen to re-grant permissions before any new session can start.
+
+**Key behaviour:** The "Start Another Session" flow is gated through this service — no bypass is possible without re-validating permissions.
+
+### 2.9 Session Runtime Controller
+**Class:** `AndroidSessionRuntimeController` (concrete class, Hilt singleton)
+
+Owns the VPN service + notification lifecycle for active sessions. Refactored from interface to concrete class in Phase 7. Called by `ActivateSessionUseCase`, `DeactivateSessionUseCase`, and `BootReceiver`.
+
+### 2.10 OEM Autostart Helper
+**Class:** `OemAutostartHelper`
+
+Sends manufacturer-specific implicit intents to register the app with OEM autostart whitelists (Xiaomi MIUI, Samsung One UI, OPPO ColorOS). Invoked during `BootReceiver.onReceive()` to maximise accessibility service survival across reboots.
+
 ---
 
 ## 3. Backend Server Components
@@ -110,26 +127,26 @@ Minimal Node.js + Express server. Hosted on Railway, Render, or similar low-cost
 ### Endpoints
 
 **POST /verify-contact**
-- Input: `{ phoneNumber }`
+- Input: `{ email }`
 - Generates a 6-digit OTP
-- Sends OTP to phoneNumber via Twilio SMS
-- Stores OTP hash + expiry (10 min) in server memory or Redis
+- Sends OTP to trusted contact email via Brevo API
+- Stores OTP hash + expiry (10 min) in server memory
 - Returns: `{ success: true }`
 
 **POST /confirm-contact**
-- Input: `{ phoneNumber, otp }`
+- Input: `{ email, otp }`
 - Verifies OTP
 - Returns: `{ verified: true/false }`
 
 **POST /request-unlock**
-- Input: `{ trustedContactNumber, blockedCategories, blockedKeywords, timeRemaining, requestTimestamp }`
+- Input: `{ trustedContactEmail, blockedCategories, blockedKeywords, timeRemaining, requestTimestamp }`
 - Generates a 6-digit unlock OTP
-- Sends SMS to trusted contact with full context message
+- Sends email to trusted contact via Brevo with full context message
 - Stores OTP hash + expiry (10 min)
 - Returns: `{ success: true }`
 
 **POST /verify-unlock-otp**
-- Input: `{ trustedContactNumber, otp }`
+- Input: `{ trustedContactEmail, otp }`
 - Verifies OTP
 - Invalidates OTP after use
 - Returns: `{ valid: true/false }`
@@ -138,7 +155,8 @@ Minimal Node.js + Express server. Hosted on Railway, Render, or similar low-cost
 - No user accounts
 - No browsing history
 - No keywords or categories
-- Phone numbers are only held temporarily during OTP verification, then discarded
+- Email addresses are only held temporarily during OTP verification, then discarded
+- **OTPs are bcrypt-hashed, never plaintext; expire in 10 min**
 
 ---
 
@@ -152,8 +170,8 @@ Minimal Node.js + Express server. Hosted on Railway, Render, or similar low-cost
 | `RECEIVE_BOOT_COMPLETED` | Session survives reboot | Session ends on reboot |
 | `FOREGROUND_SERVICE` | Keep services alive | Services killed by OS |
 | `SYSTEM_ALERT_WINDOW` | Overlay screen | Blocking overlay won't show |
-| `REQUEST_IGNORE_BATTERY_OPTIMIZATIONS` | Prevent OS from killing services | Services may be killed |
-| `INTERNET` | OTP SMS via backend | Trusted contact feature disabled |
+| `REQUEST_IGNORE_BATTERY_OPTIMIZATIONS` | Prevent OS from killing services — **#1 factor in OEM survival** | Services killed after reboot on Xiaomi/Samsung/OPPO |
+| `INTERNET` | OTP email via backend (Brevo) | Trusted contact feature disabled |
 
 ---
 
@@ -216,13 +234,21 @@ Session complete screen shown
 ```
 Device reboots
         ↓
-BOOT_COMPLETED broadcast received
+BOOT_COMPLETED broadcast received by BootReceiver
+        ↓
+OemAutostartHelper.sendOemIntents() (Xiaomi, Samsung, OPPO autostart)
         ↓
 BootReceiver checks Room DB for active session
         ↓
 Active session found with future expiry timestamp?
-  YES → Restart AccessibilityService, VpnService, SessionManager
+  YES → AndroidSessionRuntimeController.startRuntime()
+       → SessionWorkerScheduler.reschedule(expiresAt)
        → Show persistent notification
        → Resume countdown from stored expiry time
-  NO  → Do nothing
+  NO (expired) → DeactivateSessionUseCase() → COMPLETED
+  NO session → Do nothing
+        ↓
+PermissionEnforcementService.checkHealth()
+  → Accessibility lost → flag stored in PreferencesSessionEnforcementStateStore
+  → User prompted to re-enable on next app open (cannot programmatically re-enable)
 ```

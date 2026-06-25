@@ -18,6 +18,7 @@ import io.mockk.mockk
 import io.mockk.mockkStatic
 import io.mockk.unmockkAll
 import io.mockk.spyk
+import io.mockk.verify
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.runTest
 import org.junit.After
@@ -61,7 +62,9 @@ class FocusAccessibilityServiceTest {
     @Test
     fun `onServiceConnected initializes all use cases including smartScanUseCase`() = runTest {
         // Arrange
-        val service = spyk(FocusAccessibilityService())
+        val service = spyk(FocusAccessibilityService(), recordPrivateCalls = true)
+        every { service["updateForegroundState"](any<Boolean>()) } returns Unit
+        
         val mockContext = mockk<Context>(relaxed = true)
         every { service.applicationContext } returns mockContext
 
@@ -91,6 +94,8 @@ class FocusAccessibilityServiceTest {
         assertFieldInitialized(service, "sessionRepository")
         assertFieldInitialized(service, "dohQueryUseCase")
         assertFieldInitialized(service, "keywordScanner")
+
+        verify { service["updateForegroundState"](true) }
     }
 
     private fun assertFieldInitialized(target: Any, fieldName: String) {

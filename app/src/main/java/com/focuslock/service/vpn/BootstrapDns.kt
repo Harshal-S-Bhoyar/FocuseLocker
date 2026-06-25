@@ -16,8 +16,8 @@ class BootstrapDns(
 ) : Dns {
     private val cache = ConcurrentHashMap<String, Pair<List<InetAddress>, Long>>()
     private val TTL_MS = 5 * 60 * 1000L
-    private val nextDnsHostname = try { java.net.URI(com.focuslock.BuildConfig.NEXTDNS_BASE_URL).host } catch (e: Exception) { "dns.nextdns.io" }
-    private val fallbackDnsHostname = try { java.net.URI(com.focuslock.BuildConfig.FALLBACK_DNS_ENDPOINT).host } catch (e: Exception) { "family.adguard-dns.com" }
+    private val nextDnsHostname = try { java.net.URI(com.focuslock.BuildConfig.NEXTDNS_BASE_URL).host } catch (e: Exception) { null }
+    private val fallbackDnsHostname = try { java.net.URI(com.focuslock.BuildConfig.FALLBACK_DNS_ENDPOINT).host } catch (e: Exception) { null }
 
     override fun lookup(hostname: String): List<InetAddress> {
         // Fast-path known DoH endpoints to avoid UDP bootstrap loop

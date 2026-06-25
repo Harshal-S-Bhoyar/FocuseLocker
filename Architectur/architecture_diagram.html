@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FocusLocker - Detailed Architecture</title>
+    <script type="module">
+        import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+        mermaid.initialize({
+            startOnLoad: true,
+            theme: 'base',
+            flowchart: {
+                rankSpacing: 200,
+                nodeSpacing: 100
+            },
+            themeVariables: {
+                primaryColor: '#0A0A0F',
+                primaryTextColor: '#E0E0FF',
+                primaryBorderColor: '#202030',
+                lineColor: '#B026FF',
+                secondaryColor: '#1A1A24',
+                tertiaryColor: '#2A2A35'
+            }
+        });
+    </script>
+    <style>
+        body {
+            background-color: #050508;
+            color: #E0E0FF;
+            font-family: 'Inter', sans-serif;
+            margin: 0;
+            padding: 2rem;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 1200px;
+            background: #0A0A0F;
+            border: 1px solid #202030;
+            border-radius: 12px;
+            padding: 2rem;
+            box-shadow: 0 8px 32px rgba(0, 240, 255, 0.05);
+        }
+
+        h1 {
+            color: #00F0FF;
+            text-align: center;
+        }
+
+        .mermaid {
+            display: flex;
+            justify-content: center;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>Detailed System Architecture</h1>
+        <div class="mermaid">
+            flowchart TD
+            %% Styles
+            classDef uiLayer fill:#111118,stroke:#00F0FF,stroke-width:2px,color:#E0E0FF
+            classDef domainLayer fill:#151520,stroke:#B026FF,stroke-width:2px,color:#E0E0FF
+            classDef dataLayer fill:#151520,stroke:#FF9900,stroke-width:2px,color:#E0E0FF
+            classDef serviceLayer fill:#201020,stroke:#FF003C,stroke-width:2px,color:#E0E0FF
+
+            subgraph UI["Presentation Layer (UI)"]
+            Setup["Permission & Setup Screens"]
+            Timer["TimerSetupScreen"]
+            Active["ActiveSessionScreen"]
+            UnlockUI["UnlockFlow UI: Cooldown / OTP / Bypass"]
+            Overlay["BlockingOverlayScreen"]
+            end
+
+            subgraph Domain["Domain Layer (Business Logic)"]
+            SessionUseCase["ActivateSessionUseCase"]
+            SmartScan["SmartScanUseCase (Hub)"]
+            AuthUseCase["OTP & Bypass Auth Logic"]
+            end
+
+            subgraph Services["OS Service Layer"]
+            VPN["FocusVpnService (DNS Interception)"]
+            Access["BlockingOverlayService (Accessibility)"]
+            Workers["WorkManager: CooldownTimerWorker"]
+            end
+
+            subgraph Data["Data Layer"]
+            DB[(Room DB BlockedDomainDao)]
+            Prefs["DataStore: Session Prefs"]
+            Net["Retrofit / OkHttp: DoH & Meta Fetcher"]
+            end
+
+            %% Connections
+            Setup --> Prefs
+            Timer --> SessionUseCase
+            Active -->|End Session Early| UnlockUI
+            UnlockUI --> AuthUseCase
+            UnlockUI -->|Trigger Cooldown| Workers
+
+            SessionUseCase -->|Start Tunnel| VPN
+            SessionUseCase -->|Enable Overlay| Access
+            SessionUseCase -->|Save Active State| Prefs
+
+            AuthUseCase -->|Clear Session| Prefs
+            AuthUseCase -->|Stop Tunnel| VPN
+
+            VPN -->|Intercepts DNS Request| SmartScan
+            SmartScan -->|Check Local Blocklist| DB
+            SmartScan -->|Fetch MetaTags If unknown| Net
+
+            Access -->|Show Block Screen| Overlay
+
+            class UI,Setup,Timer,Active,UnlockUI,Overlay uiLayer
+            class Domain,SessionUseCase,SmartScan,AuthUseCase domainLayer
+            class Services,VPN,Access,Workers serviceLayer
+            class Data,DB,Prefs,Net dataLayer
+        </div>
+    </div>
+</body>
+
+</html>

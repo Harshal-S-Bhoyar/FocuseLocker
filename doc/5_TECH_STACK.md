@@ -51,12 +51,14 @@ All Room DAOs return `Flow<T>` or `suspend fun`. No blocking database calls on m
 ### Background Work & Services
 | Tool | Use case |
 |---|---|
-| `AccessibilityService` | Keyword detection across browsers |
+| `AccessibilityService` | Keyword detection across browsers (10 browsers supported) |
 | `VpnService` | Local on-device DNS interception |
 | `DevicePolicyManager` | Uninstall lock |
 | `WorkManager` | Reliable timer countdown, survives process death |
 | `ForegroundService` | Keep VPN and Accessibility alive |
 | `BroadcastReceiver` | Boot recovery (`BOOT_COMPLETED`) |
+| `PermissionEnforcementService` | Detect lost permissions mid-session, route to repair |
+| `OemAutostartHelper` | Send OEM-specific autostart intents (Xiaomi, Samsung, OPPO) |
 
 WorkManager is used for the timer because it is the only Android-sanctioned way to guarantee work runs at a specific future time even if the app process is killed.
 
@@ -100,10 +102,10 @@ Every UseCase must have unit tests. ViewModels must have unit tests. Repository 
 | Express 4 | Minimal HTTP framework |
 | TypeScript | Type safety, fewer runtime errors |
 
-### OTP & SMS
+### OTP & Email
 | Tool | Why |
 |---|---|
-| Twilio SMS API | Reliable SMS delivery globally |
+| Brevo Email API | Transactional email delivery — OTP to trusted contact |
 | `bcrypt` | Hash OTPs before storing in memory, never store plain OTP |
 | `crypto` (Node built-in) | Secure OTP generation |
 
@@ -132,9 +134,8 @@ Single server instance for MVP. No load balancing needed.
 
 ### Environment Variables (never hardcoded)
 ```
-TWILIO_ACCOUNT_SID=
-TWILIO_AUTH_TOKEN=
-TWILIO_PHONE_NUMBER=
+BREVO_API_KEY=
+BREVO_SENDER_EMAIL=
 OTP_EXPIRY_MINUTES=10
 OTP_MAX_ATTEMPTS=3
 PORT=3000

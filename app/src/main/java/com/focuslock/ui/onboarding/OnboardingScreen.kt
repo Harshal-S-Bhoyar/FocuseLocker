@@ -45,10 +45,12 @@ import com.focuslock.R
 fun OnboardingScreen(
     onNavigateToPermissions: () -> Unit,
     onNavigateToActiveSession: () -> Unit,
+    onNavigateToCategorySelection: () -> Unit,
     viewModel: OnboardingViewModel = hiltViewModel()
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
 
+    val context = androidx.compose.ui.platform.LocalContext.current
     // Handle one-time navigation events
     LaunchedEffect(state.event) {
         when (state.event) {
@@ -58,6 +60,19 @@ fun OnboardingScreen(
             }
             is OnboardingEvent.NavigateToActiveSession -> {
                 viewModel.onEventConsumed()
+                onNavigateToActiveSession()
+            }
+            is OnboardingEvent.NavigateToCategorySelection -> {
+                viewModel.onEventConsumed()
+                onNavigateToCategorySelection()
+            }
+            is OnboardingEvent.NavigateToPermissionRepair -> {
+                viewModel.onEventConsumed()
+                onNavigateToPermissions()
+            }
+            is OnboardingEvent.StartPermissionEnforcement -> {
+                viewModel.onEventConsumed()
+                com.focuslock.service.overlay.PermissionEnforcementService.start(context)
                 onNavigateToActiveSession()
             }
             null -> Unit

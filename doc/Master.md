@@ -65,7 +65,7 @@ FocusLock is an Android app that helps users voluntarily block distracting or ha
 2. Local on-device VPN (no external server) — intercepts DNS to block entire domains by category
 3. Android Device Admin API — prevents the app from being uninstalled during an active session
 
-**The backend does one thing only:** generate and verify OTPs via Twilio SMS. It stores nothing permanently.
+**The backend does one thing only:** generate and verify OTPs via Brevo email. It stores nothing permanently. Trusted contacts receive context-rich OTP emails (not SMS). The email contains what was blocked, time remaining, and a request timestamp.
 
 ---
 
@@ -377,7 +377,7 @@ Do not jump ahead. Each phase depends on the previous one being solid.
 
 ---
 
-### Phase 7 — End-to-end testing on real device
+### Phase 7 — End-to-end testing + stability hardening
 **Agents:** Testing Agent → Code Reviewer Agent → Security Agent
 
 1. Full session activation and blocking — Chrome, Firefox, Brave
@@ -385,11 +385,13 @@ Do not jump ahead. Each phase depends on the previous one being solid.
 3. Domain blocking in selected categories
 4. Settings screen protection (Accessibility, VPN, Device Admin settings)
 5. Uninstall attempt during active session
-6. Trusted contact OTP — send, receive, enter
+6. Trusted contact OTP — send email, receive, enter OTP
 7. 10-minute cooldown after correct OTP
 8. Session expiry — natural timer end
-9. Reboot during active session — verify recovery
+9. Reboot during active session — verify recovery via `AndroidSessionRuntimeController`
 10. Emergency 24-hour bypass — verify it enforces the wait
+11. **Permission loss mid-session** — verify `PermissionEnforcementService` detects + routes to repair
+12. **OEM reboot** — verify `OemAutostartHelper` intents fire on Xiaomi/Samsung/OPPO
 
 **Reference:** `@2_USER_STORIES.md` (all acceptance criteria), `@1_PRD.md` Section 5
 
@@ -444,9 +446,9 @@ Source: `@1_PRD.md` Section 4
 |---|---|
 | Factory reset bypasses everything | OS-level — no app can prevent this |
 | Force stop temporarily kills services | OS-level — mitigated by foreground service |
-| Trusted contact can forward OTP without question | Human behaviour — mitigated by context SMS |
-| Accessibility Service killed by battery optimization | Mitigated by requesting battery exemption on install |
-| SMS delivery not guaranteed in all regions | Mitigated by retry logic and failure UI |
+| Trusted contact can forward OTP without question | Human behaviour — mitigated by context email |
+| Accessibility Service killed by OEM battery optimization | Mitigated by requesting battery exemption + OemAutostartHelper |
+| Email delivery not guaranteed in all regions | Mitigated by retry logic and failure UI |
 
 Source: `@1_PRD.md` Section 6
 

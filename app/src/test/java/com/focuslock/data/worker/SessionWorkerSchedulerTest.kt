@@ -53,6 +53,14 @@ class SessionWorkerSchedulerTest {
         }
 
         verify { 
+            workManager.enqueueUniquePeriodicWork(
+                AccessibilityHealthWorker.WORK_NAME,
+                ExistingPeriodicWorkPolicy.UPDATE,
+                (any() as androidx.work.PeriodicWorkRequest)
+            )
+        }
+
+        verify { 
             workManager.enqueueUniqueWork(
                 "session_expiry_work",
                 ExistingWorkPolicy.REPLACE,
@@ -75,6 +83,14 @@ class SessionWorkerSchedulerTest {
             )
         }
 
+        verify { 
+            workManager.enqueueUniquePeriodicWork(
+                AccessibilityHealthWorker.WORK_NAME,
+                ExistingPeriodicWorkPolicy.UPDATE,
+                (any() as androidx.work.PeriodicWorkRequest)
+            )
+        }
+
         verify(exactly = 0) { 
             workManager.enqueueUniqueWork(
                 "session_expiry_work",
@@ -85,10 +101,11 @@ class SessionWorkerSchedulerTest {
     }
 
     @Test
-    fun `cancelSessionTimers cancels both works`() {
+    fun `cancelSessionTimers cancels all works`() {
         scheduler.cancelSessionTimers()
 
         verify { workManager.cancelUniqueWork("session_timer_work") }
         verify { workManager.cancelUniqueWork("session_expiry_work") }
+        verify { workManager.cancelUniqueWork(AccessibilityHealthWorker.WORK_NAME) }
     }
 }

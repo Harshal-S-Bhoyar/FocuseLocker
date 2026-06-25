@@ -138,6 +138,20 @@
     <string name="overlay_notification_channel_description">Shows the blocking screen when restricted content is accessed</string>
     <string name="overlay_notification_title">FocusLock Active</string>
     <string name="overlay_notification_text">Monitoring for blocked content.</string>
+
+    <!-- Accessibility Service -->
+    <string name="accessibility_notification_channel">Accessibility Service</string>
+    <string name="accessibility_notification_title">FocusLock Active</string>
+    <string name="accessibility_notification_text">Screen monitoring is active.</string>
+
+    <!-- Permission Enforcement -->
+    <string name="enforcement_overlay_title">Protection Disabled</string>
+    <string name="enforcement_overlay_description">FocusLock accessibility service was stopped by your device. Your session is locked until you re-enable it.</string>
+    <string name="enforcement_overlay_enable">Enable Accessibility Now</string>
+    <string name="enforcement_overlay_autostart">Enable Autostart (Recommended)</string>
+    <string name="enforcement_notification_channel">Permission Enforcement</string>
+    <string name="enforcement_notification_channel_desc">Shows a lock screen when required permissions are missing during a session</string>
+    
     <!-- Session Strings extracted -->
     <string name="unlock_request_title">Are you sure you want to unlock early?</string>
     <string name="unlock_request_description">Ending your session early requires an OTP sent to your trusted contact, followed by a 10-minute cooldown.</string>

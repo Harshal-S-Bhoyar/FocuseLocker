@@ -43,7 +43,7 @@ class FileLoggingTree(
         val threadName = Thread.currentThread().name
 
         // ponytail: array lookup over when-block — same result, 1 line.
-        val priorityStr = "?VDIWEA".getOrElse(priority) { '?' }.toString()
+        val priorityStr = "??VDIWEA".getOrElse(priority) { '?' }.toString()
 
         val logLine = "$currentTime [$threadName] $priorityStr/${tag ?: "FocusLock"}: $message\n"
 

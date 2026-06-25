@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.Intent
 import com.focuslock.domain.model.SessionStatus
 import timber.log.Timber
+import com.focuslock.util.PermissionChecker
 import com.focuslock.data.repository.SessionRepository
 import com.focuslock.data.session.SessionRuntimeController
 import com.focuslock.data.worker.SessionWorkerScheduler
@@ -38,15 +39,23 @@ class BootReceiver : BroadcastReceiver() {
     @Inject
     lateinit var sessionRuntimeController: SessionRuntimeController
 
-    override fun onReceive(context: Context?, intent: Intent?) {
+    var ioDispatcher: kotlinx.coroutines.CoroutineDispatcher = kotlinx.coroutines.Dispatchers.IO
+
+
+    override fun onReceive(context: Context, intent: Intent) {
+        processBootIntent(context, intent)
+    }
+
+    internal fun processBootIntent(context: Context?, intent: Intent?) {
         if (intent?.action == Intent.ACTION_BOOT_COMPLETED && context != null) {
             Timber.tag(TAG).d("Device reboot completed, checking if active session needs recovery.")
 
             val pendingResult = goAsync()
-            val receiverScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+            val receiverScope = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.SupervisorJob() + ioDispatcher)
             receiverScope.launch {
                 try {
                     val session = sessionRepository.getActiveSessionSync()
+                    var isActiveSession = false
                     val expiresAt = session?.expiresAt
                     if (expiresAt != null) {
                         val remainingMillis = expiresAt - System.currentTimeMillis()
@@ -54,11 +63,19 @@ class BootReceiver : BroadcastReceiver() {
                             Timber.tag(TAG).d("Active session found. Recovering timers and notification.")
                             sessionWorkerScheduler.scheduleSessionTimers(expiresAt)
                             sessionRuntimeController.startRuntime(remainingMillis)
+                            isActiveSession = true
                         } else {
                             Timber.tag(TAG).d("Session expired while device was off.")
                             sessionRepository.endSession(session.id, SessionStatus.COMPLETED)
                             sessionRuntimeController.stopRuntime()
                         }
+                    }
+                    
+                    val isAccessibilityAlive = PermissionChecker.isAccessibilityServiceEnabled(context)
+                    val isOverlayGranted = PermissionChecker.isOverlayPermissionGranted(context)
+                    if (!isAccessibilityAlive && isOverlayGranted && isActiveSession) {
+                        Timber.tag(TAG).w("Accessibility service NOT running after boot. OEM may have killed it.")
+                        com.focuslock.service.overlay.PermissionEnforcementService.start(context)
                     }
                 } catch (e: CancellationException) {
                     throw e

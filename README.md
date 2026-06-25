@@ -2,417 +2,335 @@
   <img src="assets/focuslock_icon.png" alt="FocusLock" width="120" height="120" />
 </p>
 
-<h1 align="center">FocusLock</h1>
+<h1 align="center">
+  <code>F O C U S L O C K</code>
+</h1>
 
 <p align="center">
-  <strong>An Android app that helps you block distracting browser content — and keeps it blocked.</strong>
+  <code>[ SYSTEM ONLINE ]</code> — <strong>Digital discipline enforcer for Android</strong>
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Platform-Android-3DDC84?logo=android&logoColor=white" alt="Android" />
-  <img src="https://img.shields.io/badge/Language-Kotlin-7F52FF?logo=kotlin&logoColor=white" alt="Kotlin" />
-  <img src="https://img.shields.io/badge/UI-Jetpack%20Compose-4285F4?logo=jetpackcompose&logoColor=white" alt="Compose" />
-  <img src="https://img.shields.io/badge/Backend-Node.js-339933?logo=nodedotjs&logoColor=white" alt="Node.js" />
-  <img src="https://img.shields.io/badge/Min%20SDK-26%20(Android%208.0)-brightgreen" alt="Min SDK 26" />
-  <img src="https://img.shields.io/badge/Version-1.0.0%20MVP-blue" alt="Version" />
-  <img src="https://img.shields.io/badge/License-ISC-yellow" alt="License" />
+  <img src="https://img.shields.io/badge/⚡_PLATFORM-Android-00FF41?style=for-the-badge&logo=android&logoColor=black" alt="Android" />
+  <img src="https://img.shields.io/badge/⌨_LANG-Kotlin_2.0-7F52FF?style=for-the-badge&logo=kotlin&logoColor=white" alt="Kotlin" />
+  <img src="https://img.shields.io/badge/🎨_UI-Jetpack_Compose-4285F4?style=for-the-badge&logo=jetpackcompose&logoColor=white" alt="Compose" />
+  <img src="https://img.shields.io/badge/🔧_BACKEND-Node.js_+_Brevo-339933?style=for-the-badge&logo=nodedotjs&logoColor=white" alt="Node.js + Brevo" />
+</p>
+
+<p align="center">
+  <img src="https://img.shields.io/badge/MIN_SDK-26_(Oreo)-00FF41?style=flat-square" alt="Min SDK 26" />
+  <img src="https://img.shields.io/badge/TARGET_SDK-35_(Android_15)-00FF41?style=flat-square" alt="Target SDK 35" />
+  <img src="https://img.shields.io/badge/VERSION-1.0.0_Phase_7-FF00FF?style=flat-square" alt="Version" />
+  <img src="https://img.shields.io/badge/LICENSE-ISC-FFFF00?style=flat-square" alt="License" />
 </p>
 
 ---
 
-## 🧠 What Is FocusLock?
-
-FocusLock is a **self-discipline Android app** for people who want to voluntarily block distracting or harmful browser content for a set time period — and make it genuinely difficult to undo.
-
-**The core promise:** Once you start a blocking session, **you cannot stop it alone.**
-
-Unlike other blocker apps where a single tap removes the block, FocusLock creates **real accountability** by requiring a trusted human contact to help you unlock early.
-
-### Who Is This For?
-
-- Android users who are aware of their own distraction/browsing problem
-- People motivated to change but who need **external friction** to follow through
-- Anyone with at least one trusted person (friend, partner, family member) willing to act as an accountability partner
+<p align="center">
+  <code>▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓</code><br/>
+  <code>█  "Once you lock in, only someone you trust holds the key."  █</code><br/>
+  <code>▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓</code>
+</p>
 
 ---
 
-## ✨ Core Features
+## 🧠 `> SYSTEM.DESCRIBE()`
 
-### 🔒 Feature 1 — Keyword & Category Blocking
+FocusLock is a **self-discipline Android app** that blocks distracting browser content for a set time period — and makes it **genuinely impossible** to undo alone.
 
-Block browser content at two levels:
+**The core protocol:** Once you start a blocking session, **you cannot terminate it solo.**
 
-| Method | How It Works | Technology |
-|---|---|---|
-| **Keyword Blocking** | Intercepts browser URLs containing your custom keywords (e.g., "gambling", "reddit") | Android Accessibility Service |
-| **Domain Blocking** | Blocks entire domains by category (social media, adult content, gambling, news, gaming, shopping) | Local on-device VPN (DNS interception) |
+Unlike other blocker apps where a single tap removes the block, FocusLock creates **real accountability** by requiring a trusted human contact to authorize early termination.
 
-- Works across **all installed browsers** (Chrome, Firefox, Brave, Opera, etc.)
-- Up to **50 custom keywords** plus 6 preset content categories
-- No browsing data ever leaves your device
+### `> IDENTIFY_USER()`
 
-### ⏱️ Feature 2 — Timer Lock
-
-- Set a blocking session from **15 minutes to 72 hours**
-- Once activated, the session **cannot be stopped** until the timer expires
-- Timer persists across **app restarts and device reboots**
-- App uses **Device Admin API** to prevent uninstallation during active sessions
-
-### 📱 Feature 3 — Trusted Contact Unlock
-
-The only way to end a session early:
-
-1. You tap **"Request Early Unlock"** during an active session
-2. An **OTP + context message** is sent via email to your pre-registered trusted contact
-3. The message tells your contact: **what you blocked**, **how much time remains**, and **when you asked**
-4. Your trusted contact decides whether to share the OTP with you
-5. After entering the correct OTP, a **10-minute mandatory cooldown** applies before the session unlocks
-6. If your trusted contact is unreachable, a **24-hour emergency bypass** is available (no OTP needed, just wait 24 hours)
-
-### 🛡️ Feature 4 — Settings Protection
-
-During an active session, the app blocks your attempts to:
-
-- Disable the Accessibility Service
-- Turn off the VPN
-- Revoke Device Admin privileges
-
-A **full-screen overlay** covers the screen if you navigate to those settings.
+| Profile | Match |
+|---------|-------|
+| Android users aware of their distraction problem | `✅ MATCH` |
+| People who need **external friction** to follow through | `✅ MATCH` |
+| Has at least one trusted person willing to be an accountability partner | `✅ MATCH` |
 
 ---
 
-## 🔄 How It Works — Full User Flow
+## ✨ `> CORE_MODULES.LIST()`
+
+### 🔒 `MODULE_01` — Keyword & Category Blocking
+
+| Method | Mechanism | Engine |
+|--------|-----------|--------|
+| **Keyword Blocking** | Intercepts browser URLs containing custom keywords | `AccessibilityService` |
+| **Domain Blocking** | Blocks entire domains by category via DNS interception | `Local VPN (TUN)` |
+
+- ⚡ Works across **all installed browsers** (Chrome, Firefox, Brave, Opera, Edge, DuckDuckGo, Samsung, Kiwi, UC)
+- ⚡ Up to **50 custom keywords** + 6 preset content categories
+- ⚡ **Zero data exfiltration** — no browsing data leaves the device
+- ⚡ **Smart Scan** — async metadata + DoH race for dynamic blocking
+
+### ⏱️ `MODULE_02` — Timer Lock
+
+- Set blocking sessions from **15 minutes → 72 hours**
+- Once activated, the session **cannot be stopped** until timer expires
+- Timer persists across **app restarts, process death, and device reboots**
+- **Device Admin API** prevents uninstallation during active sessions
+
+### 📱 `MODULE_03` — Trusted Contact Unlock
 
 ```
-📱 Install FocusLock
+┌─ REQUEST EARLY UNLOCK ─────────────────────────────────────┐
+│                                                             │
+│  1. User taps "Request Early Unlock"                        │
+│  2. OTP + context message → trusted contact's email         │
+│     ├── What you blocked                                    │
+│     ├── Time remaining                                      │
+│     └── When you asked                                      │
+│  3. Contact decides whether to share OTP                    │
+│  4. Enter OTP → 10-min mandatory cooldown → Unlocked        │
+│  5. Wrong OTP × 3 → Must request new OTP                    │
+│                                                             │
+│  FALLBACK: 24-hour emergency bypass (no OTP needed)         │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### 🛡️ `MODULE_04` — Settings Protection
+
+During an active session, the app **blocks attempts** to:
+- `[ BLOCKED ]` Disable the Accessibility Service
+- `[ BLOCKED ]` Turn off the VPN
+- `[ BLOCKED ]` Revoke Device Admin privileges
+- `[ BLOCKED ]` Navigate to FocusLock settings in Android Settings
+
+A **full-screen overlay** deploys when the user navigates to protected settings.
+
+---
+
+## 🔄 `> EXECUTION_FLOW.TRACE()`
+
+```
+📱 INSTALL FOCUSLOCK
  │
- ├─ 1. Grant Permissions
- │     ├── Accessibility Service (keyword detection in browsers)
- │     ├── VPN Service (domain-level blocking)
- │     ├── Device Admin (prevents uninstall)
- │     └── Battery Optimization Exemption
+ ├─ 01. GRANT PERMISSIONS
+ │     ├── Accessibility Service ← keyword detection engine
+ │     ├── VPN Service ← domain-level DNS blocking
+ │     ├── Device Admin ← prevents uninstall
+ │     ├── Battery Optimization Exemption ← service survival
+ │     └── Overlay Permission ← blocking screen
  │
- ├─ 2. Select Content to Block
- │     ├── Choose preset categories (Social Media, Adult, Gambling, etc.)
- │     └── Add custom keywords (up to 50)
+ ├─ 02. SELECT CONTENT TO BLOCK
+ │     ├── Categories: Social Media, Adult, Gambling, News, Gaming, Shopping
+ │     └── Custom keywords: up to 50, stored lowercase
  │
- ├─ 3. Set Timer Duration
- │     └── 15 minutes to 72 hours
+ ├─ 03. SET TIMER DURATION
+ │     └── 15 minutes → 72 hours
  │
- ├─ 4. Register Trusted Contact
- │     ├── Enter trusted person's email address
- │     └── Verify via OTP (one-time setup)
+ ├─ 04. REGISTER TRUSTED CONTACT
+ │     ├── Enter email → OTP verification (one-time setup)
+ │     └── Backend sends context-aware unlock emails
  │
- ├─ 5. Confirm & Lock In
- │     └── Review summary → Tap "Lock In" → Session starts
+ ├─ 05. CONFIRM & LOCK IN
+ │     └── Review summary → "Lock In" → Session starts
  │
- └─ 6. Active Session
-       ├── 🔴 Browser searches with keywords → BLOCKED (overlay)
-       ├── 🔴 Blocked domains → DNS BLOCKED (local VPN)
+ └─ 06. ACTIVE SESSION
+       ├── 🔴 Browser keyword match → BLOCKED (overlay)
+       ├── 🔴 Blocked domain DNS query → NXDOMAIN (VPN)
        ├── 🔴 Uninstall attempt → PREVENTED (Device Admin)
-       ├── 🔴 Settings tampering → OVERLAY
+       ├── 🔴 Settings tampering → OVERLAY DEPLOYED
        │
        ├── ⏰ Timer expires → Session ends automatically
        │
-       └── 🔓 Want to end early?
-             ├── Request Unlock → OTP sent to trusted contact
-             │     ├── Enter OTP → 10-min cooldown → Unlocked
-             │     └── Wrong OTP × 3 → Must request new OTP
+       └── 🔓 Early termination?
+             ├── Request Unlock → OTP sent to contact
+             │     ├── Correct OTP → 10-min cooldown → Unlocked
+             │     └── Wrong OTP × 3 → Must request new
              │
-             └── Emergency Bypass (no OTP needed)
-                   └── 24-hour mandatory wait → Auto-unlock
+             └── Emergency Bypass → 24h mandatory wait → Auto-unlock
 ```
 
 ---
 
-## 🏗️ Architecture
+## 🏗️ `> ARCHITECTURE.RENDER()`
 
 FocusLock follows **MVVM + Clean Architecture** with strict layer separation:
 
 ```
-┌──────────────────────────────────────────────────────────┐
-│                     ANDROID DEVICE                       │
-│                                                          │
-│  ┌──────────────────┐    ┌────────────────────────────┐  │
-│  │    UI Layer       │    │  Accessibility Service     │  │
-│  │  (Jetpack Compose │    │  (Keyword detection in     │  │
-│  │   + ViewModels)   │    │   browser URL bars)        │  │
-│  └────────┬─────────┘    └─────────────┬──────────────┘  │
-│           │                            │                  │
-│  ┌────────▼────────────────────────────▼──────────────┐  │
-│  │              Domain Layer (UseCases)                │  │
-│  │   Pure Kotlin — no Android imports allowed          │  │
-│  └────────┬────────────────────────────┬──────────────┘  │
-│           │                            │                  │
-│  ┌────────▼──────────┐    ┌────────────▼──────────────┐  │
-│  │  Room Database     │    │     Service Layer          │  │
-│  │  (SQLite — all     │    │  Local VPN + Device Admin  │  │
-│  │   state is local)  │    │  + Overlay + WorkManager   │  │
-│  └───────────────────┘    └───────────────────────────┘  │
-└──────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────┐
+│                      ANDROID DEVICE                          │
+│                                                              │
+│  ┌──────────────────┐     ┌────────────────────────────┐     │
+│  │    UI Layer       │     │  Accessibility Service     │     │
+│  │  (Jetpack Compose │     │  (Keyword detection in     │     │
+│  │   + ViewModels)   │     │   browser URL bars)        │     │
+│  └────────┬─────────┘     └─────────────┬──────────────┘     │
+│           │                             │                     │
+│  ┌────────▼─────────────────────────────▼──────────────┐     │
+│  │              Domain Layer (UseCases)                  │     │
+│  │   Pure Kotlin — no Android imports allowed            │     │
+│  │   InitializeAppUseCase (gated seed)                   │     │
+│  │   SmartScanUseCase (AhoCorasick + DoH race)           │     │
+│  └────────┬─────────────────────────────┬──────────────┘     │
+│           │                             │                     │
+│  ┌────────▼──────────┐     ┌────────────▼──────────────┐     │
+│  │  Room Database     │     │     Service Layer          │     │
+│  │  (SQLite — all     │     │  Local VPN + Device Admin  │     │
+│  │   state is local)  │     │  + Overlay + WorkManager   │     │
+│  └───────────────────┘     └───────────────────────────┘     │
+└──────────────────────────────────────────────────────────────┘
                             │
                       HTTPS (OTP only)
                             │
-┌───────────────────────────▼──────────────────────────────┐
-│                    BACKEND SERVER                         │
-│           Node.js + Express + TypeScript                  │
-│                                                          │
-│    POST /verify-contact    POST /request-unlock           │
-│    POST /confirm-contact   POST /verify-unlock-otp        │
-│                                                          │
-│    ⚠️ Stores NOTHING permanently                          │
-│    OTPs live in memory with 10-minute TTL only            │
-└──────────────────────────────────────────────────────────┘
+┌───────────────────────────▼──────────────────────────────────┐
+│                    BACKEND SERVER                             │
+│           Node.js + Express + TypeScript                      │
+│                                                              │
+│    POST /verify-contact    POST /request-unlock               │
+│    POST /confirm-contact   POST /verify-unlock-otp            │
+│                                                              │
+│    ⚠️ Stores NOTHING permanently                              │
+│    OTPs live in memory with 10-minute TTL only                │
+└──────────────────────────────────────────────────────────────┘
 ```
 
-### Architectural Hotspots (Codebase Graph Analysis)
+### `> HOTSPOTS.SCAN()`
 
-Based on structural graph analysis, the codebase is tightly coupled around several core entities. The most critical abstractions ("God Nodes") with the highest blast radius are:
-1. **`BlockingRepositoryImpl`** - Core implementation of blocked keywords/domains loading.
-2. **`BlockingRepository`** - Domain boundary contract for blocking capabilities.
-3. **`SessionDao` & `UnlockRequestDao`** - Core Room database queries for state and OTP requests.
+> Source: graphify-out (2346 nodes · 2122 edges · 404 communities)
 
-*Note: Modifying these files requires careful impact analysis due to their high coupling and cross-module dependencies.*
-
-### Data Flow — Blocking a Search
-
-```
-User types "gambling tips" in Chrome
-  → Chrome loads: google.com/search?q=gambling+tips
-    → Accessibility Service detects URL change
-      → Extracts URL from browser address bar node
-        → URL matched against keyword list ("gambling" found)
-          → Full-screen blocking overlay appears
-            → Browser navigated back automatically
-```
-
-### Data Flow — Early Unlock Request
-
-```
-User taps "Request Early Unlock"
-  → App calls POST /request-unlock on backend
-    → Backend sends an email to trusted contact:
-      "FocusLock: [User] wants to end their session early.
-       Time remaining: 1h 23m. Blocked: Gambling, Adult.
-       OTP: 847291. Share only if you think it's justified."
-    → Trusted contact shares OTP with user
-      → User enters OTP in app
-        → App calls POST /verify-unlock-otp
-          → Valid → 10-minute cooldown starts
-            → Cooldown complete → Session ends
-```
+| Node | Edges | Type | Blast Radius |
+|------|-------|------|-------------|
+| `SingletonCImpl` (Hilt) | 25 | Hub | `██████████ CRITICAL` |
+| `ViewModelCImpl` (Hilt) | 21 | Hub | `█████████░ CRITICAL` |
+| `BlockingRepository` | 19 | Hub | `█████████░ CRITICAL` |
+| `BlockedDomainDao_Impl` | 17 | Hub | `████████░░ HIGH` |
+| `FocusVpnService` | — | Hub | `████████░░ HIGH` |
+| `OnboardingViewModel` | — | Hub | `███████░░░ HIGH` |
+| `SmartScanUseCase` | — | Bridge | `███████░░░ HIGH` |
+| `FocusAccessibilityService` | — | Bridge | `██████░░░░ MEDIUM` |
+| `PermissionEnforcementService` | — | Bridge | `█████░░░░░ MEDIUM` |
+| `PermissionChecker` | — | Bridge | `████░░░░░░ MEDIUM` |
 
 ---
 
-## 🛠️ Tech Stack
+## 🛠️ `> TECH_STACK.DUMP()`
 
 ### Android App
 
-| Component | Technology | Why |
-|---|---|---|
-| **Language** | Kotlin 2.0+ | Modern Android standard, no Java |
-| **UI** | Jetpack Compose + Material 3 | Declarative UI, no XML layouts |
-| **Architecture** | MVVM + Clean Architecture | UI → ViewModel → UseCase → Repository → DataSource |
-| **DI** | Hilt | Official Android DI |
-| **Database** | Room (SQLite) + Kotlin Flow | Reactive local storage |
-| **Networking** | Retrofit + OkHttp + Kotlin Serialization | Type-safe HTTP client |
-| **Background Work** | WorkManager | Reliable timer across process death & reboot |
-| **Services** | AccessibilityService, VpnService, DeviceAdminReceiver | Core blocking mechanisms |
-| **Async** | Kotlin Coroutines only | No RxJava, no callbacks |
-| **Testing** | JUnit 4 + MockK + Turbine | Unit tests for UseCases & ViewModels |
+| Component | Technology | Justification |
+|-----------|-----------|--------------|
+| Language | `Kotlin 2.0+` | Modern Android standard |
+| UI | `Jetpack Compose + Material 3` | Declarative, no XML |
+| Architecture | `MVVM + Clean Architecture` | UI → ViewModel → UseCase → Repository |
+| DI | `Hilt` | Official Android DI |
+| Database | `Room (SQLite) + Kotlin Flow` | Reactive local storage |
+| Networking | `Retrofit + OkHttp + Kotlin Serialization` | Type-safe HTTP |
+| Background | `WorkManager` | Reliable across process death & reboot |
+| Services | `AccessibilityService, VpnService, DeviceAdmin, PermissionEnforcementService` | Core blocking + permission health |
+| Async | `Kotlin Coroutines only` | No RxJava, no callbacks |
+| Testing | `JUnit 4 + MockK + Turbine` | Unit tests for UseCases & ViewModels |
 
 ### Backend Server
 
-| Component | Technology | Why |
-|---|---|---|
-| **Runtime** | Node.js 20 LTS | Low overhead for simple API |
-| **Framework** | Express 5 | Minimal HTTP framework |
-| **Language** | TypeScript 6 | Type safety |
-| **Email API** | Brevo API | Reliable global email delivery |
-| **OTP Hashing** | bcrypt | Secure — never stores plain OTPs |
-| **OTP Generation** | `crypto.randomInt` | Cryptographically secure 6-digit codes |
-| **Validation** | Zod | Schema-based request validation |
-| **Security** | Helmet + CORS | HTTP hardening |
-| **Storage** | In-memory Map with TTL | No database — OTPs expire in 10 minutes |
-| **Hosting** | Railway.app | Simple deploy from GitHub |
-
-### Android Requirements
-
-| Requirement | Value |
-|---|---|
-| `minSdk` | 26 (Android 8.0 Oreo) |
-| `targetSdk` | 35 (Android 15) |
-| `compileSdk` | 35 |
+| Component | Technology | Justification |
+|-----------|-----------|--------------|
+| Runtime | `Node.js 20 LTS` | Low overhead |
+| Framework | `Express 5` | Minimal HTTP |
+| Language | `TypeScript 6` | Type safety |
+| Email | `Brevo API` | Transactional email — OTP delivery to trusted contact |
+| OTP Hashing | `bcrypt` | Secure — never stores plain OTPs |
+| OTP Generation | `crypto.randomInt` | Cryptographically secure 6-digit codes |
+| Validation | `Zod` | Schema-based request validation |
+| Security | `Helmet + CORS` | HTTP hardening |
+| Storage | `In-memory Map + TTL` | No database — OTPs expire in 10 min |
+| Deploy | `Railway.app` | GitHub-triggered deploys, env var managed |
 
 ---
 
-## 📁 Project Structure
-
-```
-FocuseLocker/
-├── app/                              # Android application
-│   └── src/main/java/com/focuslock/
-│       ├── data/                     # Data layer
-│       │   ├── local/
-│       │   │   ├── dao/              # Room DAOs (7 DAOs)
-│       │   │   ├── entity/           # Room entities (7 entities)
-│       │   │   └── FocusDatabase.kt  # Room database
-│       │   ├── remote/
-│       │   │   ├── api/              # Retrofit API interface
-│       │   │   └── dto/              # Request/Response DTOs
-│       │   └── repository/           # Repository implementations
-│       ├── domain/                   # Domain layer (pure Kotlin)
-│       │   ├── model/                # Domain models
-│       │   ├── repository/           # Repository interfaces
-│       │   └── usecase/              # 19 UseCases
-│       ├── service/                  # Android services
-│       │   ├── accessibility/        # FocusAccessibilityService
-│       │   ├── vpn/                  # FocusVpnService
-│       │   ├── overlay/              # BlockingOverlayService
-│       │   └── admin/                # FocusDeviceAdminReceiver
-│       ├── ui/                       # Presentation layer
-│       │   ├── onboarding/           # Onboarding + Permission screens
-│       │   ├── setup/                # Category, Keyword, Timer screens
-│       │   ├── session/              # Active session + Unlock screens
-│       │   ├── navigation/           # Compose Navigation graph
-│       │   ├── theme/                # Material 3 theme
-│       │   └── common/               # Shared composables
-│       ├── worker/                   # WorkManager timer workers
-│       ├── receiver/                 # Boot recovery receiver
-│       ├── di/                       # Hilt DI modules
-│       └── util/                     # Helpers & extensions
-├── backend/                          # Node.js OTP server
-│   ├── src/
-│   │   ├── routes/                   # Express route handlers
-│   │   ├── services/                 # OTP + SMS services
-│   │   ├── store/                    # In-memory OTP store
-│   │   ├── schemas/                  # Zod validation schemas
-│   │   ├── middleware/               # Request validation
-│   │   ├── config/                   # Environment config
-│   │   └── utils/                    # Helpers
-│   ├── tests/                        # Jest test suite
-│   ├── package.json
-│   └── tsconfig.json
-├── doc/                              # Project documentation
-│   ├── 1_PRD.md                      # Product Requirements
-│   ├── 2_USER_STORIES.md             # User Stories + Acceptance Criteria
-│   ├── 3_SYSTEM_DESIGN.md            # System architecture
-│   ├── 4_DATA_MODEL.md               # Database schema
-│   ├── 5_TECH_STACK.md               # Technology choices
-│   ├── 6_CONTEXT_AND_RULES.md        # AI context + coding rules
-│   └── 7_RULES.md                    # Skill invocation rules
-└── plans/                            # Implementation plans
-    ├── phase3_implementation_plan.md
-    ├── phase4_implementation_plan.md
-    ├── phase5_implementation_plan.md
-    └── phase6_implementation_plan.md
-```
-
----
-
-## 🗄️ Database Schema
+## 🗄️ `> DATABASE.SCHEMA()`
 
 All data is stored **locally on-device** using Room (SQLite). No user data is stored on the backend.
 
-| Table | Purpose | Key Rule |
-|---|---|---|
-| `sessions` | Current & past focus sessions | Only 1 session can be `ACTIVE` at a time |
-| `blocked_keywords` | User's custom keywords | Max 50 keywords, stored lowercase |
+| Table | Purpose | Constraint |
+|-------|---------|-----------|
+| `sessions` | Current & past focus sessions | Only 1 `ACTIVE` at a time |
+| `blocked_keywords` | User's custom keywords | Max 50, stored lowercase |
 | `blocked_categories` | Preset content categories | 6 categories, toggled on/off |
-| `blocked_domains` | Domain blocklist for VPN | 5,000–20,000 rows, indexed |
+| `blocked_domains` | Domain blocklist for VPN | 58,000+ rows, indexed |
 | `trusted_contacts` | Verified trusted contact | Max 1 contact for MVP |
-| `unlock_requests` | Early unlock attempts (audit trail) | Max 3 OTP attempts per request |
-| `app_settings` | Key-value app configuration | Tracks permission & onboarding state |
-
-```
-sessions (1) ──────── (many) unlock_requests
-blocked_categories (1) ──── (many) blocked_domains
-trusted_contacts (1) ──── referenced by unlock_requests
-```
+| `unlock_requests` | Early unlock attempts (audit trail) | Max 3 OTP attempts/request |
+| `app_settings` | Key-value app config | Onboarding, permissions, `DOMAINS_SEEDED` |
 
 ---
 
-## 🔌 Backend API Endpoints
+## 🔌 `> API.ENDPOINTS()`
 
-The backend does **one thing only**: generate and verify OTPs via email. It stores nothing permanently.
+| Endpoint | Method | Purpose |
+|----------|--------|---------|
+| `/verify-contact` | `POST` | Send OTP to verify trusted contact email |
+| `/confirm-contact` | `POST` | Verify the contact OTP |
+| `/request-unlock` | `POST` | Send unlock OTP + context to trusted contact |
+| `/verify-unlock-otp` | `POST` | Verify the unlock OTP |
 
-| Endpoint | Method | Purpose | Input |
-|---|---|---|---|
-| `/verify-contact` | POST | Send OTP to verify trusted contact email | `{ email }` |
-| `/confirm-contact` | POST | Verify the contact OTP | `{ email, otp }` |
-| `/request-unlock` | POST | Send unlock OTP + context to trusted contact | `{ trustedContactEmail, blockedCategories, blockedKeywords, timeRemaining }` |
-| `/verify-unlock-otp` | POST | Verify the unlock OTP | `{ trustedContactEmail, otp }` |
-
-**Privacy guarantee:**
-- ❌ No user accounts
-- ❌ No browsing history stored
-- ❌ No keywords or categories stored on server
-- ✅ Email addresses held only during OTP verification, then discarded
-- ✅ OTPs hashed with bcrypt, expire in 10 minutes
+**Privacy protocol:**
+- `❌` No user accounts
+- `❌` No browsing history stored
+- `❌` No keywords/categories stored on server
+- `✅` Emails held only during OTP verification, then discarded
+- `✅` OTPs hashed with bcrypt, expire in 10 minutes
 
 ---
 
-## 📱 Required Android Permissions
+## 📱 `> PERMISSIONS.MANIFEST()`
 
-| Permission | Why | If Denied |
-|---|---|---|
-| `BIND_ACCESSIBILITY_SERVICE` | Keyword detection in browser URLs | Keyword blocking disabled |
-| `VPN_SERVICE` | Domain-level DNS blocking | Domain blocking disabled |
-| `BIND_DEVICE_ADMIN` | Prevent uninstall during session | Timer lock not enforced |
-| `RECEIVE_BOOT_COMPLETED` | Session survives reboot | Session ends on reboot |
-| `FOREGROUND_SERVICE` | Keep blocking services alive | Services killed by OS |
-| `SYSTEM_ALERT_WINDOW` | Full-screen blocking overlay | Overlay won't show |
-| `REQUEST_IGNORE_BATTERY_OPTIMIZATIONS` | Prevent OS from killing services | Services may be killed |
-| `INTERNET` | OTP via backend API | Trusted contact feature disabled |
+| Permission | Engine | If Denied |
+|------------|--------|-----------|
+| `BIND_ACCESSIBILITY_SERVICE` | Keyword detection | Keyword blocking disabled |
+| `BIND_VPN_SERVICE` | DNS domain blocking | Domain blocking disabled |
+| `BIND_DEVICE_ADMIN` | Uninstall prevention | Timer lock not enforced |
+| `RECEIVE_BOOT_COMPLETED` | Session survives reboot | Session lost on reboot |
+| `FOREGROUND_SERVICE` | Keep services alive | Services killed by OS |
+| `SYSTEM_ALERT_WINDOW` | Blocking overlay | Overlay won't render |
+| `REQUEST_IGNORE_BATTERY_OPTIMIZATIONS` | Prevent OEM service kill | Services killed after reboot |
+| `INTERNET` | OTP via backend | Trusted contact disabled |
 
 ---
 
-## 🚀 Getting Started
+## 🚀 `> QUICKSTART.INIT()`
 
 ### Prerequisites
 
-- **Android SDK** (API 26+) — [Download CLI tools](https://developer.android.com/studio#command-line-tools-only)
-- **Node.js 20 LTS** — for the backend server
-- **Physical Android device** — emulators cannot reliably test VPN, Accessibility Service, or Device Admin
-- **Brevo account** — for email delivery ([sign up](https://www.brevo.com/))
+```
+[ REQUIRED ] Android SDK (API 26+)
+[ REQUIRED ] Node.js 20 LTS
+[ REQUIRED ] Physical Android device (emulators cannot test VPN/Accessibility)
+[ REQUIRED ] Brevo account (email delivery)
+```
 
-### 1. Clone the Repository
+### 1. Clone
 
 ```bash
 git clone https://github.com/Harshal-S-Bhoyar/FocuseLocker.git
 cd FocuseLocker
 ```
 
-### 2. Set Up the Android App
+### 2. Build Android App
 
 ```bash
-# Set environment variable (Windows — User level)
+# Set environment variable (Windows)
 set ANDROID_HOME=C:\Users\<YOUR_USERNAME>\AndroidSDK
 
-# Install required SDK components
-sdkmanager "platform-tools" "platforms;android-34" "build-tools;34.0.0"
-
-# Build the debug APK
+# Build debug APK
 gradlew.bat assembleDebug
 
-# Connect your Android device via USB (with USB Debugging enabled)
+# Install on connected device
 adb install -r app\build\outputs\apk\debug\app-debug.apk
 ```
 
-### 3. Set Up the Backend
+### 3. Start Backend
 
 ```bash
 cd backend
-
-# Install dependencies
 npm install
-
-# Create your environment file
 cp .env.example .env
 ```
 
-Edit `.env` with your Brevo credentials:
-
+Edit `.env`:
 ```env
 BREVO_API_KEY=your_key_here
 BREVO_SENDER_EMAIL=your_email@example.com
@@ -422,193 +340,226 @@ PORT=3000
 ```
 
 ```bash
-# Start the development server
-npm run dev
-
-# Run tests
-npm test
-
-# Build for production
-npm run build
-npm start
+npm run dev      # Development
+npm test         # Run tests
+npm run build    # Production build
 ```
 
-### 4. Connect App to Backend
+### 4. Connect App ↔ Backend
 
-The app reads the backend URL from `BuildConfig`:
-
-| Build Type | URL | Source |
-|---|---|---|
-| **Debug** | `http://127.0.0.1:3000` | via ADB reverse proxy |
-| **Release** | `https://focuslock-backend.railway.app` | Production server |
-
-For physical device debugging over USB, you must use an ADB reverse tunnel to route device traffic to your PC's localhost. We provide a script for this:
+| Build | URL | Source |
+|-------|-----|-------|
+| Debug | `http://127.0.0.1:3000` | ADB reverse proxy |
+| Release | `https://focuslock-backend.railway.app` | Production |
 
 ```powershell
-# Run this from the project root whenever your USB disconnects/reconnects
-.\start_dev.ps1
+# ADB reverse tunnel (run when USB reconnects)
+adb reverse tcp:3000 tcp:3000
 ```
 
-Or manually: `adb reverse tcp:3000 tcp:3000`. The debug URL in `app/build.gradle.kts` is already set to `http://127.0.0.1:3000`.
-
-> [!WARNING]
-> **Troubleshooting "Failed to connect to server"**: If you receive this error when requesting an OTP on a physical device via USB, your ADB reverse tunnel has likely died. Run `adb reverse --list` to verify. Re-run `.\start_dev.ps1` or `adb reverse tcp:3000 tcp:3000` to restore the tunnel.
+> ⚠️ **"Failed to connect to server"** — Your ADB reverse tunnel died. Run `adb reverse --list` to verify, then re-run `adb reverse tcp:3000 tcp:3000`.
 
 ---
 
-## 🧪 Testing
+## 🧪 `> TESTS.EXECUTE()`
 
-### Android Unit Tests
-
+### Android
 ```bash
-# Run all unit tests
 gradlew.bat testDebugUnitTest
-
-# View test reports
-# app/build/reports/tests/testDebugUnitTest/index.html
+# Reports: app/build/reports/tests/testDebugUnitTest/index.html
 ```
 
-**Test coverage includes:**
-- ✅ All UseCases (19 use cases)
-- ✅ All ViewModels (Onboarding, Permission Setup, Trusted Contact, Verify Contact)
-- ✅ Repository implementations
-- ✅ Flow emissions tested with [Turbine](https://github.com/cashapp/turbine)
-- ✅ Coroutine testing with `kotlinx-coroutines-test`
+**Coverage:** ✅ All UseCases (19) · ✅ ViewModels · ✅ Repositories · ✅ Turbine flow tests · ✅ Coroutine test dispatchers
 
-### Backend Tests
-
+### Backend
 ```bash
-cd backend
-npm test
+cd backend && npm test
 ```
 
-**Test coverage includes:**
-- ✅ OTP store operations (create, verify, expiry, max attempts)
-- ✅ Request validation (Zod schemas)
-- ✅ API endpoint integration tests (Supertest)
+**Coverage:** ✅ OTP store ops · ✅ Zod schema validation · ✅ Supertest API integration
 
 ---
 
-## 🔐 Security Design
+## 🔐 `> SECURITY.AUDIT()`
 
-| Aspect | Implementation |
-|---|---|
-| **OTP Generation** | `crypto.randomInt(100000, 999999)` — cryptographically secure |
-| **OTP Storage** | Hashed with `bcrypt` — never stored in plain text |
-| **OTP Lifetime** | 10 minutes max, deleted after use or max attempts |
-| **Contact Info** | Emails stored locally on device only, never in server logs |
-| **Logging** | Emails and OTPs never logged, even in debug builds |
-| **Network** | All API calls over HTTPS |
-| **Backend URL** | Read from `BuildConfig`, never hardcoded |
-| **Backend Storage** | In-memory only — nothing written to disk |
-| **Session Integrity** | `expires_at` timestamp is the single source of truth |
-| **Uninstall Protection** | Device Admin API active during sessions |
-| **Settings Protection** | Overlay blocks access to Accessibility/VPN/Admin settings |
-
----
-
-## ⚠️ Known Limitations
-
-| Limitation | Impact | Mitigation |
-|---|---|---|
-| Factory reset bypasses everything | High | Cannot be prevented on Android — accepted trade-off |
-| Force stop kills services temporarily | Medium | Foreground service with persistent notification reduces this |
-| Trusted contact can share OTP without thinking | High | Context message in email encourages responsible decision |
-| Accessibility Service killed by battery optimization | Medium | App requests battery optimization exemption |
-| Domain blocking only (no keyword matching) for non-browser apps | Low | Out of scope for MVP |
-| Email delivery could occasionally go to spam | Medium | Check spam folder; 24-hour emergency bypass as fallback |
+| Vector | Protection |
+|--------|-----------|
+| OTP Generation | `crypto.randomInt(100000, 999999)` — cryptographically secure |
+| OTP Storage | Hashed with `bcrypt` — never plaintext |
+| OTP Lifetime | 10 min max, deleted after use or max attempts |
+| Contact Info | Emails stored locally on device only |
+| Logging | Emails and OTPs **never logged**, even in debug |
+| Network | All API calls over HTTPS |
+| Backend URL | Read from `BuildConfig`, never hardcoded |
+| Backend Storage | In-memory only — nothing persisted to disk |
+| Session Integrity | `expires_at` timestamp is single source of truth |
+| Uninstall Protection | Device Admin API active during sessions |
+| Settings Protection | Overlay blocks Accessibility/VPN/Admin settings |
+| SSRF Protection | `MetaDescriptionFetcher` validates URLs before fetching |
+| DNS Recursion | `ProtectedSocketFactory` prevents VPN tunnel loops |
 
 ---
 
-## 📋 Development Phases
+## 📁 `> PROJECT.TREE()`
 
-The project is built in **6 phases**, each with a detailed implementation plan:
+```
+FocuseLocker/
+├── app/                              # Android application
+│   └── src/main/java/com/focuslock/
+│       ├── data/                     # Data layer
+│       │   ├── local/
+│       │   │   ├── dao/              # Room DAOs (7)
+│       │   │   ├── entity/           # Room entities (7)
+│       │   │   └── FocusDatabase.kt
+│       │   ├── remote/
+│       │   │   ├── api/              # Retrofit API interface
+│       │   │   └── dto/              # Request/Response DTOs
+│       │   ├── repository/           # Repository implementations
+│       │   ├── session/              # SessionRuntimeController
+│       │   └── parser/               # StevenBlackParser (hosts file)
+│       ├── domain/                   # Domain layer (pure Kotlin)
+│       │   ├── model/                # Domain models
+│       │   └── usecase/              # 19+ UseCases
+│       ├── service/                  # Android services
+│       │   ├── accessibility/        # FocusAccessibilityService
+│       │   ├── vpn/                  # FocusVpnService + VpnPacketLoop
+│       │   ├── overlay/              # BlockingOverlayService
+│       │   └── admin/                # FocusDeviceAdminReceiver
+│       ├── ui/                       # Presentation layer
+│       │   ├── onboarding/           # Onboarding + Permission screens
+│       │   ├── setup/                # Category, Keyword, Timer screens
+│       │   ├── session/              # Active session + Unlock screens
+│       │   ├── navigation/           # Compose Navigation graph
+│       │   ├── theme/                # Material 3 theme + CustomIcons
+│       │   └── common/              # Shared composables
+│       ├── worker/                   # WorkManager workers
+│       ├── receiver/                 # BootReceiver
+│       ├── di/                       # Hilt DI modules (3)
+│       └── util/                     # PermissionChecker, FileLoggingTree
+├── backend/                          # Node.js OTP server
+│   ├── src/
+│   │   ├── routes/                   # Express route handlers
+│   │   ├── services/                 # OTP + Email services
+│   │   ├── store/                    # In-memory OTP store
+│   │   ├── schemas/                  # Zod validation
+│   │   ├── middleware/               # Request validation
+│   │   └── config/                   # Environment config
+│   └── tests/                        # Jest test suite
+├── Architectur/                      # Architecture documentation
+├── projects/                         # Implementation plans
+├── doc/                              # PRD, User Stories, System Design
+└── Threat_Detection/                 # Security audit reports
+```
+
+---
+
+## ⚠️ `> KNOWN_LIMITATIONS.LOG()`
+
+| Limitation | Severity | Status |
+|-----------|----------|--------|
+| Factory reset bypasses all protections | `CRITICAL` | Accepted — cannot prevent on Android |
+| OEM kills accessibility after reboot | `HIGH` | Mitigated — battery optimization + smart routing |
+| Force stop kills services temporarily | `MEDIUM` | Foreground notification reduces risk |
+| Contact can share OTP without thinking | `HIGH` | Context message in email encourages responsibility |
+| Email delivery may hit spam | `MEDIUM` | 24h emergency bypass as fallback |
+| ADB install resets accessibility | `LOW` | Development-only — not a production issue |
+
+---
+
+## 📋 `> DEVELOPMENT_PHASES.STATUS()`
 
 | Phase | Focus | Status |
-|---|---|---|
-| **Phase 1** | Project setup, Hilt, Room, Retrofit boilerplate | ✅ Complete |
-| **Phase 2** | Onboarding, permissions, trusted contact registration | ✅ Complete |
-| **Phase 3** | Category/keyword selection, timer setup, session activation | ✅ Complete |
-| **Phase 4** | Accessibility Service, VPN Service, blocking overlay | ✅ Complete |
-| **Phase 5** | Device Admin, boot recovery, settings protection | ✅ Complete |
-| **Phase 6** | Unlock flow, OTP entry, cooldown, emergency bypass | ✅ Complete |
+|-------|-------|--------|
+| `PHASE_01` | Project setup, Hilt, Room, Retrofit boilerplate | `✅ COMPLETE` |
+| `PHASE_02` | Onboarding, permissions, trusted contact | `✅ COMPLETE` |
+| `PHASE_03` | Category/keyword selection, timer, session activation | `✅ COMPLETE` |
+| `PHASE_04` | Accessibility Service, VPN Service, blocking overlay | `✅ COMPLETE` |
+| `PHASE_05` | Device Admin, boot recovery, settings protection | `✅ COMPLETE` |
+| `PHASE_06` | Unlock flow, OTP entry, cooldown, emergency bypass | `✅ COMPLETE` |
+| `PHASE_07` | Performance optimization + reboot survival + PermissionEnforcementService | `✅ COMPLETE` |
 
 ---
 
-## 🤝 Contributing
-
-This is currently a **personal project** in active development. If you'd like to contribute:
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/your-feature`)
-3. Follow the coding rules in `doc/6_CONTEXT_AND_RULES.md`
-4. Write unit tests for any new UseCase or ViewModel
-5. Test on a **physical Android device**
-6. Submit a pull request
-
-### Coding Rules (Non-Negotiable)
-
-- **Kotlin only** — no Java files
-- **No `!!`** — handle nulls with `?.`, `?:`, or `requireNotNull()`
-- **No business logic in Composables** — delegate to ViewModel
-- **No business logic in ViewModels** — delegate to UseCases
-- **All DAO reads return `Flow<T>`** — reactive, not one-shot
-- **No `runBlocking`** in production code
-- **Never log emails or OTPs** — not even in debug builds
-- **Hilt for all DI** — no manual dependency passing
-
----
-
-## 📄 Documentation
-
-| Document | Description |
-|---|---|
-| [`doc/1_PRD.md`](doc/1_PRD.md) | Product Requirements Document |
-| [`doc/2_USER_STORIES.md`](doc/2_USER_STORIES.md) | User Stories with acceptance criteria |
-| [`doc/3_SYSTEM_DESIGN.md`](doc/3_SYSTEM_DESIGN.md) | System architecture & data flows |
-| [`doc/4_DATA_MODEL.md`](doc/4_DATA_MODEL.md) | Database schema & entity relationships |
-| [`doc/5_TECH_STACK.md`](doc/5_TECH_STACK.md) | Technology choices & folder structure |
-| [`doc/6_CONTEXT_AND_RULES.md`](doc/6_CONTEXT_AND_RULES.md) | AI context block & coding rules |
-| [`doc/7_RULES.md`](doc/7_RULES.md) | Skill invocation rules |
-
----
-
-## 📊 Codebase Stats
+## 📊 `> CODEBASE.STATS()`
 
 | Metric | Count |
-|---|---|
-| Total files | 71+ |
+|--------|-------|
+| Total files (graphify) | 427 |
+| Graph nodes | 2,346 |
+| Graph edges | 2,122 |
+| Graph communities | 404 |
 | Kotlin source files | ~55 |
 | TypeScript source files | ~12 |
-| Domain UseCases | 19 |
+| Domain UseCases | 22+ |
 | Room DAOs | 7 |
 | Room Entities | 7 |
-| Repository interfaces | 5 |
 | Repository implementations | 5 |
 | Compose screens | 12+ |
-| ViewModels | 6+ |
-| Unit tests | 16+ |
+| ViewModels | 10+ |
+| Unit tests | 30+ |
 | Hilt DI modules | 3 |
-| Android services | 4 |
+| Android services | 5 (incl. PermissionEnforcementService) |
+| WorkManager workers | 4 |
 | Backend API endpoints | 4 |
 
 ---
 
-## 🗺️ Roadmap (Post-MVP)
+## 🤝 `> CONTRIBUTING.PROTOCOL()`
 
-These are explicitly **out of scope for MVP** but may be considered for future versions:
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/your-feature`)
+3. Follow coding rules in `doc/6_CONTEXT_AND_RULES.md`
+4. Write unit tests for any new UseCase or ViewModel
+5. Test on a **physical Android device**
+6. Submit a pull request
 
-- [ ] iOS version
-- [ ] Multiple trusted contacts
-- [ ] Usage analytics & session history reports
-- [ ] Scheduled recurring sessions
-- [ ] Browser extension companion
-- [ ] Parental control mode
-- [ ] Web dashboard
+### `> CODING_RULES.ENFORCE()`
+
+```
+[ RULE ] Kotlin only — no Java files
+[ RULE ] No `!!` — handle nulls with ?. / ?: / requireNotNull()
+[ RULE ] No business logic in Composables — delegate to ViewModel
+[ RULE ] No business logic in ViewModels — delegate to UseCases
+[ RULE ] All DAO reads return Flow<T> — reactive, not one-shot
+[ RULE ] No runBlocking in production code
+[ RULE ] Never log emails or OTPs — not even in debug
+[ RULE ] Hilt for all DI — no manual dependency passing
+```
+
+---
+
+## 📄 `> DOCUMENTATION.INDEX()`
+
+| Document | Description |
+|----------|-------------|
+| [`doc/1_PRD.md`](doc/1_PRD.md) | Product Requirements Document |
+| [`doc/2_USER_STORIES.md`](doc/2_USER_STORIES.md) | User Stories + acceptance criteria |
+| [`doc/3_SYSTEM_DESIGN.md`](doc/3_SYSTEM_DESIGN.md) | System architecture & data flows |
+| [`doc/4_DATA_MODEL.md`](doc/4_DATA_MODEL.md) | Database schema & entity relationships |
+| [`doc/5_TECH_STACK.md`](doc/5_TECH_STACK.md) | Technology choices & folder structure |
+| [`doc/6_CONTEXT_AND_RULES.md`](doc/6_CONTEXT_AND_RULES.md) | AI context & coding rules |
+| [`Architectur/architecture.md`](Architectur/architecture.md) | Low-level architectural layout |
+
+---
+
+## 🗺️ `> ROADMAP.FUTURE()`
+
+```
+[ ] iOS version
+[ ] Multiple trusted contacts
+[ ] Usage analytics & session history reports
+[ ] Scheduled recurring sessions
+[ ] Browser extension companion
+[ ] Parental control mode
+[ ] Web dashboard
+[ ] OEM-specific battery optimization intents (Xiaomi AutoStart, Samsung Power)
+```
 
 ---
 
 <p align="center">
-  <strong>Built with focus, for focus.</strong><br/>
-  <em>Because sometimes, you need someone else to hold the key.</em>
+  <code>▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓</code><br/>
+  <code>█      Built with focus, for focus.                        █</code><br/>
+  <code>█  Because sometimes, you need someone else to hold the key █</code><br/>
+  <code>▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓</code>
 </p>

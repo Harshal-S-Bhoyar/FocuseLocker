@@ -6,6 +6,7 @@ import com.focuslock.worker.SessionExpiryWorker
 import com.focuslock.worker.SessionTimerWorker
 import dagger.hilt.android.qualifiers.ApplicationContext
 import java.util.concurrent.TimeUnit
+import timber.log.Timber
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -17,9 +18,11 @@ class SessionWorkerScheduler @Inject constructor(
     companion object {
         private const val SESSION_TIMER_WORK_NAME = "session_timer_work"
         private const val SESSION_EXPIRY_WORK_NAME = "session_expiry_work"
+        private const val ACCESSIBILITY_HEALTH_WORK_NAME = AccessibilityHealthWorker.WORK_NAME
     }
 
     fun scheduleSessionTimers(expiresAt: Long) {
+        Timber.d("SessionWorkerScheduler: Scheduling session timers. expiresAt=$expiresAt")
         val workManager = WorkManager.getInstance(context)
 
         // 1. Periodic Worker (every 15 mins) to update notification and check expiry
@@ -33,9 +36,21 @@ class SessionWorkerScheduler @Inject constructor(
             ExistingPeriodicWorkPolicy.UPDATE,
             periodicWorkRequest
         )
+        
+        // 2. Periodic Worker (every 15 mins) to check accessibility health
+        val healthWorkRequest = PeriodicWorkRequestBuilder<AccessibilityHealthWorker>(
+            15, TimeUnit.MINUTES
+        ).setConstraints(constraints).build()
 
-        // 2. Exact Expiry Worker (OneTimeWork) delayed until expiresAt
+        workManager.enqueueUniquePeriodicWork(
+            ACCESSIBILITY_HEALTH_WORK_NAME,
+            ExistingPeriodicWorkPolicy.UPDATE,
+            healthWorkRequest
+        )
+
+        // 3. Exact Expiry Worker (OneTimeWork) delayed until expiresAt
         val delayMillis = expiresAt - System.currentTimeMillis()
+        Timber.d("SessionWorkerScheduler: Enqueued periodic workers. delayMillis for expiry worker=$delayMillis")
         if (delayMillis > 0) {
             val expiryWorkRequest = OneTimeWorkRequestBuilder<SessionExpiryWorker>()
                 .setInitialDelay(delayMillis, TimeUnit.MILLISECONDS)
@@ -51,8 +66,10 @@ class SessionWorkerScheduler @Inject constructor(
     }
 
     fun cancelSessionTimers() {
+        Timber.d("SessionWorkerScheduler: Cancelling all session timers and workers.")
         val workManager = WorkManager.getInstance(context)
         workManager.cancelUniqueWork(SESSION_TIMER_WORK_NAME)
         workManager.cancelUniqueWork(SESSION_EXPIRY_WORK_NAME)
+        workManager.cancelUniqueWork(ACCESSIBILITY_HEALTH_WORK_NAME)
     }
 }
