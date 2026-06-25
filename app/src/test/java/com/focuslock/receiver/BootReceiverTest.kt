@@ -109,9 +109,8 @@ class BootReceiverTest {
         )
 
         coEvery { sessionRepository.getActiveSessionSync() } returns activeSession
-        // Simulate Accessibility being killed by OEM, overlay permission still intact
+        // Simulate Accessibility being killed by OEM
         every { PermissionChecker.isAccessibilityServiceEnabled(any<Context>()) } returns false
-        every { PermissionChecker.isOverlayPermissionGranted(any<Context>()) } returns true
 
         bootReceiver.processBootIntent(context, intent)
         advanceUntilIdle()
@@ -120,7 +119,10 @@ class BootReceiverTest {
         val shadowApp = org.robolectric.Shadows.shadowOf(context as android.app.Application)
         val nextIntent = shadowApp.peekNextStartedService()
         
-        assert(nextIntent != null)
-        assert(nextIntent?.component?.className == "com.focuslock.service.overlay.PermissionEnforcementService")
+        org.junit.Assert.assertNotNull(nextIntent)
+        org.junit.Assert.assertEquals(
+            "com.focuslock.service.overlay.PermissionEnforcementService",
+            nextIntent?.component?.className
+        )
     }
 }
