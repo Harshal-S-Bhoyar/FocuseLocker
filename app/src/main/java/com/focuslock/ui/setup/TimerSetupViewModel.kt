@@ -8,6 +8,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import timber.log.Timber
 import javax.inject.Inject
 
 /**
@@ -29,18 +30,23 @@ class TimerSetupViewModel @Inject constructor(
     val hasVerifiedContact: StateFlow<Boolean> = _hasVerifiedContact.asStateFlow()
 
     init {
+        Timber.d("TimerSetupViewModel: init called")
         viewModelScope.launch {
-            _hasVerifiedContact.value = hasVerifiedContactUseCase()
+            val hasContact = hasVerifiedContactUseCase()
+            Timber.d("TimerSetupViewModel: hasVerifiedContact = $hasContact")
+            _hasVerifiedContact.value = hasContact
         }
     }
 
     fun updateHours(h: Int) {
+        Timber.d("TimerSetupViewModel: updateHours called with $h")
         if (h in 0..72) {
             _hours.value = h
         }
     }
 
     fun updateMinutes(m: Int) {
+        Timber.d("TimerSetupViewModel: updateMinutes called with $m")
         if (m in 0..59) {
             _minutes.value = m
         }
@@ -52,11 +58,15 @@ class TimerSetupViewModel @Inject constructor(
         val validMinutes = totalMinutes.coerceAtLeast(1)
         // Enforce 72 hours maximum
         val boundedMinutes = validMinutes.coerceAtMost(72 * 60)
-        return boundedMinutes * 60 * 1000L
+        val durationMillis = boundedMinutes * 60 * 1000L
+        Timber.d("TimerSetupViewModel: computed durationMillis = $durationMillis from hours = ${_hours.value}, minutes = ${_minutes.value}")
+        return durationMillis
     }
     
     fun isValid(): Boolean {
         val totalMinutes = (_hours.value * 60) + _minutes.value
-        return totalMinutes in 1..(72 * 60)
+        val valid = totalMinutes in 1..(72 * 60)
+        Timber.d("TimerSetupViewModel: isValid check returned $valid (total minutes = $totalMinutes)")
+        return valid
     }
 }

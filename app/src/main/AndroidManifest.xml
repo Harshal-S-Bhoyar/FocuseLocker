@@ -35,6 +35,13 @@
             </intent-filter>
         </activity>
 
+        <activity
+            android:name=".ui.overlay.PermissionRepairActivity"
+            android:exported="false"
+            android:launchMode="singleInstance"
+            android:excludeFromRecents="true"
+            android:theme="@style/Theme.FocusLock" />
+
         <!-- Accessibility Service -->
         <service
             android:name=".service.accessibility.FocusAccessibilityService"
@@ -86,6 +93,16 @@
                 android:value="Permission enforcement overlay" />
         </service>
 
+        <!-- Permission Watchdog Service -->
+        <service
+            android:name=".service.watchdog.PermissionWatchdogService"
+            android:exported="false"
+            android:foregroundServiceType="specialUse">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="Permission monitoring" />
+        </service>
+
         <!-- Device Admin Receiver -->
         <receiver
             android:name=".service.admin.FocusDeviceAdminReceiver"
@@ -102,7 +119,8 @@
         <!-- Boot Receiver -->
         <receiver
             android:name=".receiver.BootReceiver"
-            android:exported="true">
+            android:exported="false"
+            android:permission="android.permission.RECEIVE_BOOT_COMPLETED">
             <intent-filter>
                 <action android:name="android.intent.action.BOOT_COMPLETED" />
             </intent-filter>

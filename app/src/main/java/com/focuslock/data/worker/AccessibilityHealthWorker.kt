@@ -22,10 +22,20 @@ class AccessibilityHealthWorker @AssistedInject constructor(
         return try {
             val session = sessionRepository.getActiveSessionSync()
             val isActiveSession = session != null && session.expiresAt > System.currentTimeMillis()
-            val isAccessibilityAlive = PermissionChecker.isAccessibilityServiceEnabled(context)
+            
+            if (!isActiveSession) return Result.success()
+            
+            var isAccessibilityAlive = PermissionChecker.isAccessibilityServiceEnabled(context)
+            
+            // Retry once with 2s delay — OS may be rebinding after memory pressure
+            if (!isAccessibilityAlive) {
+                kotlinx.coroutines.delay(2000L)
+                isAccessibilityAlive = PermissionChecker.isAccessibilityServiceEnabled(context)
+            }
+            
             val isOverlayGranted = PermissionChecker.isOverlayPermissionGranted(context)
 
-            if (isActiveSession && !isAccessibilityAlive && isOverlayGranted) {
+            if (!isAccessibilityAlive && isOverlayGranted) {
                 Timber.w("AccessibilityHealthWorker: Active session detected but Accessibility is DEAD. Launching enforcement overlay.")
                 PermissionEnforcementService.start(context)
             } else {

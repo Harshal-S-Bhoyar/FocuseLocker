@@ -15,6 +15,7 @@ import dagger.hilt.android.EntryPointAccessors
 import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
+import io.mockk.mockkObject
 import io.mockk.mockkStatic
 import io.mockk.unmockkAll
 import io.mockk.spyk
@@ -103,5 +104,66 @@ class FocusAccessibilityServiceTest {
         field.isAccessible = true
         val value = field.get(target)
         assertNotNull("Field $fieldName should be initialized but was null", value)
+    }
+
+    @Test
+    fun `when settingsGuardMode is true and user leaves settings, it forces overlay back`() = runTest {
+        // Arrange
+        val service = spyk(FocusAccessibilityService(), recordPrivateCalls = true)
+        
+        // Mock isSessionActive to true
+        val isSessionActiveField = FocusAccessibilityService::class.java.getDeclaredField("isSessionActive")
+        isSessionActiveField.isAccessible = true
+        isSessionActiveField.set(service, true)
+
+        FocusAccessibilityService.settingsGuardMode = true
+
+        mockkObject(com.focuslock.service.overlay.PermissionEnforcementService)
+        every { com.focuslock.service.overlay.PermissionEnforcementService.start(any()) } returns Unit
+
+        val mockEvent = mockk<android.view.accessibility.AccessibilityEvent>()
+        every { mockEvent.packageName } returns "com.google.android.youtube" // User went to YouTube
+        every { mockEvent.eventType } returns android.view.accessibility.AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED
+
+        every { service.packageName } returns "com.focuslock"
+
+        // Act
+        service.onAccessibilityEvent(mockEvent)
+
+        // Assert
+        verify { com.focuslock.service.overlay.PermissionEnforcementService.start(service) }
+        org.junit.Assert.assertFalse("settingsGuardMode should be reset", FocusAccessibilityService.settingsGuardMode)
+        
+        unmockkAll() // clear static mocks
+    }
+
+    @Test
+    fun `when settingsGuardMode is true and user stays in settings, it does not force overlay`() = runTest {
+        // Arrange
+        val service = spyk(FocusAccessibilityService(), recordPrivateCalls = true)
+        
+        val isSessionActiveField = FocusAccessibilityService::class.java.getDeclaredField("isSessionActive")
+        isSessionActiveField.isAccessible = true
+        isSessionActiveField.set(service, true)
+
+        FocusAccessibilityService.settingsGuardMode = true
+
+        mockkObject(com.focuslock.service.overlay.PermissionEnforcementService)
+        every { com.focuslock.service.overlay.PermissionEnforcementService.start(any()) } returns Unit
+
+        val mockEvent = mockk<android.view.accessibility.AccessibilityEvent>()
+        every { mockEvent.packageName } returns "com.android.settings" // User is still in settings
+        every { mockEvent.eventType } returns android.view.accessibility.AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED
+
+        every { service.packageName } returns "com.focuslock"
+
+        // Act
+        service.onAccessibilityEvent(mockEvent)
+
+        // Assert
+        verify(exactly = 0) { com.focuslock.service.overlay.PermissionEnforcementService.start(any()) }
+        org.junit.Assert.assertTrue("settingsGuardMode should remain active", FocusAccessibilityService.settingsGuardMode)
+        
+        unmockkAll()
     }
 }

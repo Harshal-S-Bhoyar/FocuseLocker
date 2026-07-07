@@ -187,6 +187,9 @@ dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.9.0")
 
+    // Security
+    implementation("androidx.security:security-crypto:1.1.0-alpha06")
+
     // Logging
     implementation("com.jakewharton.timber:timber:5.0.1")
 
