@@ -8,6 +8,8 @@ import com.focuslock.domain.session.SessionEnforcementStateStore
 import com.focuslock.notification.SessionNotificationManager
 import com.focuslock.service.overlay.BlockingOverlayService
 import com.focuslock.service.vpn.FocusVpnService
+import com.focuslock.service.overlay.PermissionEnforcementService
+import com.focuslock.service.watchdog.PermissionWatchdogService
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -26,12 +28,16 @@ class SessionRuntimeController @Inject constructor(
         if (VpnService.prepare(context) == null) {
             ContextCompat.startForegroundService(context, Intent(context, FocusVpnService::class.java))
         }
+        
+        PermissionWatchdogService.start(context)
     }
 
     fun stopRuntime() {
         enforcementStateStore.setSessionActive(false)
         context.stopService(Intent(context, FocusVpnService::class.java))
         context.stopService(Intent(context, BlockingOverlayService::class.java))
+        PermissionWatchdogService.stop(context)
+        PermissionEnforcementService.stop(context)
         notificationManager.cancelNotification()
     }
 }

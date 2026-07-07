@@ -94,7 +94,7 @@ class BootReceiverTest {
     }
 
     @Test
-    fun `onReceive handles BOOT_COMPLETED and forces PermissionEnforcementService if accessibility is dead`() = runTest {
+    fun `onReceive handles BOOT_COMPLETED and starts watchdog and overlay if accessibility is dead`() = runTest {
         bootReceiver.ioDispatcher = kotlinx.coroutines.test.StandardTestDispatcher(testScheduler)
         val intent = Intent(Intent.ACTION_BOOT_COMPLETED)
         
@@ -116,14 +116,37 @@ class BootReceiverTest {
         bootReceiver.processBootIntent(context, intent)
         advanceUntilIdle()
         
-        // Verify that the permission enforcement service was started
+        // Verify that the permission services were started
         val shadowApp = org.robolectric.Shadows.shadowOf(context as android.app.Application)
-        val nextIntent = shadowApp.peekNextStartedService()
         
-        org.junit.Assert.assertNotNull(nextIntent)
-        org.junit.Assert.assertEquals(
-            "com.focuslock.service.overlay.PermissionEnforcementService",
-            nextIntent?.component?.className
-        )
+        val startedServices = mutableListOf<Intent>()
+        var s = shadowApp.nextStartedService
+        while(s != null) {
+            startedServices.add(s)
+            s = shadowApp.nextStartedService
+        }
+        
+        val watchdogIntent = startedServices.find { it.component?.className == "com.focuslock.service.watchdog.PermissionWatchdogService" }
+        org.junit.Assert.assertNotNull("PermissionWatchdogService should be started", watchdogIntent)
+        
+        val overlayIntent = startedServices.find { it.component?.className == "com.focuslock.service.overlay.PermissionEnforcementService" }
+        org.junit.Assert.assertNotNull("PermissionEnforcementService should be started", overlayIntent)
+    }
+    @Test
+    fun `onReceive rejects non-system caller UID`() = runTest {
+        bootReceiver.ioDispatcher = kotlinx.coroutines.test.StandardTestDispatcher(testScheduler)
+        val intent = Intent(Intent.ACTION_BOOT_COMPLETED)
+
+        // Simulate a third-party app caller (UID 10042, not SYSTEM_UID=1000)
+        org.robolectric.shadows.ShadowBinder.setCallingUid(10042)
+
+        bootReceiver.onReceive(context, intent)
+        advanceUntilIdle()
+
+        // processBootIntent should never have been called
+        coVerify(exactly = 0) { sessionRepository.getActiveSessionSync() }
+
+        // Reset to system UID for other tests
+        org.robolectric.shadows.ShadowBinder.setCallingUid(android.os.Process.SYSTEM_UID)
     }
 }

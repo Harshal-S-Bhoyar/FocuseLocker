@@ -53,8 +53,15 @@ class PermissionEnforcementServiceTest {
         PermissionEnforcementService.start(context)
 
         val shadowApp = Shadows.shadowOf(context as android.app.Application)
-        val nextIntent = shadowApp.peekNextStartedService()
         
+        val startedServices = mutableListOf<Intent>()
+        var s = shadowApp.nextStartedService
+        while(s != null) {
+            startedServices.add(s)
+            s = shadowApp.nextStartedService
+        }
+        
+        val nextIntent = startedServices.find { it.component?.className == "com.focuslock.service.overlay.PermissionEnforcementService" }
         assertNotNull(nextIntent)
         assertEquals(PermissionEnforcementService::class.java.name, nextIntent?.component?.className)
         assertEquals(PermissionEnforcementService.ACTION_START, nextIntent?.action)
@@ -65,8 +72,15 @@ class PermissionEnforcementServiceTest {
         PermissionEnforcementService.stop(context)
 
         val shadowApp = Shadows.shadowOf(context as android.app.Application)
-        val nextIntent = shadowApp.peekNextStartedService()
         
+        val startedServices = mutableListOf<Intent>()
+        var s = shadowApp.nextStartedService
+        while(s != null) {
+            startedServices.add(s)
+            s = shadowApp.nextStartedService
+        }
+        
+        val nextIntent = startedServices.find { it.component?.className == "com.focuslock.service.overlay.PermissionEnforcementService" }
         assertNotNull(nextIntent)
         assertEquals(PermissionEnforcementService::class.java.name, nextIntent?.component?.className)
         assertEquals(PermissionEnforcementService.ACTION_STOP, nextIntent?.action)
@@ -103,8 +117,36 @@ class PermissionEnforcementServiceTest {
         PermissionEnforcementService.start(context)
 
         val shadowApp = Shadows.shadowOf(context as android.app.Application)
-        val nextIntent = shadowApp.peekNextStartedService()
+        
+        val startedServices = mutableListOf<Intent>()
+        var s = shadowApp.nextStartedService
+        while(s != null) {
+            startedServices.add(s)
+            s = shadowApp.nextStartedService
+        }
+        
+        val nextIntent = startedServices.find { it.component?.className == "com.focuslock.service.overlay.PermissionEnforcementService" }
         assertNotNull(nextIntent)
         assertEquals(PermissionEnforcementService.ACTION_START, nextIntent?.action)
+    }
+
+    @Test
+    fun `openAccessibilitySettings sets grace period and guard mode`() {
+        val controller = Robolectric.buildService(PermissionEnforcementService::class.java).create().startCommand(0, 0)
+        val service = controller.get()
+        
+        val before = System.currentTimeMillis()
+        service.openAccessibilitySettings()
+        val after = System.currentTimeMillis()
+        
+        assertTrue(service.gracePeriodEndTime >= before + 3000L - 100L) // allow small timing delta
+        assertTrue(com.focuslock.service.accessibility.FocusAccessibilityService.settingsGuardMode)
+        assertEquals("com.android.settings", com.focuslock.service.accessibility.FocusAccessibilityService.guardedSettingsPackage)
+        
+        val shadowApp = Shadows.shadowOf(context as android.app.Application)
+        val nextIntent = shadowApp.nextStartedActivity
+        assertNotNull(nextIntent)
+        assertEquals(android.provider.Settings.ACTION_ACCESSIBILITY_SETTINGS, nextIntent?.action)
+        assertEquals(Intent.FLAG_ACTIVITY_NEW_TASK, nextIntent?.flags?.and(Intent.FLAG_ACTIVITY_NEW_TASK))
     }
 }

@@ -27,10 +27,19 @@ class FocusDeviceAdminReceiverInstrumentedTest {
     private class FakeSessionEnforcementStateStore(
         private var isActive: Boolean
     ) : SessionEnforcementStateStore {
+        private var breachCount = 0
+        private var penaltyEndTime = 0L
+
         override fun isSessionActive(): Boolean = isActive
 
         override fun setSessionActive(isActive: Boolean) {
             this.isActive = isActive
         }
+        
+        override fun getBreachCount(): Int = breachCount
+        override fun incrementBreachCount() { breachCount++ }
+        override fun resetBreachCount() { breachCount = 0 }
+        override fun getPenaltyEndTime(): Long = penaltyEndTime
+        override fun setPenaltyEndTime(timeMillis: Long) { penaltyEndTime = timeMillis }
     }
 }

@@ -21,6 +21,18 @@ class OemAutostartHelperTest {
 
     @Test
     fun testGetAutostartIntent_WithXiaomi() {
+    private var originalManufacturer: String? = null
+
+    @org.junit.Before
+    fun setUp() {
+        originalManufacturer = Build.MANUFACTURER
+    }
+
+    @org.junit.After
+    fun tearDown() {
+        ReflectionHelpers.setStaticField(Build::class.java, "MANUFACTURER", originalManufacturer)
+    }
+
         ReflectionHelpers.setStaticField(Build::class.java, "MANUFACTURER", "xiaomi")
         val context = mockk<Context>()
         val packageManager = mockk<PackageManager>()
@@ -33,6 +45,17 @@ class OemAutostartHelperTest {
         assertNotNull(intent)
         assertEquals("com.miui.securitycenter", intent?.component?.packageName)
         assertEquals("com.miui.permcenter.autostart.AutoStartManagementActivity", intent?.component?.className)
+    }
+
+    @Test
+    fun testGetAutostartIntent_WithUnsupportedManufacturer() {
+        ReflectionHelpers.setStaticField(Build::class.java, "MANUFACTURER", "unknown_brand")
+        val context = mockk<Context>()
+        
+        val intent = OemAutostartHelper.getAutostartIntent(context)
+        assertNull(intent)
+    }
+}
     }
 
     @Test

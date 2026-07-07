@@ -29,7 +29,8 @@ class FocusLockApplication : Application(), Configuration.Provider {
         if (BuildConfig.DEBUG) {
             Timber.plant(Timber.DebugTree())
         }
-        Timber.plant(FileLoggingTree(this))
+        val minLogLevel = if (BuildConfig.DEBUG) android.util.Log.DEBUG else android.util.Log.INFO
+        Timber.plant(FileLoggingTree(this, minLogLevel))
 
         // Set up global exception handling
         val defaultHandler = Thread.getDefaultUncaughtExceptionHandler()

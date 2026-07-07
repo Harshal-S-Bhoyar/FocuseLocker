@@ -1,0 +1,25 @@
+# This is a template for the local.properties file.
+# Do NOT commit your actual local.properties file to version control.
+# Copy this file to 'local.properties' and fill in the values for your environment.
+
+# Location of the SDK. This is only used by Gradle.
+# Example: sdk.dir=C\:\\Users\\Username\\AppData\\Local\\Android\\Sdk
+sdk.dir=/path/to/your/android/sdk
+
+# Backend Configuration
+BACKEND_URL="http://127.0.0.1:3000"
+RELEASE_BACKEND_URL="https://focuslock-backend.railway.app"
+
+# NextDNS Configuration (For DNS over HTTPS interception)
+NEXTDNS_PROFILE_ID="your_nextdns_profile_id"
+NEXTDNS_BASE_URL="https://dns.nextdns.io/"
+NEXTDNS_FASTPATH_IPS="45.90.28.0,45.90.30.0"
+
+# AdGuard Fallback Configuration
+FALLBACK_DNS_ENDPOINT="https://family.adguard-dns.com/dns-query"
+ADGUARD_FASTPATH_IPS="94.140.14.15,94.140.15.16"
+
+# Network & VPN Virtual Interfaces Configuration
+BOOTSTRAP_FALLBACK_SERVERS="8.8.8.8,1.1.1.1"
+VIRTUAL_IPV4="10.0.0.2"
+VIRTUAL_IPV6="fd00:1:fd00:1:fd00:1:fd00:1"

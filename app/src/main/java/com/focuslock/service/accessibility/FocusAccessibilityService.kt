@@ -54,10 +54,22 @@ class FocusAccessibilityService : AccessibilityService() {
         
         // List of settings packages to protect
         private val SETTINGS_PACKAGES = setOf(
-            "com.android.settings"
+            "com.android.settings",
+            "com.samsung.android.app.settings",
+            "com.miui.securitycenter",
+            "com.coloros.safecenter",
+            "com.vivo.permissionmanager",
+            "com.oneplus.security",
+            "com.huawei.systemmanager",
+            "com.letv.android.letvsafe",
+            "com.samsung.android.lool",
+            "com.asus.mobilemanager"
         )
 
         private const val URL_DEBOUNCE_MILLIS = 500L
+        
+        @Volatile var settingsGuardMode = false
+        @Volatile var guardedSettingsPackage: String? = null
     }
 
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -67,7 +79,10 @@ class FocusAccessibilityService : AccessibilityService() {
     @Volatile private var activeSessionExpiresAt: Long? = null
     private var lastProcessedUrl: String? = null
     private var lastProcessedAtMillis = 0L
+    private var lastSettingsProcessedAtMillis = 0L
     private var pendingSmartScanJob: Job? = null
+    
+    // Add watchdog broadcast receiver to enable guard mode? Not needed, we will use companion object variables
 
     private lateinit var checkUrlForBlockedContentUseCase: CheckUrlForBlockedContentUseCase
     private lateinit var getActiveKeywordsUseCase: GetActiveKeywordsUseCase
@@ -127,6 +142,7 @@ class FocusAccessibilityService : AccessibilityService() {
     }
 
     private fun updateForegroundState(isActive: Boolean) {
+        Timber.tag(TAG).d("updateForegroundState: Setting foreground state to $isActive")
         if (isActive) {
             val channel = android.app.NotificationChannel(
                 "accessibility_channel",
@@ -157,13 +173,34 @@ class FocusAccessibilityService : AccessibilityService() {
      */
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
         if (event == null || !isSessionActive) return
+        
+        // Log sparingly here to avoid extreme log spam, but note the event arrival
+        // Timber.tag(TAG).v("onAccessibilityEvent: Received event type %s", event.eventType)
 
         val packageName = event.packageName?.toString() ?: return
         val eventType = event.eventType
 
-        // 1. Settings Protection — only on window state change (app/screen switch)
+        if (settingsGuardMode) {
+            val currentPackage = packageName
+            // User left Settings entirely (opened another app, went to home)
+            if (currentPackage != "com.android.settings" &&
+                !SETTINGS_PACKAGES.contains(currentPackage) &&
+                currentPackage != this.packageName) {
+                // Force back to overlay
+                com.focuslock.service.overlay.PermissionEnforcementService.start(this)
+                settingsGuardMode = false
+            }
+            return  // Don't process other events in guard mode
+        }
+
+        // 1. Settings Protection — handle both state and content changed with throttling
         if (SETTINGS_PACKAGES.contains(packageName)) {
-            if (eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) {
+            val now = SystemClock.elapsedRealtime()
+            val isContentChanged = eventType == AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED
+            val isStateChanged = eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED
+
+            if (isStateChanged || (isContentChanged && now - lastSettingsProcessedAtMillis > 500L)) {
+                if (isContentChanged) lastSettingsProcessedAtMillis = now
                 handleSettingsEvent(event)
             }
             return
@@ -187,6 +224,7 @@ class FocusAccessibilityService : AccessibilityService() {
     }
 
     private fun handleSettingsEvent(event: AccessibilityEvent) {
+        Timber.tag(TAG).d("handleSettingsEvent: Processing settings event.")
         val source = event.source ?: return
         
         val sensitiveKeywords = listOf("FocusLock", "Device admin", "Device administrator", "VPN", "Accessibility")
@@ -208,6 +246,7 @@ class FocusAccessibilityService : AccessibilityService() {
     }
 
     private fun collectAllNodeText(node: AccessibilityNodeInfo, textList: MutableList<String>) {
+        // Omitting entry log due to high recursion frequency
         node.text?.toString()?.let { textList.add(it) }
         node.contentDescription?.toString()?.let { textList.add(it) }
         for (i in 0 until node.childCount) {
@@ -220,6 +259,7 @@ class FocusAccessibilityService : AccessibilityService() {
     }
 
     private fun handleBrowserEvent(event: AccessibilityEvent, packageName: String) {
+        Timber.tag(TAG).d("handleBrowserEvent: Processing browser event for package %s", packageName)
         // Find the URL node. Note: ID varies by browser.
         val source = event.source
         val root = rootInActiveWindow ?: source ?: return
@@ -301,6 +341,7 @@ class FocusAccessibilityService : AccessibilityService() {
     }
 
     private fun findUrlNode(root: AccessibilityNodeInfo, packageName: String): AccessibilityNodeInfo? {
+        Timber.tag(TAG).v("findUrlNode: Searching for URL node in %s", packageName)
         val urlBarId = when (packageName) {
             "com.android.chrome" -> "com.android.chrome:id/url_bar"
             "org.mozilla.firefox" -> "org.mozilla.firefox:id/mozac_browser_toolbar_url_view"
@@ -322,6 +363,7 @@ class FocusAccessibilityService : AccessibilityService() {
     }
 
     private fun launchOverlayService(matchedTerm: String, blockReason: String) {
+        Timber.tag(TAG).d("launchOverlayService: Launching overlay for matched term '%s', reason: %s", matchedTerm, blockReason)
         val remainingMillis = (activeSessionExpiresAt ?: 0L) - System.currentTimeMillis()
         val intent = Intent(this, BlockingOverlayService::class.java).apply {
             action = BlockingOverlayService.ACTION_SHOW_OVERLAY
@@ -333,6 +375,7 @@ class FocusAccessibilityService : AccessibilityService() {
     }
 
     private fun isDuplicateUrlEvent(url: String): Boolean {
+        Timber.tag(TAG).v("isDuplicateUrlEvent: Checking if URL is duplicate.")
         // Since we already throttle CONTENT_CHANGED events globally, 
         // this method just ensures we don't start duplicate scans for the exact same URL
         val isDuplicate = url == lastProcessedUrl
@@ -350,6 +393,7 @@ class FocusAccessibilityService : AccessibilityService() {
     }
 
     override fun onDestroy() {
+        Timber.tag(TAG).d("onDestroy: Accessibility Service destroyed.")
         super.onDestroy()
         serviceScope.cancel()
     }

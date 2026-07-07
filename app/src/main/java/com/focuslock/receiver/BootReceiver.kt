@@ -3,6 +3,8 @@ package com.focuslock.receiver
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.os.Binder
+import android.os.Process
 import com.focuslock.domain.model.SessionStatus
 import timber.log.Timber
 import com.focuslock.util.PermissionChecker
@@ -43,6 +45,12 @@ class BootReceiver : BroadcastReceiver() {
 
 
     override fun onReceive(context: Context, intent: Intent) {
+        Timber.tag(TAG).d("onReceive: Intercepted intent with action ${intent.action}")
+        // ponytail: defense-in-depth — reject non-system callers even though exported=false
+        if (Binder.getCallingUid() != Process.SYSTEM_UID) {
+            Timber.tag(TAG).w("Blocked non-system caller uid=%d", Binder.getCallingUid())
+            return
+        }
         processBootIntent(context, intent)
     }
 
@@ -71,10 +79,13 @@ class BootReceiver : BroadcastReceiver() {
                         }
                     }
                     
+                    // Start the watchdog service to ensure persistent enforcement
+                    com.focuslock.service.watchdog.PermissionWatchdogService.start(context)
+
                     val isAccessibilityAlive = PermissionChecker.isAccessibilityServiceEnabled(context)
                     val isOverlayGranted = PermissionChecker.isOverlayPermissionGranted(context)
-                    if (!isAccessibilityAlive && isOverlayGranted && isActiveSession) {
-                        Timber.tag(TAG).w("Accessibility service NOT running after boot. OEM may have killed it.")
+                    if ((!isAccessibilityAlive || !isOverlayGranted) && isActiveSession) {
+                        Timber.tag(TAG).w("Critical permissions missing after boot! Launching enforcement overlay.")
                         com.focuslock.service.overlay.PermissionEnforcementService.start(context)
                     }
                 } catch (e: CancellationException) {

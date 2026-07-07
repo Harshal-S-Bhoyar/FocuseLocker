@@ -1,6 +1,6 @@
 package com.focuslock.util
-
 import android.Manifest
+import kotlinx.coroutines.delay
 import android.accessibilityservice.AccessibilityServiceInfo
 import android.app.admin.DevicePolicyManager
 import android.content.ComponentName
@@ -28,6 +28,18 @@ object PermissionChecker {
         return enabledServices.any {
             it.resolveInfo.serviceInfo.packageName == context.packageName
         }
+    }
+
+    suspend fun isAccessibilityServiceEnabledWithRetry(
+        context: Context,
+        maxAttempts: Int = 3,
+        delayMs: Long = 800L
+    ): Boolean {
+        repeat(maxAttempts) { attempt ->
+            if (isAccessibilityServiceEnabled(context)) return true
+            if (attempt < maxAttempts - 1) delay(delayMs)
+        }
+        return false
     }
 
     fun isDeviceAdminEnabled(context: Context): Boolean {

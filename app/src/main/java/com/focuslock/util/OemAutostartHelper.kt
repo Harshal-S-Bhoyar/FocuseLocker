@@ -12,11 +12,13 @@ object OemAutostartHelper {
     )
 
     fun needsAutostart(): Boolean {
+        Timber.tag("OemAutostartHelper").v("needsAutostart: Checking for manufacturer")
         val manufacturer = Build.MANUFACTURER.lowercase()
         return MANUFACTURERS.any { manufacturer.contains(it) }
     }
 
     fun getAutostartIntent(context: Context): Intent? {
+        Timber.tag("OemAutostartHelper").v("getAutostartIntent: Getting intent for manufacturer")
         val intent = Intent()
         val manufacturer = Build.MANUFACTURER.lowercase()
         

@@ -31,6 +31,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -39,6 +40,9 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.dimensionResource
 import androidx.compose.ui.res.stringResource
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.focuslock.R
 import com.focuslock.service.admin.FocusDeviceAdminReceiver
@@ -52,8 +56,17 @@ fun PermissionSetupScreen(
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val context = LocalContext.current
 
-    // Refresh permissions every time we return to this screen
-    LaunchedEffect(Unit) { viewModel.refreshPermissions() }
+    // Refresh permissions every time we return to this screen using Lifecycle ON_RESUME
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                viewModel.refreshPermissions()
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
 
     LaunchedEffect(state.navigateToTrustedContact) {
         if (state.navigateToTrustedContact) {
@@ -65,27 +78,51 @@ fun PermissionSetupScreen(
     // Launchers for system settings screens
     val accessibilityLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.StartActivityForResult()
-    ) { viewModel.refreshPermissions() }
+    ) { 
+        viewModel.refreshPermissions() 
+        viewModel.refreshPermissionsDelayed()
+    }
 
     val deviceAdminLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.StartActivityForResult()
-    ) { viewModel.refreshPermissions() }
+    ) { 
+        viewModel.refreshPermissions() 
+        viewModel.refreshPermissionsDelayed()
+    }
 
     val overlayLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.StartActivityForResult()
-    ) { viewModel.refreshPermissions() }
+    ) { 
+        viewModel.refreshPermissions() 
+        viewModel.refreshPermissionsDelayed()
+    }
 
     val batteryLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.StartActivityForResult()
-    ) { viewModel.refreshPermissions() }
+    ) { 
+        viewModel.refreshPermissions() 
+        viewModel.refreshPermissionsDelayed()
+    }
 
     val vpnLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.StartActivityForResult()
-    ) { viewModel.refreshPermissions() }
+    ) { 
+        viewModel.refreshPermissions() 
+        viewModel.refreshPermissionsDelayed()
+    }
 
     val notificationLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
-    ) { viewModel.refreshPermissions() }
+    ) { 
+        viewModel.refreshPermissions() 
+        viewModel.refreshPermissionsDelayed()
+    }
+
+    val autostartLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) {
+        viewModel.onAutostartGranted()
+    }
 
     PermissionSetupContent(
         permissions = state.permissions,
@@ -135,7 +172,7 @@ fun PermissionSetupScreen(
             val intent = OemAutostartHelper.getAutostartIntent(context)
             if (intent != null) {
                 try {
-                    context.startActivity(intent)
+                    autostartLauncher.launch(intent)
                 } catch (e: Exception) {
                     timber.log.Timber.e(e, "Failed to launch autostart intent")
                 }
@@ -237,8 +274,8 @@ private fun PermissionSetupContent(
             PermissionRow(
                 title = stringResource(R.string.enforcement_overlay_autostart),
                 description = "Allow FocusLock to start automatically so it can protect you even after a device restart.",
-                isCritical = false,
-                isGranted = false, // Always false since we can't detect it reliably
+                isCritical = true,
+                isGranted = permissions.autostartAcknowledged,
                 onGrant = onGrantAutostart
             )
         }

@@ -6,4 +6,9 @@ package com.focuslock.domain.session
 interface SessionEnforcementStateStore {
     fun isSessionActive(): Boolean
     fun setSessionActive(isActive: Boolean)
+    fun getBreachCount(): Int
+    fun incrementBreachCount()
+    fun resetBreachCount()
+    fun getPenaltyEndTime(): Long
+    fun setPenaltyEndTime(timeMillis: Long)
 }

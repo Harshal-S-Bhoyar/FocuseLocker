@@ -64,6 +64,7 @@ class PermissionEnforcementService : Service(), LifecycleOwner, ViewModelStoreOw
         }
         
         fun stop(context: Context) {
+            Timber.tag(TAG).d("stop: Stopping PermissionEnforcementService")
             val intent = Intent(context, PermissionEnforcementService::class.java).apply {
                 action = ACTION_STOP
             }
@@ -84,6 +85,8 @@ class PermissionEnforcementService : Service(), LifecycleOwner, ViewModelStoreOw
 
     private val serviceScope = CoroutineScope(Dispatchers.Main + Job())
     private var pollingJob: Job? = null
+    @androidx.annotation.VisibleForTesting
+    internal var gracePeriodEndTime = 0L
 
     override fun onCreate() {
         super.onCreate()
@@ -124,6 +127,9 @@ class PermissionEnforcementService : Service(), LifecycleOwner, ViewModelStoreOw
                     hideOverlay()
                     stopSelf()
                     break
+                } else if (composeView == null && System.currentTimeMillis() > gracePeriodEndTime) {
+                    Timber.tag(TAG).i("Overlay hidden but accessibility still disabled (grace period expired). Re-showing.")
+                    showOverlay()
                 }
                 delay(2000L) // Poll every 2 seconds
             }
@@ -132,6 +138,8 @@ class PermissionEnforcementService : Service(), LifecycleOwner, ViewModelStoreOw
 
     private fun showOverlay() {
         if (composeView != null) return
+        Timber.tag(TAG).d("showOverlay: Initializing and showing overlay.")
+        com.focuslock.service.accessibility.FocusAccessibilityService.settingsGuardMode = false
 
         lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_START)
         lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_RESUME)
@@ -146,7 +154,11 @@ class PermissionEnforcementService : Service(), LifecycleOwner, ViewModelStoreOw
                     PermissionEnforcementScreen(
                         showAutostartOption = OemAutostartHelper.getAutostartIntent(this@PermissionEnforcementService) != null,
                         onEnableAccessibility = { openAccessibilitySettings() },
-                        onEnableAutostart = { OemAutostartHelper.openAutostartSettings(this@PermissionEnforcementService) }
+                        onEnableAutostart = { 
+                            com.focuslock.service.accessibility.FocusAccessibilityService.settingsGuardMode = true
+                            hideOverlay() // Need to hide overlay so they can interact with settings!
+                            OemAutostartHelper.openAutostartSettings(this@PermissionEnforcementService) 
+                        }
                     )
                 }
             }
@@ -180,8 +192,13 @@ class PermissionEnforcementService : Service(), LifecycleOwner, ViewModelStoreOw
         }
     }
 
-    private fun openAccessibilitySettings() {
+    @androidx.annotation.VisibleForTesting
+    internal fun openAccessibilitySettings() {
+        Timber.tag(TAG).d("openAccessibilitySettings: Requesting accessibility settings.")
         try {
+            gracePeriodEndTime = System.currentTimeMillis() + 3_000L
+            com.focuslock.service.accessibility.FocusAccessibilityService.settingsGuardMode = true
+            com.focuslock.service.accessibility.FocusAccessibilityService.guardedSettingsPackage = "com.android.settings"
             hideOverlay()
             val intent = Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS).apply {
                 flags = Intent.FLAG_ACTIVITY_NEW_TASK
@@ -193,6 +210,7 @@ class PermissionEnforcementService : Service(), LifecycleOwner, ViewModelStoreOw
     }
 
     private fun hideOverlay() {
+        Timber.tag(TAG).d("hideOverlay: Attempting to hide overlay.")
         composeView?.let {
             try {
                 Timber.tag(TAG).d("hideOverlay: Removing view from WindowManager")
@@ -214,9 +232,13 @@ class PermissionEnforcementService : Service(), LifecycleOwner, ViewModelStoreOw
         hideOverlay()
     }
 
-    override fun onBind(intent: Intent?): IBinder? = null
+    override fun onBind(intent: Intent?): IBinder? {
+        Timber.tag(TAG).d("onBind: Binding to service is not supported.")
+        return null
+    }
 
     private fun createNotificationChannel() {
+        Timber.tag(TAG).d("createNotificationChannel: Setting up notification channel.")
         val channel = NotificationChannel(
             CHANNEL_ID,
             getString(R.string.enforcement_notification_channel),
@@ -229,6 +251,7 @@ class PermissionEnforcementService : Service(), LifecycleOwner, ViewModelStoreOw
     }
 
     private fun createNotification(): Notification {
+        Timber.tag(TAG).d("createNotification: Building foreground notification.")
         return NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle(getString(R.string.enforcement_overlay_title))
             .setContentText(getString(R.string.enforcement_overlay_description))
