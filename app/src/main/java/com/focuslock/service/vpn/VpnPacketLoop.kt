@@ -55,91 +55,97 @@ class VpnPacketLoop(
             while (isActive) {
                 yield()
                 val length = inputStream.read(packet.array())
-                when {
-                    length > 0 -> {
-                        packet.limit(length)
-                        packet.position(0)
-                        
-                        val version = packet.get(0).toInt() ushr 4
-                        var isUdp = false
-                        var udpOffset = 0
-                        var ipHeaderLength = 0
-                        var isIpv6 = false
+                try {
+                    when {
+                        length > 0 -> {
+                            packet.limit(length)
+                            packet.position(0)
+                            
+                            val version = packet.get(0).toInt() ushr 4
+                            var isUdp = false
+                            var udpOffset = 0
+                            var ipHeaderLength = 0
+                            var isIpv6 = false
 
-                        if (version == 4) {
-                            ipHeaderLength = (packet.get(0).toInt() and 0x0F) * 4
-                            if (length >= ipHeaderLength + 8) {
-                                val protocol = packet.get(9).toInt() and 0xFF
-                                if (protocol == 17) {
-                                    isUdp = true
-                                    udpOffset = ipHeaderLength
+                            if (version == 4) {
+                                ipHeaderLength = (packet.get(0).toInt() and 0x0F) * 4
+                                if (length >= ipHeaderLength + 8 && length >= 10) {
+                                    val protocol = packet.get(9).toInt() and 0xFF
+                                    if (protocol == 17) {
+                                        isUdp = true
+                                        udpOffset = ipHeaderLength
+                                    }
                                 }
-                            }
-                        } else if (version == 6) {
-                            ipHeaderLength = 40
-                            isIpv6 = true
-                            if (length >= ipHeaderLength + 8) {
-                                val nextHeader = packet.get(6).toInt() and 0xFF
-                                if (nextHeader == 17) {
-                                    isUdp = true
-                                    udpOffset = ipHeaderLength
-                                }
-                            }
-                        }
-
-                        if (!isUdp) {
-                            Timber.tag(TAG).d("PACKET IGNORED: Non-UDP packet")
-                            continue
-                        }
-
-                        val destPort = ((packet.get(udpOffset + 2).toInt() and 0xFF) shl 8) or (packet.get(udpOffset + 3).toInt() and 0xFF)
-                        if (destPort != 53) {
-                            Timber.tag(TAG).d("PACKET IGNORED: Non-DNS UDP packet (port $destPort)")
-                            continue
-                        }
-
-                        val domain = DnsPacketParser.extractDomainName(packet, length)
-                        if (domain != null) {
-                            if (isDomainBlocked(domain)) {
-                                Timber.tag(TAG).v("DNS BLOCKED (local): $domain")
-                                val responseLength = buildNxDomainResponse(packet, length, nxBuffer)
-                                outputStream.write(nxBuffer, 0, responseLength)
-                            } else {
-                                val dnsOffset = udpOffset + 8
-                                val dnsPayloadLength = length - dnsOffset
-
-                                val packetBytes = getBuffer()
-                                packet.position(0)
-                                packet.get(packetBytes, 0, length)
-
-                                loopScope.launch {
-                                    try {
-                                        forwardDnsViaDoH(
-                                            packetBytes = packetBytes,
-                                            outputStream = outputStream,
-                                            domain = domain,
-                                            dnsPayloadLength = dnsPayloadLength,
-                                            isIpv6 = isIpv6,
-                                            ipHeaderLength = ipHeaderLength,
-                                            udpOffset = udpOffset,
-                                            dnsOffset = dnsOffset
-                                        )
-                                    } finally {
-                                        releaseBuffer(packetBytes)
+                            } else if (version == 6) {
+                                ipHeaderLength = 40
+                                isIpv6 = true
+                                if (length >= ipHeaderLength + 8 && length >= 48) {
+                                    val nextHeader = packet.get(6).toInt() and 0xFF
+                                    if (nextHeader == 17) {
+                                        isUdp = true
+                                        udpOffset = ipHeaderLength
                                     }
                                 }
                             }
-                        } else {
-                            Timber.tag(TAG).w("DNS PARSE FAILED: Could not extract domain from packet")
+
+                            if (!isUdp) {
+
+                                continue
+                            }
+
+                            val destPort = ((packet.get(udpOffset + 2).toInt() and 0xFF) shl 8) or (packet.get(udpOffset + 3).toInt() and 0xFF)
+                            if (destPort != 53) {
+                                Timber.tag(TAG).d("PACKET IGNORED: Non-DNS UDP packet (port $destPort)")
+                                continue
+                            }
+
+                            val domain = DnsPacketParser.extractDomainName(packet, length)
+                            if (domain != null) {
+                                if (isDomainBlocked(domain)) {
+                                    Timber.tag(TAG).v("DNS BLOCKED (local): $domain")
+                                    val responseLength = buildNxDomainResponse(packet, length, nxBuffer)
+                                    outputStream.write(nxBuffer, 0, responseLength)
+                                } else {
+                                    val dnsOffset = udpOffset + 8
+                                    val dnsPayloadLength = length - dnsOffset
+
+                                    val packetBytes = getBuffer()
+                                    packet.position(0)
+                                    packet.get(packetBytes, 0, length)
+
+                                    loopScope.launch {
+                                        try {
+                                            forwardDnsViaDoH(
+                                                packetBytes = packetBytes,
+                                                outputStream = outputStream,
+                                                domain = domain,
+                                                dnsPayloadLength = dnsPayloadLength,
+                                                isIpv6 = isIpv6,
+                                                ipHeaderLength = ipHeaderLength,
+                                                udpOffset = udpOffset,
+                                                dnsOffset = dnsOffset
+                                            )
+                                        } finally {
+                                            releaseBuffer(packetBytes)
+                                        }
+                                    }
+                                }
+                            } else {
+                                Timber.tag(TAG).w("DNS PARSE FAILED: Could not extract domain from packet")
+                            }
+                        }
+                        length == 0 -> {
+                            delay(100L)
+                        }
+                        else -> {
+                            Timber.tag(TAG).w("TUN read returned EOF — interface may be closing. Backing off.")
+                            delay(500L)
                         }
                     }
-                    length == 0 -> {
-                        delay(100L)
-                    }
-                    else -> {
-                        Timber.tag(TAG).w("TUN read returned EOF — interface may be closing. Backing off.")
-                        delay(500L)
-                    }
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    Timber.tag(TAG).w(e, "Error parsing individual DNS packet — skipping")
                 }
             }
         } catch (e: CancellationException) {
@@ -165,7 +171,7 @@ class VpnPacketLoop(
     ) = withContext(Dispatchers.IO) {
         try {
             val endpoint = dnsConfig.dohEndpoint
-            Timber.tag(TAG).d("DoH fwd: domain=$domain ep=$endpoint payload=${dnsPayloadLength}B")
+            Timber.tag(TAG).v("DoH fwd: ep=$endpoint payload=${dnsPayloadLength}B")
             val mediaType = "application/dns-message".toMediaType()
             val requestBody = packetBytes.toRequestBody(mediaType, dnsOffset, dnsPayloadLength)
             val request = Request.Builder()
@@ -179,18 +185,17 @@ class VpnPacketLoop(
                 try {
                     okHttpClient.newCall(request).execute().use { response ->
                         if (!response.isSuccessful) {
-                            val body = try { response.body?.string()?.take(300) } catch (ex: Exception) { "unreadable" }
-                            Timber.tag(TAG).e("DoH FAIL: domain=$domain code=${response.code} ep=$endpoint body=$body")
+                            Timber.tag(TAG).e("DoH FAIL: code=${response.code} ep=$endpoint")
                             return@withContext
                         }
 
                         val responseData = response.body?.bytes()
                         if (responseData == null) {
-                            Timber.tag(TAG).e("DoH NULL body: domain=$domain ep=$endpoint")
+                            Timber.tag(TAG).e("DoH NULL body: ep=$endpoint")
                             return@withContext
                         }
 
-                        Timber.tag(TAG).d("DoH OK: domain=$domain resp=${responseData.size}B")
+                        Timber.tag(TAG).v("DoH OK: resp=${responseData.size}B")
 
                         val responseArray = buildTunDnsResponse(
                             packetBytes = packetBytes,
@@ -215,9 +220,9 @@ class VpnPacketLoop(
                     if (attempt == 0) delay(200L)
                 }
             }
-            Timber.tag(TAG).w("DoH UNREACHABLE after retry: domain=$domain ${lastException?.message}")
+            Timber.tag(TAG).w("DoH UNREACHABLE after retry: ${lastException?.message}")
         } catch (e: Exception) {
-            Timber.tag(TAG).e(e, "DoH EXC: domain=$domain ep=${dnsConfig.dohEndpoint} ${e.javaClass.simpleName}:${e.message}")
+            Timber.tag(TAG).e(e, "DoH EXC: ep=${dnsConfig.dohEndpoint} ${e.javaClass.simpleName}:${e.message}")
         }
     }
 

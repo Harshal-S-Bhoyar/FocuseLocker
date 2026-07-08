@@ -92,13 +92,13 @@ class PermissionWatchdogService : Service() {
         serviceScope.launch {
             Timber.tag(TAG).d("startPolling: Inside launch block, isActive=\$isActive")
             while (isActive) {
-                Timber.tag(TAG).d("startPolling: Loop iteration started")
+                Timber.tag(TAG).v("startPolling: Loop iteration started")
                 val session = sessionRepository.getActiveSessionSync()
-                Timber.tag(TAG).d("startPolling: Session retrieved: \$session")
+                Timber.tag(TAG).v("startPolling: Session retrieved: \$session")
                 val isExpired = session != null && session.expiresAt <= System.currentTimeMillis()
                 
                 if (session == null || isExpired) {
-                    Timber.tag(TAG).d("startPolling: No active session or session expired. Stopping self.")
+                    Timber.tag(TAG).v("startPolling: No active session or session expired. Stopping self.")
                     stopSelf()
                     break
                 }
@@ -111,7 +111,7 @@ class PermissionWatchdogService : Service() {
                     PermissionEnforcementService.start(this@PermissionWatchdogService)
                 }
                 
-                delay(5_000L)
+                delay(30_000L)
             }
         }
     }

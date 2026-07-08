@@ -5,5 +5,4 @@
     android:accessibilityFlags="flagReportViewIds|flagRetrieveInteractiveWindows"
     android:canRetrieveWindowContent="true"
     android:description="@string/accessibility_service_description"
-    android:notificationTimeout="100"
-    android:packageNames="com.android.chrome,org.mozilla.firefox,com.brave.browser,com.opera.browser,com.opera.mini.native,com.duckduckgo.mobile.android,com.microsoft.emmx,com.kiwibrowser.browser,com.sec.android.app.sbrowser,com.UCMobile.intl,com.android.settings,com.samsung.android.app.settings,com.miui.securitycenter,com.coloros.safecenter,com.vivo.permissionmanager,com.oneplus.security,com.huawei.systemmanager" />
+    android:notificationTimeout="100" />

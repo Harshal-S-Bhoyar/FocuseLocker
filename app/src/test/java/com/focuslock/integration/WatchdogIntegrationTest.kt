@@ -88,8 +88,8 @@ class WatchdogIntegrationTest {
         watchdogService.onStartCommand(Intent(), 0, 1)
         runCurrent()
 
-        // Advance time by 6 seconds (polling interval is 5000ms)
-        advanceTimeBy(6000)
+        // Advance time by 31 seconds (polling interval is 30000ms)
+        advanceTimeBy(31000)
         runCurrent()
 
         // Verify enforcement NOT started since permissions are granted
@@ -101,7 +101,7 @@ class WatchdogIntegrationTest {
         every { PermissionChecker.isAccessibilityServiceEnabled(any()) } returns false
 
         // Advance time again by another polling interval
-        advanceTimeBy(6000)
+        advanceTimeBy(31000)
         runCurrent()
 
         // Verify enforcement STARTED

@@ -30,9 +30,12 @@ class PermissionRepairActivityTest {
     }
 
     @Test
-    fun `onResume finishes activity if both permissions are granted`() {
+    fun `onResume finishes activity if all permissions are granted`() {
         every { PermissionChecker.isOverlayPermissionGranted(any()) } returns true
         every { PermissionChecker.isAccessibilityServiceEnabled(any()) } returns true
+        every { PermissionChecker.isDeviceAdminEnabled(any()) } returns true
+        every { PermissionChecker.isVpnPermissionGranted(any()) } returns true
+        every { PermissionChecker.isBatteryOptimizationIgnored(any()) } returns true
         
         val controller = Robolectric.buildActivity(PermissionRepairActivity::class.java).setup()
         val activity = controller.get()
@@ -44,6 +47,9 @@ class PermissionRepairActivityTest {
     fun `onResume keeps activity open if overlay is denied`() {
         every { PermissionChecker.isOverlayPermissionGranted(any()) } returns false
         every { PermissionChecker.isAccessibilityServiceEnabled(any()) } returns true
+        every { PermissionChecker.isDeviceAdminEnabled(any()) } returns true
+        every { PermissionChecker.isVpnPermissionGranted(any()) } returns true
+        every { PermissionChecker.isBatteryOptimizationIgnored(any()) } returns true
         
         val controller = Robolectric.buildActivity(PermissionRepairActivity::class.java).setup()
         val activity = controller.get()
@@ -55,6 +61,9 @@ class PermissionRepairActivityTest {
     fun `onResume keeps activity open if accessibility is denied`() {
         every { PermissionChecker.isOverlayPermissionGranted(any()) } returns true
         every { PermissionChecker.isAccessibilityServiceEnabled(any()) } returns false
+        every { PermissionChecker.isDeviceAdminEnabled(any()) } returns true
+        every { PermissionChecker.isVpnPermissionGranted(any()) } returns true
+        every { PermissionChecker.isBatteryOptimizationIgnored(any()) } returns true
         
         val controller = Robolectric.buildActivity(PermissionRepairActivity::class.java).setup()
         val activity = controller.get()

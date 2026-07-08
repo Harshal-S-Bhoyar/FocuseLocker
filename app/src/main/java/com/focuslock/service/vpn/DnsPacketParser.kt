@@ -49,8 +49,10 @@ object DnsPacketParser {
         
         var queryOffset = dnsOffset + 12
         val domainName = StringBuilder()
+        var iterations = 0
         
-        while (queryOffset < startPos + length) {
+        while (queryOffset < startPos + length && iterations < 128 && domainName.length < 254) {
+            iterations++
             val labelLength = buffer.get(queryOffset).toInt() and 0xFF
             if (labelLength == 0) break 
             

@@ -68,7 +68,14 @@ class FocusAccessibilityService : AccessibilityService() {
 
         private const val URL_DEBOUNCE_MILLIS = 500L
         
+        @Volatile var instance: FocusAccessibilityService? = null
+        private val mainHandler = android.os.Handler(android.os.Looper.getMainLooper())
+
         @Volatile var settingsGuardMode = false
+            set(value) {
+                field = value
+                instance?.updateServiceInfoForGuardMode(value)
+            }
         @Volatile var guardedSettingsPackage: String? = null
     }
 
@@ -98,6 +105,8 @@ class FocusAccessibilityService : AccessibilityService() {
      */
     override fun onServiceConnected() {
         super.onServiceConnected()
+        instance = this
+        updateServiceInfoForGuardMode(settingsGuardMode)
         Timber.tag(TAG).d("Accessibility Service successfully connected.")
         updateForegroundState(true)
 
@@ -128,6 +137,7 @@ class FocusAccessibilityService : AccessibilityService() {
                     activeDomains.set(domains)
                 } else {
                     activeDomains.set(emptyList())
+                    settingsGuardMode = false
                 }
             }
         }
@@ -139,6 +149,17 @@ class FocusAccessibilityService : AccessibilityService() {
                 keywordScanner.rebuild(keywords)
             }
         }
+    }
+
+    private fun updateServiceInfoForGuardMode(isGuardActive: Boolean) {
+        val runnable = Runnable {
+            val info = serviceInfo ?: return@Runnable
+            info.packageNames = if (isGuardActive) null
+                else (SUPPORTED_BROWSERS + SETTINGS_PACKAGES).toTypedArray()
+            serviceInfo = info
+        }
+        if (android.os.Looper.myLooper() == android.os.Looper.getMainLooper()) runnable.run()
+        else mainHandler.post(runnable)
     }
 
     private fun updateForegroundState(isActive: Boolean) {
@@ -394,6 +415,9 @@ class FocusAccessibilityService : AccessibilityService() {
 
     override fun onDestroy() {
         Timber.tag(TAG).d("onDestroy: Accessibility Service destroyed.")
+        if (instance == this) {
+            instance = null
+        }
         super.onDestroy()
         serviceScope.cancel()
     }

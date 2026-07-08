@@ -57,6 +57,55 @@ class DnsPacketParserTest {
         assertNull(domain)
     }
 
+    @Test
+    fun testExtractDomainName_InfiniteLoopPointer() {
+        val bytes = ByteArray(60)
+        bytes[0] = 0x45.toByte() // IPv4, IHL=5
+        bytes[9] = 0x11.toByte() // Protocol = UDP
+        bytes[20] = 0x00.toByte()
+        bytes[21] = 0x35.toByte() // Source port 53 (DNS)
+        bytes[22] = 0x00.toByte()
+        bytes[23] = 0x35.toByte() // Dest port 53
+        
+        // DNS Query starting at byte 28
+        // Label pointer that points to itself to cause infinite loop
+        bytes[40] = 0xc0.toByte() // Pointer flag
+        bytes[41] = 40.toByte()   // Point to offset 40
+        
+        val buffer = ByteBuffer.wrap(bytes)
+        val domain = DnsPacketParser.extractDomainName(buffer, bytes.size)
+        assertNull(domain) // Should abort and return null
+    }
+
+    @Test
+    fun testExtractDomainName_TooLongDomain() {
+        val bytes = ByteArray(300)
+        bytes[0] = 0x45.toByte() // IPv4, IHL=5
+        bytes[9] = 0x11.toByte() // Protocol = UDP
+        bytes[20] = 0x00.toByte()
+        bytes[21] = 0x35.toByte() // Source port 53 (DNS)
+        bytes[22] = 0x00.toByte()
+        bytes[23] = 0x35.toByte() // Dest port 53
+        
+        // DNS Query starting at byte 28
+        var offset = 28
+        // Add labels of length 6
+        for (i in 0 until 50) {
+            if (offset >= 290) break
+            bytes[offset] = 6.toByte()
+            offset++
+            for (j in 0 until 6) {
+                bytes[offset] = 'a'.code.toByte()
+                offset++
+            }
+        }
+        bytes[offset] = 0.toByte() // End of domain
+        
+        val buffer = ByteBuffer.wrap(bytes)
+        val domain = DnsPacketParser.extractDomainName(buffer, bytes.size)
+        assertNull(domain) // Should abort because it exceeds 254 chars
+    }
+
     private fun hexStringToByteArray(s: String): ByteArray {
         val len = s.length
         val data = ByteArray(len / 2)

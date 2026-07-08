@@ -128,7 +128,8 @@ class PermissionEnforcementService : Service(), LifecycleOwner, ViewModelStoreOw
                     stopSelf()
                     break
                 } else if (composeView == null && System.currentTimeMillis() > gracePeriodEndTime) {
-                    Timber.tag(TAG).i("Overlay hidden but accessibility still disabled (grace period expired). Re-showing.")
+                    // ponytail: Naive 15s timeout for Settings escape. Ceiling: 15s fixed window allows temporary escape if user ignores Settings. Upgrade path: Use UsageStatsManager to detect when user leaves com.android.settings to instantly reshow overlay.
+                    Timber.tag(TAG).i("Grace period expired. Re-showing.")
                     showOverlay()
                 }
                 delay(2000L) // Poll every 2 seconds
@@ -155,6 +156,7 @@ class PermissionEnforcementService : Service(), LifecycleOwner, ViewModelStoreOw
                         showAutostartOption = OemAutostartHelper.getAutostartIntent(this@PermissionEnforcementService) != null,
                         onEnableAccessibility = { openAccessibilitySettings() },
                         onEnableAutostart = { 
+                            gracePeriodEndTime = System.currentTimeMillis() + 15_000L
                             com.focuslock.service.accessibility.FocusAccessibilityService.settingsGuardMode = true
                             hideOverlay() // Need to hide overlay so they can interact with settings!
                             OemAutostartHelper.openAutostartSettings(this@PermissionEnforcementService) 
@@ -196,7 +198,7 @@ class PermissionEnforcementService : Service(), LifecycleOwner, ViewModelStoreOw
     internal fun openAccessibilitySettings() {
         Timber.tag(TAG).d("openAccessibilitySettings: Requesting accessibility settings.")
         try {
-            gracePeriodEndTime = System.currentTimeMillis() + 3_000L
+            gracePeriodEndTime = System.currentTimeMillis() + 15_000L
             com.focuslock.service.accessibility.FocusAccessibilityService.settingsGuardMode = true
             com.focuslock.service.accessibility.FocusAccessibilityService.guardedSettingsPackage = "com.android.settings"
             hideOverlay()

@@ -16,6 +16,7 @@ import kotlinx.serialization.json.jsonArray
 import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 import javax.inject.Singleton
+import com.focuslock.util.PrefsKeys
 
 @Singleton
 class DoHQueryUseCase @Inject constructor(
@@ -25,7 +26,7 @@ class DoHQueryUseCase @Inject constructor(
 ) {
     suspend fun queryDoH(domain: String): DoHResult = withContext(Dispatchers.IO) {
         try {
-            val sharedPreferences = context.getSharedPreferences("focuslock_prefs", Context.MODE_PRIVATE)
+            val sharedPreferences = context.getSharedPreferences(PrefsKeys.FILE, Context.MODE_PRIVATE)
             val profileId = sharedPreferences.getString("NEXTDNS_PROFILE_ID", com.focuslock.BuildConfig.NEXTDNS_PROFILE_ID) ?: ""
             val endpoint = if (profileId.isBlank()) {
                 com.focuslock.BuildConfig.FALLBACK_DNS_ENDPOINT
@@ -84,6 +85,9 @@ class DoHQueryUseCase @Inject constructor(
     }
 
     suspend fun checkAndCacheDoH(url: String): DoHResult {
+        val prefs = context.getSharedPreferences(PrefsKeys.FILE, Context.MODE_PRIVATE)
+        if (!prefs.getBoolean(PrefsKeys.AUTO_MODE_ENABLED, false)) return DoHResult.Clean
+
         val domain = DomainExtractor.extract(url) ?: return DoHResult.QueryFailed
 
         val cachedStatus = blockingRepository.getCachedDomainStatus(domain)

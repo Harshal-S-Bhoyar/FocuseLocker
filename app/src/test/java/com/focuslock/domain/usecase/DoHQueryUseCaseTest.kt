@@ -36,6 +36,7 @@ class DoHQueryUseCaseTest {
 
         every { context.getSharedPreferences(any(), any()) } returns sharedPreferences
         every { sharedPreferences.getString("NEXTDNS_PROFILE_ID", any()) } returns "71421a"
+        every { sharedPreferences.getBoolean("auto_mode_enabled", false) } returns true
 
         val builder = mockk<OkHttpClient.Builder>(relaxed = true)
         every { okHttpClient.newBuilder() } returns builder
@@ -248,5 +249,17 @@ class DoHQueryUseCaseTest {
         val result = useCase.checkAndCacheDoH("example.com")
         assertEquals(DoHResult.QueryFailed, result)
         io.mockk.coVerify(exactly = 0) { blockingRepository.addAutoBlockedDomain(any(), any(), any(), any()) }
+    }
+
+    @Test
+    fun `checkAndCacheDoH returns Clean when auto mode is disabled`() = runTest {
+        every { sharedPreferences.getBoolean("auto_mode_enabled", false) } returns false
+        io.mockk.coEvery { blockingRepository.getCachedDomainStatus("blocked.com") } returns null
+        val json = """{"Status": 3, "Question": [{"name": "blocked.com.", "type": 1}]}"""
+        mockHttpResponse(json)
+
+        val result = useCase.checkAndCacheDoH("blocked.com")
+        assertEquals(DoHResult.Clean, result)
+        io.mockk.verify(exactly = 0) { okHttpClient.newCall(any()) }
     }
 }

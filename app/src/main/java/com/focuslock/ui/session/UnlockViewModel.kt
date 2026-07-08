@@ -202,7 +202,4 @@ class UnlockViewModel @Inject constructor(
         }
     }
     
-    fun resetToIdle() {
-        _uiState.value = UnlockUiState.Idle
-    }
 }

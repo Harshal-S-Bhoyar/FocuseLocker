@@ -39,7 +39,8 @@ class InitializeAppUseCase @Inject constructor(
     private fun scheduleListSyncWorker(context: Context) {
         try {
             val constraints = Constraints.Builder()
-                .setRequiredNetworkType(NetworkType.CONNECTED)
+                .setRequiredNetworkType(NetworkType.UNMETERED)
+                .setRequiresBatteryNotLow(true)
                 .build()
                 
             val syncRequest = PeriodicWorkRequestBuilder<ListSyncWorker>(7, TimeUnit.DAYS)

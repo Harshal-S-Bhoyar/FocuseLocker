@@ -85,10 +85,6 @@ class BlockingRepository @Inject constructor(
 
     // ── Domains ───────────────────────────────────────────────────────────────
 
-    suspend fun getActiveBlockedDomains(): List<String> {
-        return domainDao.getActiveBlockedDomainList(System.currentTimeMillis())
-    }
-
     suspend fun getAllBlockedDomains(): List<String> {
         return domainDao.getActiveBlockedDomainList()
     }
@@ -121,7 +117,8 @@ class BlockingRepository @Inject constructor(
             CategoryKey.ALL.map { key ->
                 BlockedCategoryEntity(
                     categoryKey = key,
-                    isActive = true
+                    // AUTO_BLOCKED stays true for SmartScan. User-facing categories start false.
+                    isActive = key == CategoryKey.AUTO_BLOCKED
                 )
             }
         )

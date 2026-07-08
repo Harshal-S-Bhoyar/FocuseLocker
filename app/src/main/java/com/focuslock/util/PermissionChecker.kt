@@ -30,17 +30,7 @@ object PermissionChecker {
         }
     }
 
-    suspend fun isAccessibilityServiceEnabledWithRetry(
-        context: Context,
-        maxAttempts: Int = 3,
-        delayMs: Long = 800L
-    ): Boolean {
-        repeat(maxAttempts) { attempt ->
-            if (isAccessibilityServiceEnabled(context)) return true
-            if (attempt < maxAttempts - 1) delay(delayMs)
-        }
-        return false
-    }
+
 
     fun isDeviceAdminEnabled(context: Context): Boolean {
         val dpm = context.getSystemService(Context.DEVICE_POLICY_SERVICE) as DevicePolicyManager
@@ -73,10 +63,5 @@ object PermissionChecker {
             ) == PackageManager.PERMISSION_GRANTED
     }
 
-    fun allCriticalPermissionsGranted(context: Context): Boolean {
-        return isAccessibilityServiceEnabled(context) &&
-            isDeviceAdminEnabled(context) &&
-            isOverlayPermissionGranted(context) &&
-            isVpnPermissionGranted(context)
-    }
+
 }

@@ -183,7 +183,51 @@ class VpnPacketLoopIntegrationTest {
         job.cancelAndJoin()
 
         // Verify Logging
-        val hasAllowedLog = testTree.logs.any { it.contains("DoH OK: domain=allowed.com") }
+        val hasAllowedLog = testTree.logs.any { it.contains("DoH OK: resp=") }
         assertTrue("Expected allowed domain to be forwarded and logged", hasAllowedLog)
+    }
+
+    @Test
+    fun testTruncatedPacketDoesNotCrashLoop() = runBlocking {
+        val truncatedPacket = ByteArray(5) { 0 }
+        val validHexString = "4500003b000040004011b74a7f0000017f000001dfa200350027fe56" +
+                "12340100000100000000000007616c6c6f77656403636f6d0000010001"
+        val validPacketBytes = hexStringToByteArray(validHexString)
+        
+        val mockCall = mockk<Call>()
+        val mockResponse = Response.Builder()
+            .request(Request.Builder().url("https://dns.nextdns.io/71421a").build())
+            .protocol(Protocol.HTTP_1_1)
+            .code(200)
+            .message("OK")
+            .body("dummy-dns-response".toResponseBody("application/dns-message".toMediaTypeOrNull()))
+            .build()
+        every { okHttpClient.newCall(any()) } returns mockCall
+        every { mockCall.execute() } returns mockResponse
+
+        val job = launch(Dispatchers.IO) {
+            vpnPacketLoop.runLoop()
+        }
+
+        try {
+            val outputStream = clientSocket.getOutputStream()
+            outputStream.write(truncatedPacket)
+            outputStream.flush()
+            delay(100)
+            outputStream.write(validPacketBytes)
+            outputStream.flush()
+            delay(500)
+        } catch (e: Exception) {
+            println("Exception during truncated packet test: ${e.message}")
+            throw e
+        } finally {
+            clientSocket.close()
+            pfdClient.close()
+            pfdServer.close()
+            job.cancelAndJoin()
+        }
+        
+        val hasAllowedLog = testTree.logs.any { it.contains("DoH OK: resp=") }
+        assertTrue("Expected valid packet to be processed after truncated packet", hasAllowedLog)
     }
 }

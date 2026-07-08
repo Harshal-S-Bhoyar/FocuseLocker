@@ -33,9 +33,8 @@ class FileLoggingTree(
     }
 
     override fun log(priority: Int, tag: String?, message: String, t: Throwable?) {
-        super.log(priority, tag, message, t) // Also log to Logcat
-        
         if (!isLoggable(tag, priority)) return
+        super.log(priority, tag, message, t) // Also log to Logcat
 
         val now = Date()
         val currentTime = timeFormat.format(now)
