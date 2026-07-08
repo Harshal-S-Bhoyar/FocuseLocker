@@ -80,6 +80,8 @@
 
     <!-- Phase 4 setup screens -->
     <string name="category_selection_title">Select Categories to Block</string>
+    <string name="auto_mode_title">Automatic Setup</string>
+    <string name="auto_mode_description">Let FocusLock select the best settings based on your goals.</string>
     <string name="category_example_domains">e.g., %1$s</string>
     <string name="keyword_selection_title">Custom Keywords</string>
     <string name="keyword_input_label">Enter a keyword</string>

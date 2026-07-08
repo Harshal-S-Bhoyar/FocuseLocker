@@ -1,16 +1,22 @@
 package com.focuslock.ui.setup
 
+import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.focuslock.domain.model.BlockedCategory
 import com.focuslock.domain.usecase.GetAllCategoriesUseCase
 import com.focuslock.domain.usecase.ToggleCategoryUseCase
+import com.focuslock.data.local.entity.CategoryKey
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import com.focuslock.util.PrefsKeys
 
 /**
  * ViewModel for the CategorySelectionScreen.
@@ -19,16 +25,19 @@ import javax.inject.Inject
 @HiltViewModel
 class CategorySelectionViewModel @Inject constructor(
     getAllCategoriesUseCase: GetAllCategoriesUseCase,
-    private val toggleCategoryUseCase: ToggleCategoryUseCase
+    private val toggleCategoryUseCase: ToggleCategoryUseCase,
+    @ApplicationContext private val context: Context
 ) : ViewModel() {
 
     // Expose the list of categories as a StateFlow for Compose to observe
     val categories: StateFlow<List<BlockedCategory>> = getAllCategoriesUseCase()
-        .stateIn(
-            scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(5000),
-            initialValue = emptyList()
-        )
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    private val _autoMode = MutableStateFlow(
+        context.getSharedPreferences(PrefsKeys.FILE, Context.MODE_PRIVATE)
+            .getBoolean(PrefsKeys.AUTO_MODE_ENABLED, false)
+    )
+    val autoMode: StateFlow<Boolean> = _autoMode.asStateFlow()
 
     /**
      * Toggles a category on or off and updates the database.
@@ -37,6 +46,21 @@ class CategorySelectionViewModel @Inject constructor(
     fun onCategoryToggled(categoryKey: String, isActive: Boolean) {
         viewModelScope.launch {
             toggleCategoryUseCase(categoryKey, isActive)
+        }
+    }
+
+    fun onAutoModeToggled(enabled: Boolean) {
+        context.getSharedPreferences(PrefsKeys.FILE, Context.MODE_PRIVATE)
+            .edit().putBoolean(PrefsKeys.AUTO_MODE_ENABLED, enabled).apply()
+        _autoMode.value = enabled
+
+        if (enabled) {
+            // Activate all user-facing categories. AUTO_BLOCKED excluded — always on.
+            viewModelScope.launch {
+                CategoryKey.ALL
+                    .filter { it != CategoryKey.AUTO_BLOCKED }
+                    .forEach { toggleCategoryUseCase(it, true) }
+            }
         }
     }
 }

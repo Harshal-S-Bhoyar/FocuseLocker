@@ -44,6 +44,7 @@ fun CategorySelectionScreen(
 ) {
     // Collect the flow of categories as state
     val categories by viewModel.categories.collectAsStateWithLifecycle()
+    val autoMode by viewModel.autoMode.collectAsStateWithLifecycle() // ADD
 
     Scaffold(
         topBar = {
@@ -68,13 +69,40 @@ fun CategorySelectionScreen(
             contentPadding = PaddingValues(dimensionResource(R.dimen.spacing_lg)),
             verticalArrangement = Arrangement.spacedBy(dimensionResource(R.dimen.spacing_lg))
         ) {
-            items(categories, key = { it.categoryKey }) { category ->
-                CategoryItem(
-                    category = category,
-                    onToggle = { isActive ->
-                        viewModel.onCategoryToggled(category.categoryKey, isActive)
+            // ADD: Auto Mode card at top
+            item {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.primaryContainer
+                    )
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(dimensionResource(R.dimen.spacing_lg)),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(stringResource(R.string.auto_mode_title), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                            Text(stringResource(R.string.auto_mode_description),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer)                        }
+                        Switch(checked = autoMode, onCheckedChange = viewModel::onAutoModeToggled)
                     }
-                )
+                }
+            }
+
+            items(categories, key = { it.categoryKey }) { category ->
+                // Filter out GENERAL and AUTO_BLOCKED from UI — internal categories
+                if (category.categoryKey != "AUTO_BLOCKED" && category.categoryKey != "GENERAL") {
+                    CategoryItem(
+                        category = category,
+                        onToggle = { isActive ->
+                            viewModel.onCategoryToggled(category.categoryKey, isActive)
+                        },
+                        enabled = !autoMode // grey out when auto-mode on
+                    )
+                }
             }
         }
     }
@@ -86,7 +114,8 @@ fun CategorySelectionScreen(
 @Composable
 fun CategoryItem(
     category: BlockedCategory,
-    onToggle: (Boolean) -> Unit
+    onToggle: (Boolean) -> Unit,
+    enabled: Boolean = true
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -114,7 +143,8 @@ fun CategoryItem(
             }
             Switch(
                 checked = category.isActive,
-                onCheckedChange = onToggle
+                onCheckedChange = onToggle,
+                enabled = enabled
             )
         }
     }

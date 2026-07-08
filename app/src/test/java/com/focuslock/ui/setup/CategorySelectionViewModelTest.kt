@@ -1,6 +1,7 @@
 package com.focuslock.ui.setup
 
 import com.focuslock.domain.model.BlockedCategory
+import com.focuslock.data.local.entity.CategoryKey
 import com.focuslock.domain.usecase.GetAllCategoriesUseCase
 import com.focuslock.domain.usecase.ToggleCategoryUseCase
 import io.mockk.coVerify
@@ -26,10 +27,19 @@ class CategorySelectionViewModelTest {
     private val getAllCategoriesUseCase = mockk<GetAllCategoriesUseCase>()
     private val toggleCategoryUseCase = mockk<ToggleCategoryUseCase>(relaxed = true)
     private val testDispatcher = UnconfinedTestDispatcher()
+    
+    private val mockContext = mockk<android.content.Context>()
+    private val mockPrefs = mockk<android.content.SharedPreferences>()
+    private val mockEditor = mockk<android.content.SharedPreferences.Editor>()
 
     @Before
     fun setup() {
         Dispatchers.setMain(testDispatcher)
+        every { mockContext.getSharedPreferences("focuslock_prefs", android.content.Context.MODE_PRIVATE) } returns mockPrefs
+        every { mockPrefs.getBoolean("auto_mode_enabled", false) } returns false
+        every { mockPrefs.edit() } returns mockEditor
+        every { mockEditor.putBoolean(any(), any()) } returns mockEditor
+        every { mockEditor.apply() } returns Unit
     }
 
     @After
@@ -39,10 +49,10 @@ class CategorySelectionViewModelTest {
 
     @Test
     fun `categories flow emits values from use case`() = runTest {
-        val categoryList = listOf(BlockedCategory(id = 1, categoryKey = "adult", isActive = false))
+        val categoryList = listOf(BlockedCategory(id = 1, categoryKey = CategoryKey.ADULT, isActive = false))
         every { getAllCategoriesUseCase() } returns flowOf(categoryList)
 
-        val viewModel = CategorySelectionViewModel(getAllCategoriesUseCase, toggleCategoryUseCase)
+        val viewModel = CategorySelectionViewModel(getAllCategoriesUseCase, toggleCategoryUseCase, mockContext)
 
         // Start collecting so SharingStarted.WhileSubscribed triggers
         val collectJob = launch {
@@ -58,10 +68,40 @@ class CategorySelectionViewModelTest {
     @Test
     fun `onCategoryToggled calls use case`() = runTest {
         every { getAllCategoriesUseCase() } returns flowOf(emptyList())
-        val viewModel = CategorySelectionViewModel(getAllCategoriesUseCase, toggleCategoryUseCase)
+        val viewModel = CategorySelectionViewModel(getAllCategoriesUseCase, toggleCategoryUseCase, mockContext)
 
-        viewModel.onCategoryToggled("adult", true)
+        viewModel.onCategoryToggled(CategoryKey.ADULT, true)
 
-        coVerify { toggleCategoryUseCase("adult", true) }
+        coVerify { toggleCategoryUseCase(CategoryKey.ADULT, true) }
+    }
+
+    @Test
+    fun `toggleAutoMode updates preferences and state`() = runTest {
+        val categoryList = listOf(
+            BlockedCategory(id = 1, categoryKey = CategoryKey.ADULT, isActive = false),
+            BlockedCategory(id = 2, categoryKey = CategoryKey.GAMING, isActive = false)
+        )
+        every { getAllCategoriesUseCase() } returns flowOf(categoryList)
+        val viewModel = CategorySelectionViewModel(getAllCategoriesUseCase, toggleCategoryUseCase, mockContext)
+
+        val collectJob = launch { viewModel.autoMode.collect {} }
+        runCurrent()
+        
+        assertEquals(false, viewModel.autoMode.value)
+
+        viewModel.onAutoModeToggled(true)
+        runCurrent()
+
+        assertEquals(true, viewModel.autoMode.value)
+        io.mockk.verify { mockEditor.putBoolean("auto_mode_enabled", true) }
+        io.mockk.verify { mockEditor.apply() }
+        
+        com.focuslock.data.local.entity.CategoryKey.ALL
+            .filter { it != com.focuslock.data.local.entity.CategoryKey.AUTO_BLOCKED }
+            .forEach {
+                coVerify { toggleCategoryUseCase(it, true) }
+            }
+
+        collectJob.cancel()
     }
 }

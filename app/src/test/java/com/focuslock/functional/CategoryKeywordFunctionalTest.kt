@@ -71,7 +71,8 @@ class CategoryKeywordFunctionalTest {
         // Step 2: Verify categories are populated and active by default
         val initialCategories = getAllCategoriesUseCase().first()
         assertTrue("Categories should be seeded", initialCategories.isNotEmpty())
-        assertTrue("All categories should be active by default", initialCategories.all { it.isActive })
+        assertTrue("Only AUTO_BLOCKED should be active by default",
+            initialCategories.filter { it.isActive }.all { it.categoryKey == "AUTO_BLOCKED" })
 
         // Step 3: Toggle a category and verify state
         val targetCategory = initialCategories.first { it.categoryKey == "SOCIAL_MEDIA" }

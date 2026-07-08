@@ -57,6 +57,9 @@ class DoHIntegrationTest {
         every { mockBuilder.proxy(any()) } returns mockBuilder
         every { mockBuilder.build() } returns okHttpClient
 
+        val prefs = context.getSharedPreferences("focuslock_prefs", Context.MODE_PRIVATE)
+        prefs.edit().putBoolean("auto_mode_enabled", true).apply()
+
         useCase = DoHQueryUseCase(repository, context, okHttpClient)
         
         runBlocking {
