@@ -19,10 +19,12 @@ import org.junit.Before
 import org.junit.Test
 import java.io.ByteArrayInputStream
 
+import com.focuslock.domain.repository.PageSignalFetcher
+
 @OptIn(ExperimentalCoroutinesApi::class)
 class SmartScanUseCaseTest {
 
-    private lateinit var fetcher: MetaDescriptionFetcher
+    private lateinit var fetcher: PageSignalFetcher
     private lateinit var blockingRepository: BlockingRepository
     private lateinit var keywordScanner: KeywordScanner
     private lateinit var useCase: SmartScanUseCase

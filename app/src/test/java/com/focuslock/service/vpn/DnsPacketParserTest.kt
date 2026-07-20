@@ -66,6 +66,8 @@ class DnsPacketParserTest {
         bytes[21] = 0x35.toByte() // Source port 53 (DNS)
         bytes[22] = 0x00.toByte()
         bytes[23] = 0x35.toByte() // Dest port 53
+        bytes[32] = 0x00.toByte()
+        bytes[33] = 0x01.toByte() // QDCOUNT = 1
         
         // DNS Query starting at byte 28
         // Label pointer that points to itself to cause infinite loop
@@ -86,6 +88,8 @@ class DnsPacketParserTest {
         bytes[21] = 0x35.toByte() // Source port 53 (DNS)
         bytes[22] = 0x00.toByte()
         bytes[23] = 0x35.toByte() // Dest port 53
+        bytes[32] = 0x00.toByte()
+        bytes[33] = 0x01.toByte() // QDCOUNT = 1
         
         // DNS Query starting at byte 28
         var offset = 28
@@ -104,9 +108,7 @@ class DnsPacketParserTest {
         val buffer = ByteBuffer.wrap(bytes)
         val domain = DnsPacketParser.extractDomainName(buffer, bytes.size)
         assertNull(domain) // Should abort because it exceeds 254 chars
-    }
-
-    private fun hexStringToByteArray(s: String): ByteArray {
+    }    private fun hexStringToByteArray(s: String): ByteArray {
         val len = s.length
         val data = ByteArray(len / 2)
         var i = 0

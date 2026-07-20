@@ -62,8 +62,7 @@ class OnboardingViewModel @Inject constructor(
                 val allPermissionsOk = permissions.accessibilityGranted && 
                     permissions.deviceAdminGranted && 
                     permissions.overlayGranted && 
-                    permissions.vpnGranted && 
-                    permissions.batteryOptimizationIgnored
+                    permissions.vpnGranted
 
                 val event = when {
                     status.hasActiveSession && !permissions.accessibilityGranted && permissions.overlayGranted -> {

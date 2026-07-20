@@ -34,7 +34,8 @@ class CategoryIntegrationTest {
 
     private lateinit var context: Context
     private val blockingRepository = mockk<BlockingRepository>(relaxed = true)
-    private val okHttpClient = mockk<OkHttpClient>(relaxed = true)
+    private val configRepository = mockk<com.focuslock.domain.repository.ConfigRepository>(relaxed = true)
+    private val dohRepository = mockk<com.focuslock.domain.repository.DoHRepository>(relaxed = true)
     private val getAllCategoriesUseCase = mockk<GetAllCategoriesUseCase>(relaxed = true)
     private val toggleCategoryUseCase = mockk<ToggleCategoryUseCase>(relaxed = true)
     
@@ -68,20 +69,11 @@ class CategoryIntegrationTest {
         )
 
         // Set up DoHQueryUseCase with mocked HTTP response to simulate a clean domain
-        val doHQueryUseCase = DoHQueryUseCase(blockingRepository, context, okHttpClient)
-        val mockCall = mockk<okhttp3.Call>()
-        val mockResponse = Response.Builder()
-            .request(Request.Builder().url("https://dns.nextdns.io").build())
-            .protocol(Protocol.HTTP_1_1)
-            .code(200)
-            .message("OK")
-            .body("""{"Status": 0, "Answer": [{"data": "1.2.3.4"}]}""".toResponseBody("application/json".toMediaTypeOrNull()))
-            .build()
-            
-        every { okHttpClient.newBuilder().connectionPool(any()).dns(any()).connectTimeout(any(), any()).readTimeout(any(), any()).writeTimeout(any(), any()).proxy(any()).build() } returns okHttpClient
-        every { okHttpClient.newCall(any()) } returns mockCall
-        every { mockCall.execute() } returns mockResponse
+        val doHQueryUseCase = DoHQueryUseCase(blockingRepository, configRepository, dohRepository)
+        coEvery { dohRepository.queryDoH(any()) } returns DoHResult.Clean
         coEvery { blockingRepository.getCachedDomainStatus(any()) } returns null // Not cached
+        var autoModeEnabled = false
+        coEvery { configRepository.isAutoModeEnabled() } answers { autoModeEnabled }
 
         // -------------------------------------------------------------
         // Step 1: Initial state (auto mode off).
@@ -92,7 +84,7 @@ class CategoryIntegrationTest {
         
         assertEquals(DoHResult.Clean, initialResult)
         coVerify(exactly = 0) { blockingRepository.getCachedDomainStatus(any()) }
-        verify(exactly = 0) { okHttpClient.newCall(any()) }
+        coVerify(exactly = 0) { dohRepository.queryDoH(any()) }
 
         // -------------------------------------------------------------
         // Step 2: Toggle auto mode ON via ViewModel.
@@ -100,6 +92,7 @@ class CategoryIntegrationTest {
         // -------------------------------------------------------------
         viewModel.onAutoModeToggled(true)
         runCurrent()
+        coEvery { configRepository.isAutoModeEnabled() } returns true
         
         assertEquals(true, viewModel.autoMode.value)
 
@@ -117,6 +110,6 @@ class CategoryIntegrationTest {
         assertEquals(DoHResult.Clean, activeResult)
         // Ensure repository and network were actually queried
         coVerify(exactly = 1) { blockingRepository.getCachedDomainStatus("example.com") }
-        verify(exactly = 1) { okHttpClient.newCall(any()) }
+        coVerify(exactly = 1) { dohRepository.queryDoH(any()) }
     }
 }

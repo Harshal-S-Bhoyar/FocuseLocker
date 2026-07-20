@@ -1,12 +1,14 @@
 package com.focuslock.domain.usecase
 
-import android.net.Uri
 import com.focuslock.domain.model.BlockCheckResult
 import com.focuslock.domain.model.BlockReason
-import java.net.URL
+import com.focuslock.domain.util.SimpleLruCache
+import java.net.URI
 import javax.inject.Inject
 
 class CheckUrlForBlockedContentUseCase @Inject constructor() {
+
+    private val cache = SimpleLruCache<String, BlockCheckResult>(200)
 
     operator fun invoke(
         url: String,
@@ -15,35 +17,50 @@ class CheckUrlForBlockedContentUseCase @Inject constructor() {
     ): BlockCheckResult {
         if (url.isBlank()) return BlockCheckResult.Allowed
 
-        val uri = try { java.net.URI(if (url.startsWith("http")) url else "https://$url") } catch (_: Exception) { null }
-        val hostAndPath = ((uri?.host ?: "") + (uri?.path ?: "")).lowercase()
-        
+        val cacheKey = "${url}|${keywords.hashCode()}|${domains.hashCode()}"
+        val cached = cache.get(cacheKey)
+        if (cached != null) return cached
+
+        val uri = try {
+            val parsed = URI(url)
+            when {
+                parsed.scheme.equals("http", ignoreCase = true) ||
+                    parsed.scheme.equals("https", ignoreCase = true) -> parsed
+                !url.contains("://") -> URI("https://$url")
+                else -> null
+            }
+        } catch (_: Exception) {
+            null
+        }
+        val host = uri?.host?.lowercase()
+        val path = uri?.path?.lowercase() ?: ""
+        val hostAndPath = (host ?: "") + path        
         // 1. Check Keywords
         for (keyword in keywords) {
             if (NormalizedMatcher.matches(keyword, hostAndPath)) {
-                return BlockCheckResult.Blocked(keyword, BlockReason.KEYWORD_MATCH)
+                val result = BlockCheckResult.Blocked(keyword, BlockReason.KEYWORD_MATCH)
+                cache.put(cacheKey, result)
+                return result
             }
         }
 
         // 2. Check Domains
-        val host = try {
-            val uri = java.net.URI(if (url.startsWith("http")) url else "https://$url")
-            val h = uri.host?.lowercase()
-            if (h != null && h.startsWith("www.")) h.substring(4) else h
-        } catch (e: Exception) {
-            null
-        }
+        val normalizedHost = if (host != null && host.startsWith("www.")) host.substring(4) else host
 
-        if (host != null) {
+        if (normalizedHost != null) {
             for (domain in domains) {
                 val lowerDomain = domain.lowercase().let { if (it.startsWith("www.")) it.substring(4) else it }
-                // Match exactly or as a subdomain (e.g., host is m.facebook.com and domain is facebook.com)
-                if (host == lowerDomain || host.endsWith(".$lowerDomain")) {
-                    return BlockCheckResult.Blocked(domain, BlockReason.DOMAIN_BLOCKED)
+                // Match exactly or as a subdomain
+                if (normalizedHost == lowerDomain || normalizedHost.endsWith(".$lowerDomain")) {
+                    val result = BlockCheckResult.Blocked(domain, BlockReason.DOMAIN_BLOCKED)
+                    cache.put(cacheKey, result)
+                    return result
                 }
             }
         }
 
-        return BlockCheckResult.Allowed
+        val result = BlockCheckResult.Allowed
+        cache.put(cacheKey, result)
+        return result
     }
 }

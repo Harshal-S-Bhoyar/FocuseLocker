@@ -60,7 +60,7 @@ class TrustedContactSetupViewModelTest {
     }
 
     @Test
-    fun `successful send navigates to verify`() = runTest {
+    fun `successful send navigates to verify`() = runTest(testDispatcher) {
         coEvery { saveTrustedContactUseCase(any()) } returns SaveContactResult.OtpSent
         viewModel.onEmailChanged("test@example.com")
         viewModel.onSendOtpClicked()
@@ -69,7 +69,7 @@ class TrustedContactSetupViewModelTest {
     }
 
     @Test
-    fun `failed send shows error message`() = runTest {
+    fun `failed send shows error message`() = runTest(testDispatcher) {
         coEvery { saveTrustedContactUseCase(any()) } returns SaveContactResult.Error("Network error")
         viewModel.onEmailChanged("test@example.com")
         viewModel.onSendOtpClicked()
@@ -79,7 +79,7 @@ class TrustedContactSetupViewModelTest {
     }
 
     @Test
-    fun `navigation consumed resets flag`() = runTest {
+    fun `navigation consumed resets flag`() = runTest(testDispatcher) {
         coEvery { saveTrustedContactUseCase(any()) } returns SaveContactResult.OtpSent
         viewModel.onEmailChanged("test@example.com")
         viewModel.onSendOtpClicked()

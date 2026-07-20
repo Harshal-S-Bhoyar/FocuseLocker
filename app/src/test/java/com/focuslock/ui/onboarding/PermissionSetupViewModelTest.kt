@@ -22,6 +22,7 @@ import org.junit.Test
 import android.content.Context
 import android.content.Intent
 import com.focuslock.util.OemAutostartHelper
+import com.focuslock.util.OemBatteryOptimizationHelper
 import io.mockk.mockkObject
 import io.mockk.unmockkObject
 
@@ -38,16 +39,21 @@ class PermissionSetupViewModelTest {
     fun setUp() {
         Dispatchers.setMain(testDispatcher)
         mockkObject(OemAutostartHelper)
-        every { OemAutostartHelper.getAutostartIntent(any()) } returns null
+        mockkObject(OemBatteryOptimizationHelper)
+        every { OemAutostartHelper.getAutostartIntentsList(any()) } returns emptyList()
+        every { OemBatteryOptimizationHelper.getBatteryOptimizationIntentsList(any()) } returns emptyList()
         every { permissionStatusProvider.getStatus() } returns permissionStatus()
         io.mockk.coEvery { appSettingsRepository.setSetting(any(), any()) } returns Unit
         every { appSettingsRepository.getSetting(any()) } returns flowOf(null)
+        every { appSettingsRepository.getSetting("battery_optimization_acknowledged") } returns flowOf("true")
+        every { appSettingsRepository.getSetting("autostart_acknowledged") } returns flowOf("true")
     }
 
     @After
     fun tearDown() {
         Dispatchers.resetMain()
         unmockkObject(OemAutostartHelper)
+        unmockkObject(OemBatteryOptimizationHelper)
     }
 
     @Test
@@ -66,7 +72,7 @@ class PermissionSetupViewModelTest {
     }
 
     @Test
-    fun `refreshPermissions correctly maps active permissions`() = runTest {
+    fun `refreshPermissions correctly maps active permissions`() = runTest(testDispatcher) {
         every { permissionStatusProvider.getStatus() } returns permissionStatus(
             accessibilityGranted = true,
             deviceAdminGranted = true,
@@ -89,13 +95,14 @@ class PermissionSetupViewModelTest {
     }
 
     @Test
-    fun `when all critical permissions are granted allCriticalGranted is true`() = runTest {
+    fun `when all critical permissions are granted allCriticalGranted is true`() = runTest(testDispatcher) {
         every { permissionStatusProvider.getStatus() } returns permissionStatus(
             accessibilityGranted = true,
             deviceAdminGranted = true,
             overlayGranted = true,
             vpnGranted = true,
-            batteryOptimizationIgnored = true
+            batteryOptimizationIgnored = true,
+            notificationGranted = true
         )
 
         viewModel = PermissionSetupViewModel(permissionStatusProvider, appSettingsRepository, context)
@@ -110,7 +117,7 @@ class PermissionSetupViewModelTest {
     }
 
     @Test
-    fun `onContinueClicked does nothing when critical permissions are missing`() = runTest {
+    fun `onContinueClicked does nothing when critical permissions are missing`() = runTest(testDispatcher) {
         every { permissionStatusProvider.getStatus() } returns permissionStatus(
             deviceAdminGranted = true,
             overlayGranted = true,
@@ -129,13 +136,14 @@ class PermissionSetupViewModelTest {
     }
 
     @Test
-    fun `onContinueClicked saves setting and navigates when critical permissions are granted`() = runTest {
+    fun `onContinueClicked saves setting and navigates when critical permissions are granted`() = runTest(testDispatcher) {
         every { permissionStatusProvider.getStatus() } returns permissionStatus(
             accessibilityGranted = true,
             deviceAdminGranted = true,
             overlayGranted = true,
             vpnGranted = true,
-            batteryOptimizationIgnored = true
+            batteryOptimizationIgnored = true,
+            notificationGranted = true
         )
 
         viewModel = PermissionSetupViewModel(permissionStatusProvider, appSettingsRepository, context)
@@ -150,13 +158,14 @@ class PermissionSetupViewModelTest {
     }
 
     @Test
-    fun `onNavigationConsumed resets navigation flag`() = runTest {
+    fun `onNavigationConsumed resets navigation flag`() = runTest(testDispatcher) {
         every { permissionStatusProvider.getStatus() } returns permissionStatus(
             accessibilityGranted = true,
             deviceAdminGranted = true,
             overlayGranted = true,
             vpnGranted = true,
-            batteryOptimizationIgnored = true
+            batteryOptimizationIgnored = true,
+            notificationGranted = true
         )
 
         viewModel = PermissionSetupViewModel(permissionStatusProvider, appSettingsRepository, context)
@@ -172,13 +181,15 @@ class PermissionSetupViewModelTest {
     }
 
     @Test
-    fun `onContinueClicked does nothing when batteryOptimizationIgnored is missing`() = runTest {
+    fun `onContinueClicked succeeds even when batteryOptimizationIgnored is missing`() = runTest(testDispatcher) {
+        // ponytail: Battery optimization is optional/recommended, not a blocking gate.
         every { permissionStatusProvider.getStatus() } returns permissionStatus(
             accessibilityGranted = true,
             deviceAdminGranted = true,
             overlayGranted = true,
             vpnGranted = true,
-            batteryOptimizationIgnored = false
+            batteryOptimizationIgnored = false,
+            notificationGranted = true
         )
 
         viewModel = PermissionSetupViewModel(permissionStatusProvider, appSettingsRepository, context)
@@ -186,18 +197,18 @@ class PermissionSetupViewModelTest {
         testDispatcher.scheduler.advanceUntilIdle()
 
         val permissions = viewModel.uiState.value.permissions
-        assertFalse(permissions.allCriticalGranted)
+        assertTrue(permissions.allCriticalGranted)
 
         viewModel.onContinueClicked()
         testDispatcher.scheduler.advanceUntilIdle()
 
-        assertFalse(viewModel.uiState.value.navigateToTrustedContact)
-        coVerify(exactly = 0) { appSettingsRepository.setSetting(any(), any()) }
+        assertTrue(viewModel.uiState.value.navigateToTrustedContact)
+        coVerify(exactly = 1) { appSettingsRepository.setSetting("permissions_granted", "true") }
     }
 
     @Test
-    fun `refreshPermissions maps autostart intent availability`() = runTest {
-        every { OemAutostartHelper.getAutostartIntent(any()) } returns mockk(relaxed = true)
+    fun `refreshPermissions maps autostart intent availability`() = runTest(testDispatcher) {
+        every { OemAutostartHelper.getAutostartIntentsList(any()) } returns listOf(mockk(relaxed = true))
         every { appSettingsRepository.getSetting("autostart_acknowledged") } returns flowOf("true")
 
         viewModel = PermissionSetupViewModel(permissionStatusProvider, appSettingsRepository, context)
@@ -210,15 +221,16 @@ class PermissionSetupViewModelTest {
     }
 
     @Test
-    fun `when autostart is needed but not acknowledged allCriticalGranted is false`() = runTest {
+    fun `when autostart is needed but not acknowledged allCriticalGranted is false`() = runTest(testDispatcher) {
         every { permissionStatusProvider.getStatus() } returns permissionStatus(
             accessibilityGranted = true,
             deviceAdminGranted = true,
             overlayGranted = true,
             vpnGranted = true,
-            batteryOptimizationIgnored = true
+            batteryOptimizationIgnored = true,
+            notificationGranted = true
         )
-        every { OemAutostartHelper.getAutostartIntent(any()) } returns mockk(relaxed = true)
+        every { OemAutostartHelper.getAutostartIntentsList(any()) } returns listOf(mockk(relaxed = true))
         every { appSettingsRepository.getSetting("autostart_acknowledged") } returns flowOf("false")
 
         viewModel = PermissionSetupViewModel(permissionStatusProvider, appSettingsRepository, context)
@@ -232,15 +244,16 @@ class PermissionSetupViewModelTest {
     }
 
     @Test
-    fun `when autostart is needed and acknowledged allCriticalGranted is true`() = runTest {
+    fun `when autostart is needed and acknowledged allCriticalGranted is true`() = runTest(testDispatcher) {
         every { permissionStatusProvider.getStatus() } returns permissionStatus(
             accessibilityGranted = true,
             deviceAdminGranted = true,
             overlayGranted = true,
             vpnGranted = true,
-            batteryOptimizationIgnored = true
+            batteryOptimizationIgnored = true,
+            notificationGranted = true
         )
-        every { OemAutostartHelper.getAutostartIntent(any()) } returns mockk(relaxed = true)
+        every { OemAutostartHelper.getAutostartIntentsList(any()) } returns listOf(mockk(relaxed = true))
         every { appSettingsRepository.getSetting("autostart_acknowledged") } returns flowOf("true")
 
         viewModel = PermissionSetupViewModel(permissionStatusProvider, appSettingsRepository, context)
@@ -254,7 +267,7 @@ class PermissionSetupViewModelTest {
     }
     
     @Test
-    fun `onAutostartGranted saves setting and refreshes`() = runTest {
+    fun `onAutostartGranted saves setting and refreshes`() = runTest(testDispatcher) {
         viewModel = PermissionSetupViewModel(permissionStatusProvider, appSettingsRepository, context)
         viewModel.onAutostartGranted()
         testDispatcher.scheduler.advanceUntilIdle()
@@ -277,4 +290,72 @@ class PermissionSetupViewModelTest {
         vpnGranted = vpnGranted,
         notificationGranted = notificationGranted
     )
+
+    @Test
+    fun `refreshPermissionsDelayed calls refreshPermissions after delay`() = runTest(testDispatcher) {
+        every { permissionStatusProvider.getStatus() } returns permissionStatus(
+            accessibilityGranted = true
+        )
+        viewModel = PermissionSetupViewModel(permissionStatusProvider, appSettingsRepository, context)
+        
+        viewModel.refreshPermissionsDelayed(1000L)
+        
+        // Before delay, state shouldn't change
+        testDispatcher.scheduler.advanceTimeBy(500L)
+        assertFalse(viewModel.uiState.value.permissions.accessibilityGranted)
+        
+        // After delay, state should change
+        testDispatcher.scheduler.advanceTimeBy(501L)
+        testDispatcher.scheduler.advanceUntilIdle()
+        assertTrue(viewModel.uiState.value.permissions.accessibilityGranted)
+    }
+
+    @Test
+    fun `refreshPermissions does not cancel existing delayJob`() = runTest(testDispatcher) {
+        var statusCallCount = 0
+        every { permissionStatusProvider.getStatus() } answers {
+            statusCallCount++
+            permissionStatus(accessibilityGranted = true)
+        }
+        
+        viewModel = PermissionSetupViewModel(permissionStatusProvider, appSettingsRepository, context)
+        
+        // Call delayed refresh
+        viewModel.refreshPermissionsDelayed(1000L)
+        testDispatcher.scheduler.advanceTimeBy(500L)
+        
+        // Call immediate refresh which should NOT cancel the delayed job
+        viewModel.refreshPermissions()
+        testDispatcher.scheduler.advanceUntilIdle()
+        
+        // Status should be called 4 times: 1 time from immediate refresh before cancellation, 3 times from delayed refresh
+        assertEquals(4, statusCallCount)
+    }
+
+    @Test
+    fun `multiple refreshPermissionsDelayed only execute the last one`() = runTest(testDispatcher) {
+        var statusCallCount = 0
+        every { permissionStatusProvider.getStatus() } answers {
+            statusCallCount++
+            permissionStatus(accessibilityGranted = true)
+        }
+        
+        viewModel = PermissionSetupViewModel(permissionStatusProvider, appSettingsRepository, context)
+        
+        // Call multiple delayed refreshes
+        viewModel.refreshPermissionsDelayed(1000L)
+        testDispatcher.scheduler.advanceTimeBy(500L)
+        
+        viewModel.refreshPermissionsDelayed(1000L)
+        testDispatcher.scheduler.advanceTimeBy(500L)
+
+        viewModel.refreshPermissionsDelayed(1000L)
+        
+        // Advance time to complete the last delay
+        testDispatcher.scheduler.advanceTimeBy(1001L)
+        testDispatcher.scheduler.advanceUntilIdle()
+        
+        // Status should be called 3 times (from the retry loop of the single delayed job)
+        assertEquals(3, statusCallCount)
+    }
 }

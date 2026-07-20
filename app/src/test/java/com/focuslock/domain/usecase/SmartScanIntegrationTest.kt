@@ -1,7 +1,6 @@
 package com.focuslock.domain.usecase
 
-import android.content.Context
-import android.content.res.AssetManager
+import com.focuslock.domain.repository.PageSignalFetcher
 import com.focuslock.domain.model.FetchOutcome
 import com.focuslock.domain.model.SmartScanResult
 import com.focuslock.data.repository.BlockingRepository
@@ -19,24 +18,18 @@ import java.io.ByteArrayInputStream
 @OptIn(ExperimentalCoroutinesApi::class)
 class SmartScanIntegrationTest {
 
-    private lateinit var fetcher: MetaDescriptionFetcher
+    private lateinit var fetcher: PageSignalFetcher
     private lateinit var blockingRepository: BlockingRepository
     private lateinit var keywordScanner: KeywordScanner
     private lateinit var useCase: SmartScanUseCase
-    private lateinit var context: Context
-    private lateinit var assetManager: AssetManager
+    private lateinit var synonymRepository: com.focuslock.domain.repository.SynonymRepository
 
     @Before
     fun setup() {
-        context = mockk()
-        assetManager = mockk()
-        every { context.assets } returns assetManager
+        synonymRepository = mockk()
+        every { synonymRepository.getSynonyms() } returns emptyMap()
         
-        // Mock the synonyms JSON to an empty object for test
-        val emptyJson = "{}"
-        every { assetManager.open("keyword_synonyms.json") } returns ByteArrayInputStream(emptyJson.toByteArray())
-
-        keywordScanner = KeywordScanner(context)
+        keywordScanner = KeywordScanner(synonymRepository)
         fetcher = mockk()
         blockingRepository = mockk(relaxed = true)
 

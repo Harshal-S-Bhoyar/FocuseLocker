@@ -32,14 +32,50 @@ class AccessibilityHealthWorker @AssistedInject constructor(
                 kotlinx.coroutines.delay(2000L)
                 isAccessibilityAlive = PermissionChecker.isAccessibilityServiceEnabled(context)
             }
+            // Add a second retry to account for longer system stalls during heavy memory pressure
+            if (!isAccessibilityAlive) {
+                kotlinx.coroutines.delay(3000L)
+                isAccessibilityAlive = PermissionChecker.isAccessibilityServiceEnabled(context)
+            }
             
             val isOverlayGranted = PermissionChecker.isOverlayPermissionGranted(context)
+            val isDeviceAdminOk = PermissionChecker.isDeviceAdminEnabled(context)
+            val isVpnOk = PermissionChecker.isVpnPermissionGranted(context)
+            val allOk = isAccessibilityAlive && isOverlayGranted && isDeviceAdminOk && isVpnOk
 
-            if (!isAccessibilityAlive && isOverlayGranted) {
-                Timber.w("AccessibilityHealthWorker: Active session detected but Accessibility is DEAD. Launching enforcement overlay.")
-                PermissionEnforcementService.start(context)
+            if (!allOk) {
+                if (!isAccessibilityAlive && isOverlayGranted) {
+                    Timber.w("AccessibilityHealthWorker: Active session detected but Accessibility is DEAD. Launching enforcement overlay.")
+                    PermissionEnforcementService.start(context)
+                } else {
+                    Timber.w("AccessibilityHealthWorker: Critical permission(s) lost. overlay=$isOverlayGranted accessibility=$isAccessibilityAlive. Launching repair activity.")
+                    try {
+                        val intent = android.content.Intent(context, com.focuslock.MainActivity::class.java).apply {
+                            flags = android.content.Intent.FLAG_ACTIVITY_NEW_TASK or android.content.Intent.FLAG_ACTIVITY_CLEAR_TOP
+                            putExtra("navigate_to", "permissions_repair")
+                        }
+                        val pendingIntent = android.app.PendingIntent.getActivity(
+                            context,
+                            0,
+                            intent,
+                            android.app.PendingIntent.FLAG_UPDATE_CURRENT or android.app.PendingIntent.FLAG_IMMUTABLE
+                        )
+                        val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as android.app.NotificationManager
+                        val notification = androidx.core.app.NotificationCompat.Builder(context, "focuslock_critical")
+                            .setSmallIcon(android.R.drawable.ic_dialog_alert)
+                            .setContentTitle("FocusLock Protection Stopped")
+                            .setContentText("Critical permissions lost. Tap to repair.")
+                            .setContentIntent(pendingIntent)
+                            .setAutoCancel(true)
+                            .setPriority(androidx.core.app.NotificationCompat.PRIORITY_HIGH)
+                            .build()
+                        notificationManager.notify(1001, notification)
+                    } catch (e: Exception) {
+                        Timber.e(e, "AccessibilityHealthWorker: Failed to show repair notification")
+                    }
+                }
             } else {
-                Timber.d("AccessibilityHealthWorker: Health check passed. isActiveSession=$isActiveSession, isAccessibilityAlive=$isAccessibilityAlive")
+                Timber.d("AccessibilityHealthWorker: Health check passed. all permissions OK.")
             }
             Result.success()
         } catch (e: Exception) {

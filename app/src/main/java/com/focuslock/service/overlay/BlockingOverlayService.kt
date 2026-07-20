@@ -68,7 +68,15 @@ class BlockingOverlayService : Service(), LifecycleOwner, ViewModelStoreOwner, S
         lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_CREATE)
         
         createNotificationChannel()
-        startForeground(NOTIFICATION_ID, createNotification())
+        if (android.os.Build.VERSION.SDK_INT >= 34) {
+            startForeground(
+                NOTIFICATION_ID,
+                createNotification(),
+                android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE
+            )
+        } else {
+            startForeground(NOTIFICATION_ID, createNotification())
+        }
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -79,9 +87,14 @@ class BlockingOverlayService : Service(), LifecycleOwner, ViewModelStoreOwner, S
         }
         
         if (intent?.action == ACTION_SHOW_OVERLAY) {
-            val matchedTerm = intent.getStringExtra(EXTRA_MATCHED_TERM) ?: "Unknown"
-            val blockReason = intent.getStringExtra(EXTRA_BLOCK_REASON) ?: "Unknown"
+            val matchedTerm = intent.getStringExtra(EXTRA_MATCHED_TERM)
+                ?.take(256)?.replace(Regex("[^\\p{L}\\p{N}\\s.\\-_/]"), "")
+                ?: "Unknown"
+            val blockReason = intent.getStringExtra(EXTRA_BLOCK_REASON)
+                ?.take(256)?.replace(Regex("[^\\p{L}\\p{N}\\s.\\-_/]"), "")
+                ?: "Unknown"
             val timeRemaining = intent.getLongExtra(EXTRA_TIME_REMAINING, 0L)
+                .coerceIn(0L, 86_400_000L)
             
             showOverlay(matchedTerm, blockReason, timeRemaining)
         }
@@ -131,7 +144,12 @@ class BlockingOverlayService : Service(), LifecycleOwner, ViewModelStoreOwner, S
         composeView?.isFocusableInTouchMode = true
         composeView?.setOnKeyListener { _, keyCode, event ->
             if (keyCode == KeyEvent.KEYCODE_BACK && event.action == KeyEvent.ACTION_UP) {
-                // Intercept back button and do nothing to prevent dismissal
+                // Intercept back button and force return to home
+                val homeIntent = Intent(Intent.ACTION_MAIN).apply {
+                    addCategory(Intent.CATEGORY_HOME)
+                    flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                }
+                startActivity(homeIntent)
                 true
             } else {
                 false
@@ -214,11 +232,31 @@ class BlockingOverlayService : Service(), LifecycleOwner, ViewModelStoreOwner, S
     }
 
     private fun createNotification(): Notification {
+        // ponytail: no-op PendingIntent prevents default tap→App Info navigation
+        val noOpIntent = android.app.PendingIntent.getActivity(
+            this, 0,
+            Intent(this, com.focuslock.MainActivity::class.java).apply {
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+            },
+            android.app.PendingIntent.FLAG_IMMUTABLE
+        )
+        
+        val repairIntent = Intent(this, com.focuslock.MainActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+            putExtra("navigate_to", "permissions_repair")
+        }
+        val repairPendingIntent = android.app.PendingIntent.getActivity(
+            this, 1, repairIntent, android.app.PendingIntent.FLAG_IMMUTABLE
+        )
+        
         return NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle(getString(R.string.overlay_notification_title))
             .setContentText(getString(R.string.overlay_notification_text))
             .setSmallIcon(R.drawable.ic_focuslock_blocking)
             .setPriority(NotificationCompat.PRIORITY_LOW)
+            .setContentIntent(noOpIntent)
+            .setVisibility(NotificationCompat.VISIBILITY_SECRET)
+            .addAction(0, "Repair Permissions", repairPendingIntent)
             .build()
     }
 }

@@ -35,6 +35,16 @@ describe("OtpService", () => {
     expect(isValid).toBe(true);
   });
 
+  it("should not log OTPs or recipient identifiers", async () => {
+    const logSpy = jest.spyOn(console, "log").mockImplementation();
+    const otp = await otpService.generateAndStore(phone, "CONTACT_VERIFY");
+    await otpService.verify(phone, otp, "CONTACT_VERIFY");
+
+    const output = logSpy.mock.calls.flat().join(" ");
+    expect(output).not.toContain(phone);
+    expect(output).not.toContain(otp);
+    logSpy.mockRestore();
+  });
   it("should return true for valid verify", async () => {
     const otp = await otpService.generateAndStore(phone, "CONTACT_VERIFY");
     const result = await otpService.verify(phone, otp, "CONTACT_VERIFY");

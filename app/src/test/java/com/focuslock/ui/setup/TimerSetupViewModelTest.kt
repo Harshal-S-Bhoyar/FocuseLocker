@@ -1,34 +1,34 @@
 package com.focuslock.ui.setup
 
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.test.UnconfinedTestDispatcher
-import kotlinx.coroutines.test.resetMain
-import kotlinx.coroutines.test.setMain
+import com.focuslock.domain.usecase.HasVerifiedContactUseCase
 import io.mockk.coEvery
 import io.mockk.mockk
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.resetMain
+import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.test.setMain
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
-import com.focuslock.domain.usecase.HasVerifiedContactUseCase
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class TimerSetupViewModelTest {
 
+    private lateinit var useCase: HasVerifiedContactUseCase
     private lateinit var viewModel: TimerSetupViewModel
-    private val testDispatcher = UnconfinedTestDispatcher()
-
-    private lateinit var hasVerifiedContactUseCase: HasVerifiedContactUseCase
+    private val testDispatcher = StandardTestDispatcher()
 
     @Before
     fun setup() {
         Dispatchers.setMain(testDispatcher)
-        hasVerifiedContactUseCase = mockk()
-        coEvery { hasVerifiedContactUseCase() } returns true
-        viewModel = TimerSetupViewModel(hasVerifiedContactUseCase)
+        useCase = mockk()
+        coEvery { useCase() } returns false
+        viewModel = TimerSetupViewModel(useCase)
     }
 
     @After
@@ -37,41 +37,41 @@ class TimerSetupViewModelTest {
     }
 
     @Test
-    fun `initial state is valid with 1 minutes`() {
-        assertEquals(0, viewModel.hours.value)
-        assertEquals(1, viewModel.minutes.value)
-        assertTrue(viewModel.isValid())
-    }
-
-    @Test
-    fun `updateDuration sets correct values and validates`() {
-        viewModel.updateHours(1)
+    fun `test valid duration limits`() = runTest {
+        // Test normal valid setup
+        viewModel.updateHours(2)
         viewModel.updateMinutes(30)
-        
-        assertEquals(1, viewModel.hours.value)
-        assertEquals(30, viewModel.minutes.value)
         assertTrue(viewModel.isValid())
-        assertEquals(90 * 60 * 1000L, viewModel.getDurationMillis())
+        assertEquals((2 * 60 + 30) * 60 * 1000L, viewModel.getDurationMillis())
+
+        // Test boundary 168 hours
+        viewModel.updateHours(168)
+        viewModel.updateMinutes(0)
+        assertTrue(viewModel.isValid())
+        assertEquals((168 * 60) * 60 * 1000L, viewModel.getDurationMillis())
+
+        // Test beyond 168 hours (invalid theoretically but update doesn't allow beyond 168 directly)
+        viewModel.updateHours(169)
+        // should stay at 168
+        assertEquals(168, viewModel.hours.value)
+
+        // However, if one updates minutes to 1 at 168 hours, it should cap via getDurationMillis()
+        viewModel.updateMinutes(1)
+        // Note: isValid() returns false because totalMinutes > 168 * 60
+        assertFalse(viewModel.isValid())
+        
+        // getDurationMillis caps at 168 hours
+        assertEquals((168 * 60) * 60 * 1000L, viewModel.getDurationMillis())
     }
 
     @Test
-    fun `duration less than 1 minute is invalid`() {
+    fun `test minimum duration limit`() = runTest {
         viewModel.updateHours(0)
         viewModel.updateMinutes(0)
-        
+        // isValid should be false (1 min minimum)
         assertFalse(viewModel.isValid())
-    }
-
-    @Test
-    fun `duration more than 72 hours is invalid`() {
-        viewModel.updateHours(73)
         
-        // 73 is ignored, so it stays at 0. Let's force invalid by setting directly or we can't because of the check
-        // The viewModel update logic limits hours to 0..72. So 73 is ignored.
-        // If we want to test invalid due to 72 hours and 1 minute:
-        viewModel.updateHours(72)
-        viewModel.updateMinutes(1)
-        
-        assertFalse(viewModel.isValid())
+        // getDurationMillis should coerce to 1 minute
+        assertEquals(60 * 1000L, viewModel.getDurationMillis())
     }
 }

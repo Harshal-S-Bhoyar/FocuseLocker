@@ -1,7 +1,6 @@
 package com.focuslock.domain.usecase
 
-import android.content.Context
-import androidx.work.WorkManager
+
 import com.focuslock.data.repository.AppSettingsRepository
 import com.focuslock.data.repository.BlockingRepository
 import io.mockk.coEvery
@@ -17,11 +16,11 @@ class InitializeAppUseCaseTest {
     private val appSettingsRepository: AppSettingsRepository = mockk(relaxed = true)
     private val blockingRepository: BlockingRepository = mockk(relaxed = true)
     private val cleanupStaleSessionUseCase: CleanupStaleSessionUseCase = mockk(relaxed = true)
-    private val context: Context = mockk(relaxed = true)
+    private val backgroundSyncScheduler: com.focuslock.domain.repository.BackgroundSyncScheduler = mockk(relaxed = true)
 
     @Before
     fun setUp() {
-        useCase = InitializeAppUseCase(appSettingsRepository, blockingRepository, cleanupStaleSessionUseCase, context)
+        useCase = InitializeAppUseCase(appSettingsRepository, blockingRepository, cleanupStaleSessionUseCase, backgroundSyncScheduler)
     }
 
     @Test

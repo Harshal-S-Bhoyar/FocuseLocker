@@ -1,6 +1,7 @@
-package com.focuslock.domain.usecase
+package com.focuslock.data.repository
 
 import com.focuslock.domain.model.FetchOutcome
+import com.focuslock.domain.repository.PageSignalFetcher
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -11,35 +12,26 @@ import okhttp3.Request
 import org.jsoup.Jsoup
 import java.net.InetAddress
 import java.net.URL
-import java.util.LinkedHashMap
 import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
-class MetaDescriptionFetcher @Inject constructor(
+class PageSignalFetcherImpl @Inject constructor(
     private val okHttpClient: OkHttpClient
-) {
+) : PageSignalFetcher {
 
     // Cache: domain → signals (or empty string if none found / failed)
     // Prevents repeat network fetches for the same domain within a session.
-    private val descriptionCache = object : LinkedHashMap<String, Map<String, String>>(
-        200, 0.75f, true  // accessOrder = true → LRU
-    ) {
-        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, Map<String, String>>): Boolean {
-            return size > 200
-        }
-    }
+    private val descriptionCache = com.focuslock.domain.util.SimpleLruCache<String, Map<String, String>>(200)
 
-    @Synchronized
     private fun getCachedEntry(key: String): Pair<Boolean, Map<String, String>?> {
         if (!descriptionCache.containsKey(key)) return Pair(false, null)
-        return Pair(true, descriptionCache[key])
+        return Pair(true, descriptionCache.get(key))
     }
 
-    @Synchronized
-    private fun putCache(key: String, value: Map<String, String>) { descriptionCache[key] = value }
+    private fun putCache(key: String, value: Map<String, String>) { descriptionCache.put(key, value) }
 
-    suspend fun fetchPageSignals(urlStr: String): FetchOutcome = withContext(Dispatchers.IO) {
+    override suspend fun fetchPageSignals(urlStr: String): FetchOutcome = withContext(Dispatchers.IO) {
         val cacheKey = try {
             val parsed = URL(if (urlStr.startsWith("http")) urlStr else "https://$urlStr")
             parsed.host.lowercase()
@@ -62,8 +54,18 @@ class MetaDescriptionFetcher @Inject constructor(
                     if (isPrivateHost(addr)) {
                         throw Exception("Blocked: private address")
                     }
-                    // SSRF protection: private IP already rejected above.
-                    // Use original hostname to preserve SNI / CDN routing.
+                    
+                    val safeClient = okHttpClient.newBuilder()
+                        .followRedirects(false)
+                        .followSslRedirects(false)
+                        .dns(object : okhttp3.Dns {
+                            override fun lookup(hostname: String): List<InetAddress> {
+                                if (hostname == url.host) return listOf(addr)
+                                throw java.net.UnknownHostException("SSRF blocked host: $hostname")
+                            }
+                        })
+                        .build()
+
                     val request = Request.Builder()
                         .url(url.toString())
                         .get()
@@ -71,7 +73,7 @@ class MetaDescriptionFetcher @Inject constructor(
                         .header("Range", "bytes=0-8191")
                         .build()
 
-                    response = okHttpClient.newCall(request).execute()
+                    response = safeClient.newCall(request).execute()
 
                     if (!response!!.isSuccessful) {
                         throw Exception("HTTP error: ${response!!.code}")
@@ -80,15 +82,15 @@ class MetaDescriptionFetcher @Inject constructor(
                         val reader = inputStream?.bufferedReader()
                         val charBuffer = CharArray(8192)
                         
-                        var totalHtml = ""
+                        val totalHtml = StringBuilder(8192)
                         if (reader != null) {
                             val charsRead1 = reader.read(charBuffer)
                             if (charsRead1 > 0) {
-                                totalHtml += String(charBuffer, 0, charsRead1)
+                                totalHtml.append(charBuffer, 0, charsRead1)
                                 // read body
                                 val charsRead2 = reader.read(charBuffer)
                                 if (charsRead2 > 0) {
-                                    totalHtml += String(charBuffer, 0, charsRead2)
+                                    totalHtml.append(charBuffer, 0, charsRead2)
                                 }
                             }
                         }
@@ -97,16 +99,19 @@ class MetaDescriptionFetcher @Inject constructor(
                             putCache(cacheKey, emptyMap())
                             FetchOutcome.FetchEmpty
                         } else {
-                            val signals = extractSignals(totalHtml)
+                            val signals = extractSignals(totalHtml.toString())
                             putCache(cacheKey, signals)
                             FetchOutcome.Success(signals)
                         }
                     }
                 }
+            } catch (e: kotlinx.coroutines.TimeoutCancellationException) {
+                lastException = e
+                if (attempt == 0) delay(500)
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                timber.log.Timber.e(e, "Error fetching meta description for $urlStr")
+                timber.log.Timber.e(e, "Error fetching meta description")
                 lastException = e
                 if (attempt == 0) delay(500)
             } finally {
@@ -114,7 +119,6 @@ class MetaDescriptionFetcher @Inject constructor(
             }
         }
         
-        putCache(cacheKey, emptyMap())
         if (lastException is kotlinx.coroutines.TimeoutCancellationException) {
             FetchOutcome.FetchTimeout
         } else {
@@ -123,13 +127,31 @@ class MetaDescriptionFetcher @Inject constructor(
     }
 
     private fun isPrivateHost(addr: InetAddress): Boolean {
-        return addr.isLoopbackAddress ||
-            addr.isSiteLocalAddress ||
-            addr.isLinkLocalAddress ||
-            addr.isAnyLocalAddress
+        if (addr.isLoopbackAddress || addr.isSiteLocalAddress || addr.isLinkLocalAddress || addr.isAnyLocalAddress || addr.isMulticastAddress) {
+            return true
+        }
+        var address = addr.address
+        if (address.size == 16) {
+            if ((address[0].toInt() and 0xFE) == 0xFC) return true
+            if ((0..9).all { address[it] == 0.toByte() } && address[10] == (-1).toByte() && address[11] == (-1).toByte()) {
+                address = address.copyOfRange(12, 16)
+            }
+        }
+        if (address.size == 4) {
+            val b0 = address[0].toInt() and 0xFF
+            val b1 = address[1].toInt() and 0xFF
+            val b2 = address[2].toInt() and 0xFF
+            return b0 == 0 || b0 >= 240 ||
+                (b0 == 100 && b1 in 64..127) ||
+                (b0 == 192 && b1 == 0 && (b2 == 0 || b2 == 2)) ||
+                (b0 == 198 && b1 in 18..19) ||
+                (b0 == 198 && b1 == 51 && b2 == 100) ||
+                (b0 == 203 && b1 == 0 && b2 == 113)
+        }
+        return false
     }
 
-    fun extractSignals(html: String): Map<String, String> {
+    private fun extractSignals(html: String): Map<String, String> {
         val doc = Jsoup.parse(html)
         val head = doc.head()
         return mapOf(

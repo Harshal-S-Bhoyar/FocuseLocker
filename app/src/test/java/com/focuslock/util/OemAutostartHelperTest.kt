@@ -41,8 +41,9 @@ class OemAutostartHelperTest {
         // Mock that the intent resolves
         every { packageManager.queryIntentActivities(any(), any<Int>()) } returns listOf(mockk<ResolveInfo>())
 
-        val intent = OemAutostartHelper.getAutostartIntent(context)
-        assertNotNull(intent)
+        val intents = OemAutostartHelper.getAutostartIntentsList(context)
+        assertTrue(intents.isNotEmpty())
+        val intent = intents.firstOrNull()
         assertEquals("com.miui.securitycenter", intent?.component?.packageName)
         assertEquals("com.miui.permcenter.autostart.AutoStartManagementActivity", intent?.component?.className)
     }
@@ -52,7 +53,7 @@ class OemAutostartHelperTest {
         ReflectionHelpers.setStaticField(Build::class.java, "MANUFACTURER", "unknown_brand")
         val context = mockk<Context>()
         
-        val intent = OemAutostartHelper.getAutostartIntent(context)
-        assertNull(intent)
+        val intents = OemAutostartHelper.getAutostartIntentsList(context)
+        assertTrue(intents.isEmpty())
     }
 }

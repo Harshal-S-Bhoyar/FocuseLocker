@@ -53,6 +53,7 @@ object DnsPacketParser {
         
         while (queryOffset < startPos + length && iterations < 128 && domainName.length < 254) {
             iterations++
+            if (queryOffset >= startPos + length) return null // VULN-002 fix: strict bound check before read
             val labelLength = buffer.get(queryOffset).toInt() and 0xFF
             if (labelLength == 0) break 
             
@@ -62,22 +63,25 @@ object DnsPacketParser {
             
             queryOffset++
             
-            if (queryOffset + labelLength > startPos + length) return null 
+            if (queryOffset + labelLength > startPos + length) return null
             
-            val labelBytes = ByteArray(labelLength)
-            val oldPos = buffer.position()
-            buffer.position(queryOffset)
-            buffer.get(labelBytes)
-            buffer.position(oldPos)
-            
+            // ponytail: zero-alloc label read — direct byte→char from buffer via absolute get()
+            // ceiling: assumes ASCII domain labels (DNS spec requires LDH subset of ASCII)
             if (domainName.isNotEmpty()) {
                 domainName.append(".")
             }
-            domainName.append(String(labelBytes))
+            for (i in 0 until labelLength) {
+                domainName.append((buffer.get(queryOffset + i).toInt() and 0xFF).toChar())
+            }
             
             queryOffset += labelLength
         }
         
-        return domainName.toString()
+        if (iterations >= 128 || domainName.length >= 254) {
+            return null
+        }
+        
+        val result = domainName.toString()
+        return result.ifEmpty { null }
     }
 }

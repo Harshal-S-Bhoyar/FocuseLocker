@@ -1,11 +1,6 @@
 import { BrevoClient } from "@getbrevo/brevo";
 import { config } from "../config/unifiedConfig";
 
-export interface UnlockContext {
-  timeRemaining: string;
-  categories: string;
-}
-
 export class EmailService {
   private client: BrevoClient;
 
@@ -21,31 +16,26 @@ export class EmailService {
         sender: { name: config.brevo.senderName, email: config.brevo.senderEmail },
         to: [{ email: to }],
       });
-      console.log(`TEST OTP (Verify Contact): ${otp}`);
       return true;
     } catch (error) {
-      console.error("Failed to send verification OTP via Brevo:", error);
+      console.error("Failed to send verification OTP via Brevo");
       return false;
     }
   }
 
-  async sendUnlockOtp(to: string, otp: string, context: UnlockContext): Promise<boolean> {
+  async sendUnlockOtp(to: string, otp: string): Promise<boolean> {
     try {
       await this.client.transactionalEmails.sendTransacEmail({
         subject: "FocusLock: Unlock Request",
-        htmlContent: `
-          <p>FocusLock: Someone wants to end their session early.</p>
-          <p>Time remaining: ${context.timeRemaining}. Blocked: ${context.categories}.</p>
+        htmlContent: ` 
           <p>OTP to unlock: <strong>${otp}</strong>.</p>
-          <p>Share only if you think it's justified.</p>
         `,
         sender: { name: config.brevo.senderName, email: config.brevo.senderEmail },
         to: [{ email: to }],
       });
-      console.log(`TEST OTP (Unlock): ${otp}`);
       return true;
     } catch (error) {
-      console.error("Failed to send unlock OTP via Brevo:", error);
+      console.error("Failed to send unlock OTP via Brevo");
       return false;
     }
   }

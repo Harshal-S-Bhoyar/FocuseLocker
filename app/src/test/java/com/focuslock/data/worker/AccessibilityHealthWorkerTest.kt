@@ -49,8 +49,59 @@ class AccessibilityHealthWorkerTest {
         every { mockSession.expiresAt } returns System.currentTimeMillis() + 100000
         coEvery { sessionRepository.getActiveSessionSync() } returns mockSession
 
-        // Mock accessibility disabled
+        // Mock accessibility disabled, others enabled
         every { PermissionChecker.isAccessibilityServiceEnabled(context) } returns false
+        every { PermissionChecker.isOverlayPermissionGranted(context) } returns true
+        every { PermissionChecker.isDeviceAdminEnabled(context) } returns true
+        every { PermissionChecker.isVpnPermissionGranted(context) } returns true
+
+        val result = worker.doWork()
+
+        assertTrue(result is ListenableWorker.Result.Success)
+    }
+
+    @Test
+    fun doWork_withActiveSessionAndOverlayDead_returnsSuccess() = runBlocking {
+        val mockSession = mockk<Session>()
+        every { mockSession.expiresAt } returns System.currentTimeMillis() + 100000
+        coEvery { sessionRepository.getActiveSessionSync() } returns mockSession
+
+        every { PermissionChecker.isAccessibilityServiceEnabled(context) } returns true
+        every { PermissionChecker.isOverlayPermissionGranted(context) } returns false
+        every { PermissionChecker.isDeviceAdminEnabled(context) } returns true
+        every { PermissionChecker.isVpnPermissionGranted(context) } returns true
+
+        val result = worker.doWork()
+
+        assertTrue(result is ListenableWorker.Result.Success)
+    }
+
+    @Test
+    fun doWork_withActiveSessionAndDeviceAdminDead_returnsSuccess() = runBlocking {
+        val mockSession = mockk<Session>()
+        every { mockSession.expiresAt } returns System.currentTimeMillis() + 100000
+        coEvery { sessionRepository.getActiveSessionSync() } returns mockSession
+
+        every { PermissionChecker.isAccessibilityServiceEnabled(context) } returns true
+        every { PermissionChecker.isOverlayPermissionGranted(context) } returns true
+        every { PermissionChecker.isDeviceAdminEnabled(context) } returns false
+        every { PermissionChecker.isVpnPermissionGranted(context) } returns true
+
+        val result = worker.doWork()
+
+        assertTrue(result is ListenableWorker.Result.Success)
+    }
+
+    @Test
+    fun doWork_withActiveSessionAndVpnDead_returnsSuccess() = runBlocking {
+        val mockSession = mockk<Session>()
+        every { mockSession.expiresAt } returns System.currentTimeMillis() + 100000
+        coEvery { sessionRepository.getActiveSessionSync() } returns mockSession
+
+        every { PermissionChecker.isAccessibilityServiceEnabled(context) } returns true
+        every { PermissionChecker.isOverlayPermissionGranted(context) } returns true
+        every { PermissionChecker.isDeviceAdminEnabled(context) } returns true
+        every { PermissionChecker.isVpnPermissionGranted(context) } returns false
 
         val result = worker.doWork()
 
@@ -61,6 +112,9 @@ class AccessibilityHealthWorkerTest {
     fun doWork_withNoActiveSession_returnsSuccess() = runBlocking {
         coEvery { sessionRepository.getActiveSessionSync() } returns null
         every { PermissionChecker.isAccessibilityServiceEnabled(context) } returns true
+        every { PermissionChecker.isOverlayPermissionGranted(context) } returns true
+        every { PermissionChecker.isDeviceAdminEnabled(context) } returns true
+        every { PermissionChecker.isVpnPermissionGranted(context) } returns true
 
         val result = worker.doWork()
 

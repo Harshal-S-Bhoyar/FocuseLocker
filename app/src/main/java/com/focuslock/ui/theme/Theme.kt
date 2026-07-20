@@ -36,7 +36,9 @@ fun FocusLockTheme(
             val context = view.context
             if (context is Activity) {
                 val window = context.window
+                @Suppress("DEPRECATION")
                 window.statusBarColor = CyberpunkColorScheme.background.toArgb()
+                @Suppress("DEPRECATION")
                 window.navigationBarColor = CyberpunkColorScheme.background.toArgb()
                 WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = false
             }

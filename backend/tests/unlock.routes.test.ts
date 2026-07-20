@@ -23,7 +23,7 @@ describe("Unlock Routes", () => {
     it("should return 400 for missing fields", async () => {
       const res = await request(app)
         .post("/api/request-unlock")
-        .send({ trustedContactEmail: email }); // Missing other fields
+        .send({}); // ponytail: minimal strict invalid request test
 
       expect(res.status).toBe(400);
     });
@@ -36,23 +36,12 @@ describe("Unlock Routes", () => {
         .post("/api/request-unlock")
         .send({
           trustedContactEmail: email,
-          blockedCategories: ["Social Media", "Gaming"],
-          blockedKeywords: ["reddit"],
-          timeRemaining: "01:30:00",
-          requestTimestamp: Date.now(),
         });
 
       expect(res.status).toBe(200);
       expect(res.body.success).toBe(true);
       expect(otpService.generateAndStore).toHaveBeenCalledWith(email, "SESSION_UNLOCK");
-      expect(emailService.sendUnlockOtp).toHaveBeenCalledWith(
-        email,
-        "654321",
-        {
-          categories: "Social Media, Gaming, reddit",
-          timeRemaining: "01:30:00",
-        }
-      );
+      expect(emailService.sendUnlockOtp).toHaveBeenCalledWith(email, "654321");
     });
   });
 

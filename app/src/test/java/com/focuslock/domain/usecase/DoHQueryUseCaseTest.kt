@@ -1,7 +1,8 @@
 package com.focuslock.domain.usecase
 
-import android.content.Context
-import android.content.SharedPreferences
+import com.focuslock.domain.repository.ConfigRepository
+import com.focuslock.domain.repository.DoHRepository
+import com.focuslock.data.repository.DoHRepositoryImpl
 import com.focuslock.domain.model.DoHResult
 import com.focuslock.data.repository.BlockingRepository
 import io.mockk.coEvery
@@ -22,21 +23,19 @@ import java.util.concurrent.TimeUnit
 class DoHQueryUseCaseTest {
 
     private lateinit var blockingRepository: BlockingRepository
-    private lateinit var context: Context
-    private lateinit var sharedPreferences: SharedPreferences
+    private lateinit var configRepository: ConfigRepository
+    private lateinit var dohRepository: DoHRepository
     private lateinit var okHttpClient: OkHttpClient
     private lateinit var useCase: DoHQueryUseCase
 
     @Before
     fun setup() {
         blockingRepository = mockk(relaxed = true)
-        context = mockk(relaxed = true)
-        sharedPreferences = mockk(relaxed = true)
+        configRepository = mockk(relaxed = true)
         okHttpClient = mockk(relaxed = true)
 
-        every { context.getSharedPreferences(any(), any()) } returns sharedPreferences
-        every { sharedPreferences.getString("NEXTDNS_PROFILE_ID", any()) } returns "71421a"
-        every { sharedPreferences.getBoolean("auto_mode_enabled", false) } returns true
+        coEvery { configRepository.getNextDnsProfileId() } returns "71421a"
+        coEvery { configRepository.isAutoModeEnabled() } returns true
 
         val builder = mockk<OkHttpClient.Builder>(relaxed = true)
         every { okHttpClient.newBuilder() } returns builder
@@ -48,7 +47,8 @@ class DoHQueryUseCaseTest {
         every { builder.proxy(any()) } returns builder
         every { builder.build() } returns okHttpClient
 
-        useCase = DoHQueryUseCase(blockingRepository, context, okHttpClient)
+        dohRepository = DoHRepositoryImpl(configRepository, okHttpClient)
+        useCase = DoHQueryUseCase(blockingRepository, configRepository, dohRepository)
     }
 
     private fun mockHttpResponse(body: String) {
@@ -253,7 +253,7 @@ class DoHQueryUseCaseTest {
 
     @Test
     fun `checkAndCacheDoH returns Clean when auto mode is disabled`() = runTest {
-        every { sharedPreferences.getBoolean("auto_mode_enabled", false) } returns false
+        coEvery { configRepository.isAutoModeEnabled() } returns false
         io.mockk.coEvery { blockingRepository.getCachedDomainStatus("blocked.com") } returns null
         val json = """{"Status": 3, "Question": [{"name": "blocked.com.", "type": 1}]}"""
         mockHttpResponse(json)

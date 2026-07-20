@@ -47,6 +47,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.focuslock.R
 import com.focuslock.service.admin.FocusDeviceAdminReceiver
 import com.focuslock.util.OemAutostartHelper
+import com.focuslock.util.OemBatteryOptimizationHelper
 
 @Composable
 fun PermissionSetupScreen(
@@ -100,6 +101,7 @@ fun PermissionSetupScreen(
     val batteryLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.StartActivityForResult()
     ) { 
+        viewModel.onBatteryOptimizationGranted()
         viewModel.refreshPermissions() 
         viewModel.refreshPermissionsDelayed()
     }
@@ -151,9 +153,21 @@ fun PermissionSetupScreen(
             )
         },
         onGrantBattery = {
-            batteryLauncher.launch(
-                Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS)
-            )
+            val intents = OemBatteryOptimizationHelper.getBatteryOptimizationIntentsList(context)
+            var success = false
+            for (intent in intents) {
+                try {
+                    batteryLauncher.launch(intent)
+                    success = true
+                    break
+                } catch (e: Exception) {
+                    continue
+                }
+            }
+            if (!success) {
+                 val appSettingsIntent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:${context.packageName}"))
+                 batteryLauncher.launch(appSettingsIntent)
+            }
         },
         onGrantVpn = {
             val prepareIntent = VpnService.prepare(context)
@@ -169,16 +183,23 @@ fun PermissionSetupScreen(
             }
         },
         onGrantAutostart = {
-            val intent = OemAutostartHelper.getAutostartIntent(context)
-            if (intent != null) {
+            val intents = OemAutostartHelper.getAutostartIntentsList(context)
+            var success = false
+            for (intent in intents) {
                 try {
                     autostartLauncher.launch(intent)
+                    success = true
+                    break
                 } catch (e: Exception) {
                     timber.log.Timber.e(e, "Failed to launch autostart intent")
                 }
             }
+            if (!success) {
+                 val appSettingsIntent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:${context.packageName}"))
+                 autostartLauncher.launch(appSettingsIntent)
+            }
         },
-        hasAutostartIntent = OemAutostartHelper.getAutostartIntent(context) != null,
+        hasAutostartIntent = OemAutostartHelper.getAutostartIntentsList(context).isNotEmpty(),
         onContinue = viewModel::onContinueClicked
     )
 }

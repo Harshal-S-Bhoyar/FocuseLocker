@@ -7,7 +7,6 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.focuslock.data.local.FocusDatabase
 import com.focuslock.data.repository.BlockingRepository
 import com.focuslock.domain.model.DoHResult
-import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.runBlocking
 import okhttp3.Call
@@ -23,6 +22,10 @@ import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.annotation.Config
+import com.focuslock.domain.repository.ConfigRepository
+import com.focuslock.data.repository.DoHRepositoryImpl
+import io.mockk.every
+import io.mockk.coEvery
 
 @RunWith(AndroidJUnit4::class)
 @Config(sdk = [34])
@@ -59,8 +62,13 @@ class DoHIntegrationTest {
 
         val prefs = context.getSharedPreferences("focuslock_prefs", Context.MODE_PRIVATE)
         prefs.edit().putBoolean("auto_mode_enabled", true).apply()
+        
+        val configRepository = mockk<ConfigRepository>(relaxed = true)
+        coEvery { configRepository.isAutoModeEnabled() } returns true
+        coEvery { configRepository.getNextDnsProfileId() } returns "71421a"
+        val dohRepository = DoHRepositoryImpl(configRepository, okHttpClient)
 
-        useCase = DoHQueryUseCase(repository, context, okHttpClient)
+        useCase = DoHQueryUseCase(repository, configRepository, dohRepository)
         
         runBlocking {
             db.blockedCategoryDao().insertCategory(

@@ -24,7 +24,7 @@ class ActivateSessionUseCase @Inject constructor(
         Timber.d("ActivateSessionUseCase: invoke started with duration $durationMillis ms")
         if (durationMillis !in MIN_DURATION_MILLIS..MAX_DURATION_MILLIS) {
             Timber.w("ActivateSessionUseCase: Invalid session duration $durationMillis ms")
-            return Result.failure(IllegalArgumentException("Session duration must be between 1 minute and 72 hours."))
+            return Result.failure(IllegalArgumentException("Session duration must be between 1 minute and 168 hours."))
         }
 
         // Clean up any expired session first.
@@ -78,6 +78,6 @@ class ActivateSessionUseCase @Inject constructor(
 
     private companion object {
         const val MIN_DURATION_MILLIS = 1 * 60 * 1000L
-        const val MAX_DURATION_MILLIS = 72 * 60 * 60 * 1000L
+        const val MAX_DURATION_MILLIS = 168 * 60 * 60 * 1000L
     }
 }
