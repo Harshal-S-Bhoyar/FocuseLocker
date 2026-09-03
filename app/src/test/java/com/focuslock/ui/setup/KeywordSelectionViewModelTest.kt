@@ -11,8 +11,10 @@ import io.mockk.mockk
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.resetMain
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.junit.After
@@ -74,5 +76,44 @@ class KeywordSelectionViewModelTest {
 
         coVerify { removeKeywordUseCase(1L) }
         assertEquals(null, viewModel.error.value)
+    }
+
+    @Test
+    fun `keywords flow exposes repository emissions`() = runTest {
+        val expected = listOf(BlockedKeyword(1L, "study", true, 10L))
+        every { getAllKeywordsUseCase() } returns flowOf(expected)
+        val viewModel = KeywordSelectionViewModel(getAllKeywordsUseCase, addKeywordUseCase, removeKeywordUseCase)
+        val collectJob = launch { viewModel.keywords.collect {} }
+
+        runCurrent()
+
+        assertEquals(expected, viewModel.keywords.value)
+        collectJob.cancel()
+    }
+
+    @Test
+    fun `clearError removes an existing add failure`() = runTest {
+        coEvery { addKeywordUseCase("blocked") } returns Result.failure(Exception("Limit reached"))
+        val viewModel = KeywordSelectionViewModel(getAllKeywordsUseCase, addKeywordUseCase, removeKeywordUseCase)
+
+        viewModel.addKeyword("blocked")
+        assertEquals("Limit reached", viewModel.error.value)
+
+        viewModel.clearError()
+
+        assertEquals(null, viewModel.error.value)
+    }
+
+    @Test
+    fun `removeKeyword clears a prior error even when removal fails`() = runTest {
+        coEvery { addKeywordUseCase("blocked") } returns Result.failure(Exception("Limit reached"))
+        coEvery { removeKeywordUseCase(9L) } returns Result.failure(Exception("Missing keyword"))
+        val viewModel = KeywordSelectionViewModel(getAllKeywordsUseCase, addKeywordUseCase, removeKeywordUseCase)
+
+        viewModel.addKeyword("blocked")
+        viewModel.removeKeyword(9L)
+
+        assertEquals(null, viewModel.error.value)
+        coVerify(exactly = 1) { removeKeywordUseCase(9L) }
     }
 }

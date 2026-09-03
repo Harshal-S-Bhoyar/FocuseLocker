@@ -24,8 +24,11 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.selects.select
 import kotlinx.coroutines.async
+import java.util.concurrent.atomic.AtomicLong
 import java.util.concurrent.atomic.AtomicReference
 
 /**
@@ -83,6 +86,8 @@ class FocusAccessibilityService : AccessibilityService() {
     @Volatile private var isSessionActive = false
     private val activeKeywords = AtomicReference<List<String>>(emptyList())
     private val activeDomains = AtomicReference<List<String>>(emptyList())
+    private val activeCategories = AtomicReference<List<String>>(emptyList())
+    private val domainRevision = AtomicLong(0L)
     @Volatile private var activeSessionExpiresAt: Long? = null
     private var lastProcessedUrl: String? = null
     private var lastProcessedAtMillis = 0L
@@ -93,7 +98,7 @@ class FocusAccessibilityService : AccessibilityService() {
 
     private lateinit var checkUrlForBlockedContentUseCase: CheckUrlForBlockedContentUseCase
     private lateinit var getActiveKeywordsUseCase: GetActiveKeywordsUseCase
-    private lateinit var getAllBlockedDomainsFlowUseCase: GetAllBlockedDomainsFlowUseCase
+    private lateinit var blockingRepository: com.focuslock.data.repository.BlockingRepository
     private lateinit var sessionRepository: SessionRepository
     private lateinit var smartScanUseCase: com.focuslock.domain.usecase.SmartScanUseCase
     private lateinit var dohQueryUseCase: com.focuslock.domain.usecase.DoHQueryUseCase
@@ -121,7 +126,7 @@ class FocusAccessibilityService : AccessibilityService() {
 
         checkUrlForBlockedContentUseCase = entryPoint.checkUrlForBlockedContentUseCase()
         getActiveKeywordsUseCase = entryPoint.getActiveKeywordsUseCase()
-        getAllBlockedDomainsFlowUseCase = entryPoint.getAllBlockedDomainsFlowUseCase()
+        blockingRepository = entryPoint.blockingRepository()
         sessionRepository = entryPoint.sessionRepository()
         smartScanUseCase = entryPoint.smartScanUseCase()
         dohQueryUseCase = entryPoint.dohQueryUseCase()
@@ -141,26 +146,41 @@ class FocusAccessibilityService : AccessibilityService() {
             checkUrlForBlockedContentUseCase,
             smartScanOrchestrator,
             { activeKeywords.get() },
-            { activeDomains.get() }
+            { activeDomains.get() },
+            { activeCategories.get() },
+            { domainRevision.get() }
         )
 
         settingsGuardHandler = SettingsGuardHandler(this)
 
-        // Observe active session
+        // Observe active session and domain rules for selected categories continuously
         serviceScope.launch {
-            combine(
-                sessionRepository.getActiveSession(),
-                getAllBlockedDomainsFlowUseCase()
-            ) { session, domains ->
-                Pair(session, domains)
-            }.collect { (session, domains) ->
+            sessionRepository.getActiveSession().flatMapLatest { session ->
                 isSessionActive = session != null
                 activeSessionExpiresAt = session?.expiresAt
-                if (isSessionActive) {
+
+                if (session != null) {
+                    val keys = session.selectedCategoryKeys.filter { it.isNotBlank() }
+                    activeCategories.set(keys)
+                    if (keys.isNotEmpty()) {
+                        blockingRepository.getDomainsByCategoriesFlow(keys)
+                    } else {
+                        flowOf(emptyList())
+                    }
+                } else {
+                    activeCategories.set(emptyList())
+                    settingsGuardMode = false
+                    flowOf(null)
+                }
+            }.collect { domains ->
+                domainRevision.incrementAndGet()
+                smartScanUseCase.clearCache()
+                checkUrlForBlockedContentUseCase.clearCache()
+
+                if (domains != null) {
                     activeDomains.set(domains)
                 } else {
                     activeDomains.set(emptyList())
-                    settingsGuardMode = false
                 }
             }
         }
@@ -168,6 +188,7 @@ class FocusAccessibilityService : AccessibilityService() {
         // Observe active keywords
         serviceScope.launch {
             getActiveKeywordsUseCase().collect { keywords ->
+                checkUrlForBlockedContentUseCase.clearCache()
                 activeKeywords.set(keywords)
                 keywordScanner.rebuild(keywords)
             }

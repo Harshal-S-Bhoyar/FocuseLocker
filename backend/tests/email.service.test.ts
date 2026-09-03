@@ -57,4 +57,49 @@ describe("EmailService", () => {
     expect(payload.htmlContent).not.toContain("Blocked");
     expect(payload.htmlContent).not.toContain("Time remaining");
   });
+
+  it("should escape HTML in timeRemaining and blockedCategories to prevent injection", async () => {
+    const sender = jest.fn().mockResolvedValue({});
+    const service = serviceWithSender(sender);
+
+    const maliciousTime = "<script>alert(1)</script>";
+    const maliciousCategories = ["<b>Gambling</b>", "<i>Social</i>"];
+
+    await service.sendUnlockOtp(email, otp, maliciousTime, maliciousCategories);
+
+    const payload = sender.mock.calls[0][0];
+    expect(payload.htmlContent).not.toContain("<script>");
+    expect(payload.htmlContent).not.toContain("<b>");
+    expect(payload.htmlContent).not.toContain("<i>");
+    expect(payload.htmlContent).toContain("&lt;script&gt;alert(1)&lt;/script&gt;");
+    expect(payload.htmlContent).toContain("&lt;b&gt;Gambling&lt;/b&gt;");
+    expect(payload.htmlContent).toContain("&lt;i&gt;Social&lt;/i&gt;");
+  });
+
+  it("should send the verification payload to the configured recipient", async () => {
+    const sender = jest.fn().mockResolvedValue({});
+    const service = serviceWithSender(sender);
+
+    await expect(service.sendVerificationOtp(email, otp)).resolves.toBe(true);
+
+    expect(sender).toHaveBeenCalledWith(expect.objectContaining({
+      subject: "FocusLock: Your verification code",
+      htmlContent: expect.stringContaining(otp),
+      to: [{ email }],
+    }));
+  });
+
+  it("should return false when verification delivery rejects", async () => {
+    const sender = jest.fn().mockRejectedValue(new Error("provider unavailable"));
+    const service = serviceWithSender(sender);
+
+    await expect(service.sendVerificationOtp(email, otp)).resolves.toBe(false);
+  });
+
+  it("should return false when unlock delivery rejects", async () => {
+    const sender = jest.fn().mockRejectedValue(new Error("provider unavailable"));
+    const service = serviceWithSender(sender);
+
+    await expect(service.sendUnlockOtp(email, otp)).resolves.toBe(false);
+  });
 });

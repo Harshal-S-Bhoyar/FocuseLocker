@@ -94,4 +94,34 @@ class SessionDaoTest {
         val activeSessionAfterCancel = dao.getSessionByStatus(SessionStatus.ACTIVE).first()
         assertNull(activeSessionAfterCancel)
     }
+
+    @Test
+    fun `get all sessions returns newest created session first`() = runBlocking {
+        dao.insertSession(SessionEntity(status = SessionStatus.COMPLETED, startedAt = 1L, expiresAt = 2L, unlockedEarly = false, createdAt = 10L, unlockRequestedAt = null))
+        dao.insertSession(SessionEntity(status = SessionStatus.CANCELLED, startedAt = 3L, expiresAt = 4L, unlockedEarly = false, createdAt = 20L, unlockRequestedAt = null))
+
+        val sessions = dao.getAllSessions().first()
+
+        assertEquals(listOf(20L, 10L), sessions.map { it.createdAt })
+    }
+
+    @Test
+    fun `update unlock requested timestamp persists on session`() = runBlocking {
+        val id = dao.insertSession(SessionEntity(status = SessionStatus.ACTIVE, startedAt = 1L, expiresAt = 2L, unlockedEarly = false, createdAt = 1L, unlockRequestedAt = null))
+
+        dao.updateUnlockRequestedAt(id, 99L)
+
+        assertEquals(99L, dao.getSessionById(id).first()?.unlockRequestedAt)
+    }
+
+    @Test
+    fun `delete session removes it and updates status count`() = runBlocking {
+        val id = dao.insertSession(SessionEntity(status = SessionStatus.ACTIVE, startedAt = 1L, expiresAt = 2L, unlockedEarly = false, createdAt = 1L, unlockRequestedAt = null))
+
+        assertEquals(1, dao.countSessionsByStatus(SessionStatus.ACTIVE))
+        dao.deleteSession(id)
+
+        assertNull(dao.getSessionById(id).first())
+        assertEquals(0, dao.countSessionsByStatus(SessionStatus.ACTIVE))
+    }
 }

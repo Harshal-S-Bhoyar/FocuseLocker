@@ -11,7 +11,6 @@ import javax.inject.Singleton
 class SynonymRepositoryImpl @Inject constructor(
     @ApplicationContext private val context: Context
 ) : SynonymRepository {
-
     override fun getSynonyms(): Map<String, List<String>> {
         return try {
             val jsonStr = context.assets.open("keyword_synonyms.json")
@@ -28,6 +27,7 @@ class SynonymRepositoryImpl @Inject constructor(
             }
             map
         } catch (e: Exception) {
+            timber.log.Timber.e(e, "Failed to load keyword synonyms")
             emptyMap()
         }
     }

@@ -46,9 +46,10 @@ class BootReceiver : BroadcastReceiver() {
 
     override fun onReceive(context: Context, intent: Intent) {
         Timber.tag(TAG).d("onReceive: Intercepted intent with action ${intent.action}")
-        // ponytail: defense-in-depth — reject non-system callers even though exported=false
-        if (Binder.getCallingUid() != Process.SYSTEM_UID) {
-            Timber.tag(TAG).w("Blocked non-system caller uid=%d", Binder.getCallingUid())
+        // ponytail: accept SYSTEM_UID and own process; reject third-party callers
+        val callingUid = Binder.getCallingUid()
+        if (callingUid != Process.SYSTEM_UID && callingUid != Process.myUid()) {
+            Timber.tag(TAG).w("Blocked non-system caller uid=%d", callingUid)
             return
         }
         processBootIntent(context, intent)

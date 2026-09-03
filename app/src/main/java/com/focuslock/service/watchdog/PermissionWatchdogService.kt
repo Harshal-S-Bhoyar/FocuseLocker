@@ -31,9 +31,11 @@ class PermissionWatchdogService : Service() {
     @Inject
     lateinit var sessionRepository: SessionRepository
 
-    var ioDispatcher: kotlinx.coroutines.CoroutineDispatcher = Dispatchers.IO
+    @Inject
+    @com.focuslock.di.IoDispatcher
+    lateinit var ioDispatcher: kotlinx.coroutines.CoroutineDispatcher
     private lateinit var serviceScope: CoroutineScope
-    private var pollingJob: Job? = null
+    private val pollingJob = java.util.concurrent.atomic.AtomicReference<Job?>(null)
 
     companion object {
         private const val NOTIFICATION_ID = 4002
@@ -43,11 +45,7 @@ class PermissionWatchdogService : Service() {
         fun start(context: Context) {
             Timber.tag(TAG).v("start: Starting PermissionWatchdogService")
             val intent = Intent(context, PermissionWatchdogService::class.java)
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                context.startForegroundService(intent)
-            } else {
-                context.startService(intent)
-            }
+            context.startForegroundService(intent)
         }
         
         fun stop(context: Context) {
@@ -111,13 +109,15 @@ class PermissionWatchdogService : Service() {
     }
 
     private fun startPolling() {
-        if (pollingJob?.isActive == true) {
+        val currentJob = pollingJob.get()
+        if (currentJob?.isActive == true) {
             Timber.tag(TAG).v("startPolling: Already polling, skipping")
             return
         }
         Timber.tag(TAG).v("startPolling: Coroutine launched for health checks")
-        pollingJob = serviceScope.launch {
+        val newJob = serviceScope.launch {
             try {
+                var consecutiveFailures = 0
                 Timber.tag(TAG).v("startPolling: Inside launch block, isActive=\$isActive")
                 while (isActive) {
                     try {
@@ -132,16 +132,17 @@ class PermissionWatchdogService : Service() {
                         break
                     }
                     
-                    var accessibilityOk = PermissionChecker.isAccessibilityServiceEnabled(this@PermissionWatchdogService)
-                    
-                    // Add retry logic for accessibility check to avoid false positives during heavy load
-                    if (!accessibilityOk) {
-                        delay(2000L)
-                        accessibilityOk = PermissionChecker.isAccessibilityServiceEnabled(this@PermissionWatchdogService)
-                    }
-                    if (!accessibilityOk) {
-                        delay(3000L)
-                        accessibilityOk = PermissionChecker.isAccessibilityServiceEnabled(this@PermissionWatchdogService)
+                    // ponytail: retry twice to dodge false positives under load
+                    val accessibilityOk = (0..2).any { i ->
+                        Timber.tag(TAG).v("startPolling: Checking accessibility i=$i")
+                        if (i > 0) {
+                            Timber.tag(TAG).v("startPolling: Delaying for 2500ms i=$i")
+                            delay(2500L) // 5000L total delay covered in test advanceTimeBy(6000)
+                            Timber.tag(TAG).v("startPolling: Resumed from delay i=$i")
+                        }
+                        val result = PermissionChecker.isAccessibilityServiceEnabled(this@PermissionWatchdogService)
+                        Timber.tag(TAG).v("startPolling: isAccessibilityServiceEnabled=$result i=$i")
+                        result
                     }
                     
                     val overlayOk = PermissionChecker.isOverlayPermissionGranted(this@PermissionWatchdogService)
@@ -154,33 +155,40 @@ class PermissionWatchdogService : Service() {
                             Timber.tag(TAG).w("startPolling: Accessibility revoked! Launching enforcement service.")
                             PermissionEnforcementService.start(this@PermissionWatchdogService)
                         } else {
-                            Timber.tag(TAG).e("startPolling: Critical permission(s) revoked: overlay=\$overlayOk, accessibility=\$accessibilityOk, deviceAdmin=\$deviceAdminOk, vpn=\$vpnOk. Session unguardable via overlay")
+                            Timber.tag(TAG).e("startPolling: Critical permission(s) revoked: overlay=$overlayOk, accessibility=$accessibilityOk, deviceAdmin=$deviceAdminOk, vpn=$vpnOk. Session unguardable via overlay")
                             showCriticalFailureNotification()
                             launchPermissionRepairActivity()
                         }
                     }
+                    consecutiveFailures = 0
                 } catch (e: Exception) {
                     Timber.tag(TAG).e(e, "startPolling: iteration failed")
+                    if (++consecutiveFailures >= 5) {
+                        Timber.tag(TAG).e("startPolling: too many consecutive failures, stopping")
+                        stopSelf()
+                        break
+                    }
                 }
                 
                 delay(30_000L)
+                }
+            } finally {
+                pollingJob.compareAndSet(coroutineContext[Job], null)
             }
-        } finally {
-            pollingJob = null
+        }
+        if (!pollingJob.compareAndSet(currentJob, newJob)) {
+            newJob.cancel()
         }
     }
-}
 
     private fun showCriticalFailureNotification() {
         val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val criticalChannel = NotificationChannel(
-                "critical_failure_channel",
-                "Critical Alerts",
-                NotificationManager.IMPORTANCE_HIGH
-            )
-            manager.createNotificationChannel(criticalChannel)
-        }
+        val criticalChannel = NotificationChannel(
+            "critical_failure_channel",
+            "Critical Alerts",
+            NotificationManager.IMPORTANCE_HIGH
+        )
+        manager.createNotificationChannel(criticalChannel)
         
         val repairIntent = Intent(this, com.focuslock.MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
@@ -223,15 +231,13 @@ class PermissionWatchdogService : Service() {
 
     private fun createNotificationChannel() {
         Timber.tag(TAG).v("createNotificationChannel: Checking OS version for channel creation")
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            Timber.tag(TAG).v("createNotificationChannel: Creating watchdog channel")
-            val channel = NotificationChannel(
-                CHANNEL_ID,
-                "Protection Watchdog",
-                NotificationManager.IMPORTANCE_LOW
-            )
-            val manager = getSystemService(NotificationManager::class.java)
-            manager?.createNotificationChannel(channel)
-        }
+        Timber.tag(TAG).v("createNotificationChannel: Creating watchdog channel")
+        val channel = NotificationChannel(
+            CHANNEL_ID,
+            "Protection Watchdog",
+            NotificationManager.IMPORTANCE_LOW
+        )
+        val manager = getSystemService(NotificationManager::class.java)
+        manager?.createNotificationChannel(channel)
     }
 }

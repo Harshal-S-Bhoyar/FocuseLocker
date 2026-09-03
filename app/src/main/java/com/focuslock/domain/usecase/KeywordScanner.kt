@@ -19,7 +19,12 @@ class KeywordScanner @Inject constructor(
 
     // Loaded once from SynonymRepository
     private val synonymsMap: Map<String, List<String>> by lazy {
-        synonymRepository.getSynonyms()
+        try {
+            synonymRepository.getSynonyms()
+        } catch (e: Exception) {
+            timber.log.Timber.e(e, "Failed to load synonyms; falling back to empty map")
+            emptyMap()
+        }
     }
 
     /**
@@ -33,13 +38,18 @@ class KeywordScanner @Inject constructor(
         for (keyword in keywords) {
             val kw = keyword.lowercase()
             val normalized = NormalizedMatcher.normalize(kw)
-            builder.addPattern(normalized)
+            // ponytail: only >=5 into AC automaton so short words don't shadow long words
+            if (normalized.length >= 5) {
+                builder.addPattern(normalized)
+            }
             termToKeyword[normalized] = kw
 
             val synonyms = synonymsMap[kw] ?: emptyList()
             for (syn in synonyms) {
                 val normalizedSyn = NormalizedMatcher.normalize(syn)
-                builder.addPattern(normalizedSyn)
+                if (normalizedSyn.length >= 5) {
+                    builder.addPattern(normalizedSyn)
+                }
                 termToKeyword[normalizedSyn] = kw
             }
         }

@@ -15,6 +15,9 @@ object StevenBlackConfig {
 }
 
 object StevenBlackParser {
+    // ponytail: precompile regex once instead of 58,000 times inside loop
+    private val WHITESPACE_REGEX = Regex("\\s+")
+
     fun parseHostsFile(inputStream: java.io.InputStream, categoryKey: String): List<BlockedDomainEntity> {
         val result = mutableListOf<BlockedDomainEntity>()
         inputStream.bufferedReader().useLines { lines ->
@@ -22,16 +25,18 @@ object StevenBlackParser {
                 val trimmed = line.trim()
                 if (trimmed.isEmpty() || trimmed.startsWith("#")) continue
                 
-                var domain = if (trimmed.startsWith("0.0.0.0 ") || trimmed.startsWith("127.0.0.1 ")) {
-                    val parts = trimmed.split("\\s+".toRegex())
-                    if (parts.size >= 2) parts[1] else continue
+                val parts = trimmed.split(WHITESPACE_REGEX)
+                var domain = if (
+                    parts.size >= 2 &&
+                    (parts[0] == "0.0.0.0" || parts[0] == "127.0.0.1" || parts[0] == "::1")
+                ) {
+                    parts[1]
                 } else {
                     // Plain domain list
-                    val parts = trimmed.split("\\s+".toRegex())
                     parts[0] // take the first token to avoid inline comments if any
                 }
-                
-                if (domain == "0.0.0.0" || domain == "localhost" || domain == "127.0.0.1" || domain == "255.255.255.255" || domain == "broadcasthost") continue
+
+                if (domain == "0.0.0.0" || domain == "::1" || domain == "localhost" || domain == "127.0.0.1" || domain == "255.255.255.255" || domain == "broadcasthost") continue
                 
                 if (domain.startsWith("www.")) {
                     domain = domain.substring(4)

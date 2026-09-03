@@ -25,7 +25,7 @@ class StevenBlackParserTest {
             
             plain-domain.org
         """.trimIndent()
-
+        
         val inputStream = ByteArrayInputStream(simulatedHostsContent.toByteArray(Charsets.UTF_8))
         
         val entities = StevenBlackParser.parseHostsFile(inputStream, CategoryKey.GENERAL)
@@ -46,6 +46,59 @@ class StevenBlackParserTest {
         
         // Verify defaults
         assertTrue(entities.all { !it.isAutoBlocked })
+        assertTrue(entities.all { it.blockStatus == "PERMANENT" })
+    }
+
+    @Test
+    fun `parseHostsFile returns empty list for empty input`() {
+        val entities = StevenBlackParser.parseHostsFile(
+            ByteArrayInputStream(ByteArray(0)),
+            CategoryKey.ADULT
+        )
+
+        assertTrue(entities.isEmpty())
+    }
+
+    @Test
+    fun `parseHostsFile skips all reserved host entries`() {
+        val content = """
+            127.0.0.1 localhost
+            0.0.0.0 localhost
+            255.255.255.255 broadcasthost
+            0.0.0.0 127.0.0.1
+        """.trimIndent()
+
+        val entities = StevenBlackParser.parseHostsFile(
+            ByteArrayInputStream(content.toByteArray(Charsets.UTF_8)),
+            CategoryKey.NEWS
+        )
+
+        assertTrue(entities.isEmpty())
+    }
+
+    @Test
+    fun `parseHostsFile handles tabs and strips www prefix`() {
+        val content = "0.0.0.0\twww.example.com"
+
+        val entities = StevenBlackParser.parseHostsFile(
+            ByteArrayInputStream(content.toByteArray(Charsets.UTF_8)),
+            CategoryKey.SOCIAL_MEDIA
+        )
+
+        assertEquals(listOf("example.com"), entities.map { it.domain })
+        assertTrue(entities.all { it.categoryKey == CategoryKey.SOCIAL_MEDIA })
+    }
+
+    @Test
+    fun `parseHostsFile uses the first token for plain domain lines`() {
+        val content = "example.org extra-token # comment"
+
+        val entities = StevenBlackParser.parseHostsFile(
+            ByteArrayInputStream(content.toByteArray(Charsets.UTF_8)),
+            CategoryKey.GAMBLING
+        )
+
+        assertEquals(listOf("example.org"), entities.map { it.domain })
         assertTrue(entities.all { it.blockStatus == "PERMANENT" })
     }
 }

@@ -17,12 +17,12 @@ class DoHQueryUseCase @Inject constructor(
         return dohRepository.queryDoH(domain)
     }
 
-    suspend fun checkAndCacheDoH(url: String): DoHResult {
+    suspend fun checkAndCacheDoH(url: String, activeCategories: List<String> = emptyList()): DoHResult {
         if (!configRepository.isAutoModeEnabled()) return DoHResult.Clean
 
         val domain = DomainExtractor.extract(url) ?: return DoHResult.QueryFailed
 
-        val cachedStatus = blockingRepository.getCachedDomainStatus(domain)
+        val cachedStatus = blockingRepository.getCachedDomainStatus(domain, activeCategories)
         if (cachedStatus == "PERMANENT") return DoHResult.Blocked
         if (cachedStatus == "CLEAN_CACHE") return DoHResult.Clean
 

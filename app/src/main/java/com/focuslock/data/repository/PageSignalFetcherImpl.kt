@@ -7,6 +7,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
+import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import org.jsoup.Jsoup
@@ -24,24 +25,17 @@ class PageSignalFetcherImpl @Inject constructor(
     // Prevents repeat network fetches for the same domain within a session.
     private val descriptionCache = com.focuslock.domain.util.SimpleLruCache<String, Map<String, String>>(200)
 
-    private fun getCachedEntry(key: String): Pair<Boolean, Map<String, String>?> {
-        if (!descriptionCache.containsKey(key)) return Pair(false, null)
-        return Pair(true, descriptionCache.get(key))
-    }
+    private fun getCachedEntry(key: String): Map<String, String>? = descriptionCache.get(key)
 
     private fun putCache(key: String, value: Map<String, String>) { descriptionCache.put(key, value) }
 
     override suspend fun fetchPageSignals(urlStr: String): FetchOutcome = withContext(Dispatchers.IO) {
-        val cacheKey = try {
-            val parsed = URL(if (urlStr.startsWith("http")) urlStr else "https://$urlStr")
-            parsed.host.lowercase()
-        } catch (e: Exception) {
-            return@withContext FetchOutcome.FetchError("Invalid URL")
-        }
+        val cacheKey = ensureHttpScheme(urlStr).toHttpUrlOrNull()?.newBuilder()?.fragment(null)?.build()?.toString()
+            ?: return@withContext FetchOutcome.FetchError("Invalid URL")
 
-        val (found, cached) = getCachedEntry(cacheKey)
-        if (found) {
-            return@withContext if (cached.isNullOrEmpty()) FetchOutcome.FetchEmpty else FetchOutcome.Success(cached!!)
+        val cached = getCachedEntry(cacheKey)
+        if (cached != null) {
+            return@withContext if (cached.isEmpty()) FetchOutcome.FetchEmpty else FetchOutcome.Success(cached)
         }
 
         var lastException: Exception? = null
@@ -49,7 +43,7 @@ class PageSignalFetcherImpl @Inject constructor(
             var response: okhttp3.Response? = null
             try {
                 return@withContext withTimeout(8000L) {
-                    val url = URL(if (urlStr.startsWith("http")) urlStr else "https://$urlStr")
+                    val url = URL(ensureHttpScheme(urlStr))
                     val addr = try { InetAddress.getByName(url.host) } catch (e: Exception) { throw Exception("DNS resolution failed") }
                     if (isPrivateHost(addr)) {
                         throw Exception("Blocked: private address")
@@ -83,15 +77,12 @@ class PageSignalFetcherImpl @Inject constructor(
                         val charBuffer = CharArray(8192)
                         
                         val totalHtml = StringBuilder(8192)
+                        val maxChars = charBuffer.size * 2
                         if (reader != null) {
-                            val charsRead1 = reader.read(charBuffer)
-                            if (charsRead1 > 0) {
-                                totalHtml.append(charBuffer, 0, charsRead1)
-                                // read body
-                                val charsRead2 = reader.read(charBuffer)
-                                if (charsRead2 > 0) {
-                                    totalHtml.append(charBuffer, 0, charsRead2)
-                                }
+                            while (totalHtml.length < maxChars) {
+                                val n = reader.read(charBuffer)
+                                if (n <= 0) break
+                                totalHtml.append(charBuffer, 0, n)
                             }
                         }
                         
@@ -126,6 +117,14 @@ class PageSignalFetcherImpl @Inject constructor(
         }
     }
 
+    private fun ensureHttpScheme(urlStr: String): String {
+        return if (urlStr.startsWith("http://", ignoreCase = true) || urlStr.startsWith("https://", ignoreCase = true)) {
+            urlStr
+        } else {
+            "https://$urlStr"
+        }
+    }
+
     private fun isPrivateHost(addr: InetAddress): Boolean {
         if (addr.isLoopbackAddress || addr.isSiteLocalAddress || addr.isLinkLocalAddress || addr.isAnyLocalAddress || addr.isMulticastAddress) {
             return true
@@ -141,7 +140,7 @@ class PageSignalFetcherImpl @Inject constructor(
             val b0 = address[0].toInt() and 0xFF
             val b1 = address[1].toInt() and 0xFF
             val b2 = address[2].toInt() and 0xFF
-            return b0 == 0 || b0 >= 240 ||
+            return b0 == 0 || b0 == 127 || b0 >= 240 ||
                 (b0 == 100 && b1 in 64..127) ||
                 (b0 == 192 && b1 == 0 && (b2 == 0 || b2 == 2)) ||
                 (b0 == 198 && b1 in 18..19) ||

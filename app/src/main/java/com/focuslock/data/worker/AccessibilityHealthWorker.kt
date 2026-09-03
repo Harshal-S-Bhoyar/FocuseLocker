@@ -61,6 +61,13 @@ class AccessibilityHealthWorker @AssistedInject constructor(
                             android.app.PendingIntent.FLAG_UPDATE_CURRENT or android.app.PendingIntent.FLAG_IMMUTABLE
                         )
                         val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as android.app.NotificationManager
+                        notificationManager.createNotificationChannel(
+                            android.app.NotificationChannel(
+                                "focuslock_critical",
+                                "Critical Alerts",
+                                android.app.NotificationManager.IMPORTANCE_HIGH
+                            )
+                        )
                         val notification = androidx.core.app.NotificationCompat.Builder(context, "focuslock_critical")
                             .setSmallIcon(android.R.drawable.ic_dialog_alert)
                             .setContentTitle("FocusLock Protection Stopped")

@@ -5,6 +5,7 @@ import android.os.Build
 import androidx.test.core.app.ApplicationProvider
 import com.focuslock.data.local.entity.CategoryKey
 import com.focuslock.data.repository.BlockingRepository
+import com.focuslock.domain.model.BlockedCategory
 import com.focuslock.domain.model.DoHResult
 import com.focuslock.domain.usecase.DoHQueryUseCase
 import com.focuslock.domain.usecase.GetAllCategoriesUseCase
@@ -14,6 +15,7 @@ import io.mockk.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.*
 import okhttp3.*
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
@@ -111,5 +113,60 @@ class CategoryIntegrationTest {
         // Ensure repository and network were actually queried
         coVerify(exactly = 1) { blockingRepository.getCachedDomainStatus("example.com") }
         coVerify(exactly = 1) { dohRepository.queryDoH(any()) }
+    }
+
+    @Test
+    fun `auto mode state persists and is restored by a recreated view model`() = runTest {
+        every { getAllCategoriesUseCase() } returns flowOf(emptyList())
+        val firstViewModel = CategorySelectionViewModel(getAllCategoriesUseCase, toggleCategoryUseCase, context)
+
+        firstViewModel.onAutoModeToggled(true)
+        runCurrent()
+
+        val secondViewModel = CategorySelectionViewModel(getAllCategoriesUseCase, toggleCategoryUseCase, context)
+        assertEquals(true, secondViewModel.autoMode.value)
+        assertEquals(true, context.getSharedPreferences("focuslock_prefs", Context.MODE_PRIVATE)
+            .getBoolean("auto_mode_enabled", false))
+    }
+
+    @Test
+    fun `user category toggle delegates the requested state`() = runTest {
+        every { getAllCategoriesUseCase() } returns flowOf(emptyList())
+        val viewModel = CategorySelectionViewModel(getAllCategoriesUseCase, toggleCategoryUseCase, context)
+
+        viewModel.onCategoryToggled(CategoryKey.ADULT, false)
+        runCurrent()
+
+        coVerify(exactly = 1) { toggleCategoryUseCase(CategoryKey.ADULT, false) }
+    }
+
+    @Test
+    fun `category flow is exposed unchanged through the selection view model`() = runTest {
+        val categories = listOf(
+            BlockedCategory(1L, CategoryKey.ADULT, false),
+            BlockedCategory(2L, CategoryKey.GAMING, true)
+        )
+        every { getAllCategoriesUseCase() } returns flowOf(categories)
+        val viewModel = CategorySelectionViewModel(getAllCategoriesUseCase, toggleCategoryUseCase, context)
+
+        val collectJob = launch { viewModel.categories.collect {} }
+        runCurrent()
+
+        assertEquals(categories, viewModel.categories.value)
+        collectJob.cancel()
+    }
+
+    @Test
+    fun `disabling auto mode updates state without activating categories`() = runTest {
+        every { getAllCategoriesUseCase() } returns flowOf(emptyList())
+        val viewModel = CategorySelectionViewModel(getAllCategoriesUseCase, toggleCategoryUseCase, context)
+
+        viewModel.onAutoModeToggled(false)
+        runCurrent()
+
+        assertEquals(false, viewModel.autoMode.value)
+        CategoryKey.ALL.filter { it != CategoryKey.AUTO_BLOCKED }.forEach {
+            coVerify(exactly = 0) { toggleCategoryUseCase(it, true) }
+        }
     }
 }

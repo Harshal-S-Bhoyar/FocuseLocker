@@ -93,8 +93,20 @@ class BlockingRepository @Inject constructor(
         return domainDao.getActiveBlockedDomainListFlow()
     }
 
-    suspend fun getCachedDomainStatus(domain: String): String? = withContext(Dispatchers.IO) {
-        return@withContext domainDao.findActiveDomain(domain)?.blockStatus
+    suspend fun getDomainsByCategories(categoryKeys: List<String>): List<String> {
+        return domainDao.getDomainsByCategories(categoryKeys)
+    }
+
+    fun getDomainsByCategoriesFlow(categoryKeys: List<String>): kotlinx.coroutines.flow.Flow<List<String>> {
+        if (categoryKeys.isEmpty()) return kotlinx.coroutines.flow.flowOf(emptyList())
+        return domainDao.getDomainsByCategoriesFlow(categoryKeys)
+    }
+
+    suspend fun getCachedDomainStatus(domain: String, categoryKeys: List<String> = emptyList()): String? = withContext(Dispatchers.IO) {
+        if (categoryKeys.isEmpty()) {
+            return@withContext domainDao.findActiveDomain(domain)?.blockStatus
+        }
+        return@withContext domainDao.findActiveDomainByCategories(domain, categoryKeys)?.blockStatus
     }
 
     suspend fun addAutoBlockedDomain(domain: String, keyword: String, blockStatus: String, expiresAt: Long?) = withContext(Dispatchers.IO) {
@@ -111,7 +123,8 @@ class BlockingRepository @Inject constructor(
         )
     }
 
-    suspend fun seedDomainDataIfNeeded() {
+    // ponytail: enforce Dispatchers.IO to prevent freezing main thread/looper during asset seeding
+    suspend fun seedDomainDataIfNeeded() = withContext(Dispatchers.IO) {
         // Ensure all category rows exist. IGNORE means existing rows keep user prefs.
         categoryDao.insertCategories(
             CategoryKey.ALL.map { key ->

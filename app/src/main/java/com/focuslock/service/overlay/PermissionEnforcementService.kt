@@ -56,11 +56,7 @@ class PermissionEnforcementService : Service(), LifecycleOwner, ViewModelStoreOw
             val intent = Intent(context, PermissionEnforcementService::class.java).apply {
                 action = ACTION_START
             }
-            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
-                context.startForegroundService(intent)
-            } else {
-                context.startService(intent)
-            }
+            context.startForegroundService(intent)
         }
         
         fun stop(context: Context) {

@@ -26,6 +26,7 @@ import com.focuslock.domain.repository.ConfigRepository
 import com.focuslock.data.repository.DoHRepositoryImpl
 import io.mockk.every
 import io.mockk.coEvery
+import io.mockk.verify
 
 @RunWith(AndroidJUnit4::class)
 @Config(sdk = [34])
@@ -34,6 +35,7 @@ class DoHIntegrationTest {
     private lateinit var db: FocusDatabase
     private lateinit var repository: BlockingRepository
     private lateinit var useCase: DoHQueryUseCase
+    private lateinit var configRepository: ConfigRepository
     private val okHttpClient: OkHttpClient = mockk()
 
     @Before
@@ -63,7 +65,7 @@ class DoHIntegrationTest {
         val prefs = context.getSharedPreferences("focuslock_prefs", Context.MODE_PRIVATE)
         prefs.edit().putBoolean("auto_mode_enabled", true).apply()
         
-        val configRepository = mockk<ConfigRepository>(relaxed = true)
+        configRepository = mockk(relaxed = true)
         coEvery { configRepository.isAutoModeEnabled() } returns true
         coEvery { configRepository.getNextDnsProfileId() } returns "71421a"
         val dohRepository = DoHRepositoryImpl(configRepository, okHttpClient)
@@ -120,5 +122,72 @@ class DoHIntegrationTest {
         // 6. checkAndCacheDoH should return Blocked (from cache)
         val result2 = useCase.checkAndCacheDoH("testdomain.com")
         assertEquals(DoHResult.Blocked, result2)
+    }
+
+    @Test
+    fun `clean DoH response is cached and reused`() = runBlocking {
+        mockHttpResponse("""{"Status": 0}""")
+
+        val firstResult = useCase.checkAndCacheDoH("clean.example.com")
+        assertEquals(DoHResult.Clean, firstResult)
+        assertEquals("CLEAN_CACHE", repository.getCachedDomainStatus("clean.example.com"))
+
+        mockHttpResponse("""{"Status": 3}""")
+        val cachedResult = useCase.checkAndCacheDoH("clean.example.com")
+
+        assertEquals(DoHResult.Clean, cachedResult)
+    }
+
+    @Test
+    fun `successful DNS response containing a blocking address is cached as blocked`() = runBlocking {
+        mockHttpResponse("""{"Status": 0, "Answer": [{"data": "0.0.0.0"}]}""")
+
+        val result = useCase.checkAndCacheDoH("sink.example.com")
+
+        assertEquals(DoHResult.Blocked, result)
+        assertEquals("PERMANENT", repository.getCachedDomainStatus("sink.example.com"))
+    }
+
+    @Test
+    fun `unknown DNS status is returned without creating a cache entry`() = runBlocking {
+        mockHttpResponse("""{"Status": 2}""")
+
+        val result = useCase.checkAndCacheDoH("unknown.example.com")
+
+        assertEquals(DoHResult.Unknown, result)
+        assertEquals(null, repository.getCachedDomainStatus("unknown.example.com"))
+    }
+
+    @Test
+    fun `network failure is returned without creating a cache entry`() = runBlocking {
+        val mockCall = mockk<Call>()
+        every { okHttpClient.newCall(any()) } returns mockCall
+        every { mockCall.execute() } throws java.io.IOException("network unavailable")
+
+        val result = useCase.checkAndCacheDoH("offline.example.com")
+
+        assertEquals(DoHResult.QueryFailed, result)
+        assertEquals(null, repository.getCachedDomainStatus("offline.example.com"))
+    }
+
+    @Test
+    fun `invalid URL returns query failure without querying DNS`() = runBlocking {
+        val result = useCase.checkAndCacheDoH("http://[invalid")
+
+        assertEquals(DoHResult.QueryFailed, result)
+        assertEquals(null, repository.getCachedDomainStatus("http://[invalid"))
+        verify(exactly = 0) { okHttpClient.newCall(any()) }
+    }
+
+    @Test
+    fun `disabled auto mode returns clean without network or persistence`() = runBlocking {
+        coEvery { configRepository.isAutoModeEnabled() } returns false
+        mockHttpResponse("""{"Status": 3}""")
+
+        val result = useCase.checkAndCacheDoH("disabled.example.com")
+
+        assertEquals(DoHResult.Clean, result)
+        assertEquals(null, repository.getCachedDomainStatus("disabled.example.com"))
+        verify(exactly = 0) { okHttpClient.newCall(any()) }
     }
 }

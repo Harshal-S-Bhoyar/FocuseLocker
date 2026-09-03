@@ -21,4 +21,5 @@ interface BlockingServiceEntryPoint {
     fun dohQueryUseCase(): com.focuslock.domain.usecase.DoHQueryUseCase
     fun keywordScanner(): com.focuslock.domain.usecase.KeywordScanner
     fun okHttpClient(): okhttp3.OkHttpClient
+    fun blockingRepository(): com.focuslock.data.repository.BlockingRepository
 }

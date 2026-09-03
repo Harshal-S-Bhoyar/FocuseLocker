@@ -59,7 +59,7 @@ class PermissionSetupViewModel @Inject constructor(
         refreshJob?.cancel()
         // ponytail: don't cancel delayJob here — launcher callbacks schedule delayed
         // re-reads that must survive the ON_RESUME immediate read
-        refreshJob = viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+        refreshJob = viewModelScope.launch {
             // ponytail: retry loop — OS permission state can lag 1-2s after Settings return.
             // ceiling: 3 attempts × 800ms = 2.4s max. upgrade: ContentObserver on Settings.Secure
             repeat(3) { attempt ->
@@ -91,7 +91,7 @@ class PermissionSetupViewModel @Inject constructor(
         Timber.d("PermissionSetupViewModel: refreshPermissionsDelayed() called with delayMs=$delayMs")
         delayJob?.cancel()
         // ponytail: don't cancel refreshJob — let both immediate and delayed reads coexist
-        delayJob = viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+        delayJob = viewModelScope.launch {
             delay(delayMs)
             refreshPermissions()
         }
@@ -117,7 +117,7 @@ class PermissionSetupViewModel @Inject constructor(
         Timber.d("PermissionSetupViewModel: onContinueClicked() called")
         if (_uiState.value.permissions.allCriticalGranted) {
             Timber.d("PermissionSetupViewModel: allCriticalGranted is true, proceeding to trusted contact")
-            viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+            viewModelScope.launch {
                 appSettingsRepository.setSetting("permissions_granted", "true")
                 _uiState.value = _uiState.value.copy(navigateToTrustedContact = true)
             }

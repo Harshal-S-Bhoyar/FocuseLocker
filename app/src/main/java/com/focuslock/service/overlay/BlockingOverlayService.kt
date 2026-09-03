@@ -94,8 +94,7 @@ class BlockingOverlayService : Service(), LifecycleOwner, ViewModelStoreOwner, S
                 ?.take(256)?.replace(Regex("[^\\p{L}\\p{N}\\s.\\-_/]"), "")
                 ?: "Unknown"
             val timeRemaining = intent.getLongExtra(EXTRA_TIME_REMAINING, 0L)
-                .coerceIn(0L, 86_400_000L)
-            
+                .coerceIn(0L, 168L * 60L * 60L * 1_000L)            
             showOverlay(matchedTerm, blockReason, timeRemaining)
         }
         

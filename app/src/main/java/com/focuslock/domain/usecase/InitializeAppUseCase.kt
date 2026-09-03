@@ -3,6 +3,8 @@ package com.focuslock.domain.usecase
 import com.focuslock.data.repository.AppSettingsRepository
 import com.focuslock.data.repository.BlockingRepository
 import com.focuslock.domain.repository.BackgroundSyncScheduler
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import javax.inject.Inject
 
 /**

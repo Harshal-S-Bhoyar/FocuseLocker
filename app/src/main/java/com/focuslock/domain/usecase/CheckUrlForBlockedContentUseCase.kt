@@ -8,16 +8,30 @@ import javax.inject.Inject
 
 class CheckUrlForBlockedContentUseCase @Inject constructor() {
 
-    private val cache = SimpleLruCache<String, BlockCheckResult>(200)
+    // ponytail: key cache by keyword contents hash and stable domain revision
+    private data class CacheKey(
+        val url: String,
+        val keywordsHash: Int,
+        val domainRevision: Long
+    )
+
+    private val cache = SimpleLruCache<CacheKey, BlockCheckResult>(200)
+
+    // ponytail: clear LRU cache on session state changes or rule updates
+    fun clearCache() {
+        cache.clear()
+    }
 
     operator fun invoke(
         url: String,
         keywords: List<String>,
-        domains: List<String>
+        domains: List<String>,
+        domainRevision: Long = 0L
     ): BlockCheckResult {
         if (url.isBlank()) return BlockCheckResult.Allowed
 
-        val cacheKey = "${url}|${keywords.hashCode()}|${domains.hashCode()}"
+        val keywordsHash = keywords.hashCode()
+        val cacheKey = CacheKey(url, keywordsHash, domainRevision)
         val cached = cache.get(cacheKey)
         if (cached != null) return cached
 
@@ -32,9 +46,18 @@ class CheckUrlForBlockedContentUseCase @Inject constructor() {
         } catch (_: Exception) {
             null
         }
-        val host = uri?.host?.lowercase()
+        val host = uri?.host
+            ?.trimEnd('.')
+            ?.lowercase()
+            
+        if (host.isNullOrEmpty()) {
+            val result = BlockCheckResult.Allowed
+            cache.put(cacheKey, result)
+            return result
+        }
+
         val path = uri?.path?.lowercase() ?: ""
-        val hostAndPath = (host ?: "") + path        
+        val hostAndPath = host + path        
         // 1. Check Keywords
         for (keyword in keywords) {
             if (NormalizedMatcher.matches(keyword, hostAndPath)) {
@@ -44,19 +67,20 @@ class CheckUrlForBlockedContentUseCase @Inject constructor() {
             }
         }
 
-        // 2. Check Domains
-        val normalizedHost = if (host != null && host.startsWith("www.")) host.substring(4) else host
+        // 2. Check Domains (ponytail: O(labels) set lookup; avoids O(58,000) linear scan on main thread)
+        val normalizedHost = if (host.startsWith("www.")) host.substring(4) else host
+        val domainSet = (domains as? Set<String>) ?: domains.map { if (it.startsWith("www.")) it.substring(4) else it }.toHashSet()
 
-        if (normalizedHost != null) {
-            for (domain in domains) {
-                val lowerDomain = domain.lowercase().let { if (it.startsWith("www.")) it.substring(4) else it }
-                // Match exactly or as a subdomain
-                if (normalizedHost == lowerDomain || normalizedHost.endsWith(".$lowerDomain")) {
-                    val result = BlockCheckResult.Blocked(domain, BlockReason.DOMAIN_BLOCKED)
-                    cache.put(cacheKey, result)
-                    return result
-                }
+        var candidate = normalizedHost
+        while (candidate.isNotEmpty()) {
+            if (domainSet.contains(candidate)) {
+                val result = BlockCheckResult.Blocked(candidate, BlockReason.DOMAIN_BLOCKED)
+                cache.put(cacheKey, result)
+                return result
             }
+            val dotIndex = candidate.indexOf('.')
+            if (dotIndex == -1) break
+            candidate = candidate.substring(dotIndex + 1)
         }
 
         val result = BlockCheckResult.Allowed

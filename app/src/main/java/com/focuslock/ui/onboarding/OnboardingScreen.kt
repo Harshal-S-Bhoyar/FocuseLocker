@@ -25,14 +25,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
-import androidx.compose.ui.draw.blur
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.BlendMode
-import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.focuslock.R
@@ -103,14 +102,18 @@ private fun OnboardingContent(
         }
 
         Box(contentAlignment = Alignment.Center) {
-            // Shadow / Glow effect behind the icon
-            Icon(
-                imageVector = Icons.Filled.Lock,
-                contentDescription = null,
+            // ponytail: Radial gradient glow replaces heavy RenderEffect blur to prevent first-frame GPU stall
+            Box(
                 modifier = Modifier
-                    .size(100.dp)
-                    .blur(16.dp),
-                tint = com.focuslock.ui.theme.GlowCyan
+                    .size(130.dp)
+                    .background(
+                        Brush.radialGradient(
+                            colors = listOf(
+                                com.focuslock.ui.theme.GlowCyan.copy(alpha = 0.45f),
+                                Color.Transparent
+                            )
+                        )
+                    )
             )
             // 3D Textured foreground icon
             Icon(
@@ -118,9 +121,7 @@ private fun OnboardingContent(
                 contentDescription = null,
                 modifier = Modifier
                     .size(100.dp)
-                    .graphicsLayer {
-                        compositingStrategy = CompositingStrategy.Offscreen
-                    }
+                    .graphicsLayer(alpha = 0.99f)
                     .drawWithCache {
                         val brush = Brush.linearGradient(
                             colors = listOf(

@@ -6,6 +6,7 @@ import io.mockk.mockk
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
@@ -73,5 +74,33 @@ class TimerSetupViewModelTest {
         
         // getDurationMillis should coerce to 1 minute
         assertEquals(60 * 1000L, viewModel.getDurationMillis())
+    }
+
+    @Test
+    fun `initialization reflects a verified contact`() = runTest {
+        coEvery { useCase() } returns true
+        val contactViewModel = TimerSetupViewModel(useCase)
+
+        advanceUntilIdle()
+
+        assertTrue(contactViewModel.hasVerifiedContact.value)
+    }
+
+    @Test
+    fun `out of range hour updates are ignored`() = runTest {
+        viewModel.updateHours(4)
+        viewModel.updateHours(-1)
+        viewModel.updateHours(169)
+
+        assertEquals(4, viewModel.hours.value)
+    }
+
+    @Test
+    fun `out of range minute updates are ignored`() = runTest {
+        viewModel.updateMinutes(30)
+        viewModel.updateMinutes(-1)
+        viewModel.updateMinutes(60)
+
+        assertEquals(30, viewModel.minutes.value)
     }
 }

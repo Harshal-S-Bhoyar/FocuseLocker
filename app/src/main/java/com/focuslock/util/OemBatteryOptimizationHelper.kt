@@ -10,6 +10,7 @@ import timber.log.Timber
 
 object OemBatteryOptimizationHelper {
 
+    @android.annotation.SuppressLint("BatteryLife")
     fun getBatteryOptimizationIntentsList(context: Context): List<Intent> {
         val intents = mutableListOf<Intent>()
         val manufacturer = (Build.MANUFACTURER ?: "").lowercase()
@@ -34,7 +35,7 @@ object OemBatteryOptimizationHelper {
         for (component in components) {
             val intent = Intent().apply {
                 this.component = component
-                flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                 if (manufacturer.contains("xiaomi") || manufacturer.contains("poco")) {
                     putExtra("package_name", context.packageName)
                     putExtra("package_label", context.applicationInfo.loadLabel(context.packageManager))
@@ -47,14 +48,14 @@ object OemBatteryOptimizationHelper {
 
         val requestIntent = Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
             data = Uri.parse("package:${context.packageName}")
-            flags = Intent.FLAG_ACTIVITY_NEW_TASK
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         }
         if (requestIntent.resolveActivity(context.packageManager) != null) {
             intents.add(requestIntent)
         }
 
         val standardIntent = Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS).apply {
-            flags = Intent.FLAG_ACTIVITY_NEW_TASK
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         }
         if (standardIntent.resolveActivity(context.packageManager) != null) {
             intents.add(standardIntent)
@@ -72,6 +73,9 @@ object OemBatteryOptimizationHelper {
         val intents = getBatteryOptimizationIntentsList(context)
         for (intent in intents) {
             try {
+                if (context !is android.app.Activity) {
+                    intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                }
                 Timber.d("OemBatteryOptimizationHelper: Launching battery settings intent: ${intent.component ?: intent.action}")
                 context.startActivity(intent)
                 return

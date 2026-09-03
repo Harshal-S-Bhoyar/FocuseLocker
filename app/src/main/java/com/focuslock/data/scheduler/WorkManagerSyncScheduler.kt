@@ -11,6 +11,8 @@ import javax.inject.Inject
 class WorkManagerSyncScheduler @Inject constructor(
     @ApplicationContext private val context: Context
 ) : BackgroundSyncScheduler {
+    var workManager: WorkManager? = null
+
     override fun schedulePeriodicSync() {
         val constraints = Constraints.Builder()
             .setRequiredNetworkType(NetworkType.UNMETERED)
@@ -19,7 +21,9 @@ class WorkManagerSyncScheduler @Inject constructor(
         val syncRequest = PeriodicWorkRequestBuilder<ListSyncWorker>(7, TimeUnit.DAYS)
             .setConstraints(constraints)
             .build()
-        WorkManager.getInstance(context).enqueueUniquePeriodicWork(
+            
+        val wm = workManager ?: WorkManager.getInstance(context)
+        wm.enqueueUniquePeriodicWork(
             "stevenblack_list_sync",
             ExistingPeriodicWorkPolicy.KEEP,
             syncRequest

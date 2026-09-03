@@ -25,7 +25,10 @@ data class SessionEntity(
     val unlockRequestedAt: Long? = null,
     
     @ColumnInfo(name = "created_at")
-    val createdAt: Long
+    val createdAt: Long,
+    
+    @ColumnInfo(name = "selected_category_keys", defaultValue = "''")
+    val selectedCategoryKeys: String = ""
 )
 
 object SessionStatus {

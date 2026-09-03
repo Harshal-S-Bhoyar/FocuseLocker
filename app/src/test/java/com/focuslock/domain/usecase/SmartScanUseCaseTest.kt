@@ -194,4 +194,50 @@ class SmartScanUseCaseTest {
         // Verification: If it threw cancellation, it should not have saved anything.
         coVerify(exactly = 0) { blockingRepository.addAutoBlockedDomain(any(), any(), any(), any()) }
     }
+
+    @Test
+    fun `invoke with unselected category passes activeCategories and allows site when signals clean`() = runTest {
+        // User selected only GAMING, visits amazon.com
+        coEvery { blockingRepository.getCachedDomainStatus("amazon.com", listOf("GAMING")) } returns null
+        coEvery { fetcher.fetchPageSignals("https://amazon.com") } returns FetchOutcome.Success(mapOf("page_title" to "Online Shopping"))
+        every { keywordScanner.scan(any()) } returns null
+
+        val result = useCase("https://amazon.com", activeKeywords = listOf("steam", "twitch"), activeCategories = listOf("GAMING"))
+
+        assertEquals(SmartScanResult.Clean, result)
+        coVerify { blockingRepository.getCachedDomainStatus("amazon.com", listOf("GAMING")) }
+    }
+
+    @Test
+    fun `invoke with active user keyword matching page metadata blocks site regardless of category`() = runTest {
+        coEvery { blockingRepository.getCachedDomainStatus("amazon.com", listOf("GAMING")) } returns null
+        coEvery { fetcher.fetchPageSignals("https://amazon.com") } returns FetchOutcome.Success(mapOf("page_title" to "Buy Best Gaming Deals"))
+        every { keywordScanner.scan(any()) } returns Pair("gaming", "page_title")
+
+        val result = useCase("https://amazon.com", activeKeywords = listOf("gaming"), activeCategories = listOf("GAMING"))
+
+        assertTrue(result is SmartScanResult.Blocked)
+        assertEquals("gaming", (result as SmartScanResult.Blocked).keyword)
+        coVerify { blockingRepository.addAutoBlockedDomain("amazon.com", "gaming", "PERMANENT", null) }
+    }
+
+    @Test
+    fun `clearCache flushes in-memory cache`() = runTest {
+        coEvery { blockingRepository.getCachedDomainStatus("store.steampowered.com", listOf("GAMING")) } returns "PERMANENT"
+
+        // First call caches PERMANENT
+        val firstResult = useCase("https://store.steampowered.com", listOf("game"), listOf("GAMING"))
+        assertEquals(SmartScanResult.Blocked("cache", "domain_cache"), firstResult)
+
+        // Clear cache
+        useCase.clearCache()
+
+        // Change DB status to null
+        coEvery { blockingRepository.getCachedDomainStatus("store.steampowered.com", listOf("GAMING")) } returns null
+        coEvery { fetcher.fetchPageSignals("https://store.steampowered.com") } returns FetchOutcome.Success(mapOf("title" to "Store"))
+        every { keywordScanner.scan(any()) } returns null
+
+        val secondResult = useCase("https://store.steampowered.com", listOf("game"), listOf("GAMING"))
+        assertEquals(SmartScanResult.Clean, secondResult)
+    }
 }

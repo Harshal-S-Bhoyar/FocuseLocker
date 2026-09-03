@@ -39,11 +39,26 @@ class SmartScanUseCase @Inject constructor(
 
     private val CACHE_TTL_MS = 15 * 60 * 1000L  // 15 minutes
 
+    // ponytail: clear in-memory LRU on session state changes
+    fun clearCache() {
+        memoryCache.clear()
+    }
+
+    // ponytail: key memory cache by domain + canonical categories to prevent cross-category reuse
+    private fun buildCacheKey(domain: String, categories: List<String>): String {
+        val canonical = categories.filter { it.isNotBlank() }.sorted().joinToString(",")
+        return "$domain|$canonical"
+    }
+
     /**
      * Scans the given URL's meta description for blocked keywords.
      * Returns SmartScanResult with rich match data.
      */
-    suspend operator fun invoke(urlStr: String, activeKeywords: List<String>): SmartScanResult {
+    suspend operator fun invoke(
+        urlStr: String, 
+        activeKeywords: List<String>,
+        activeCategories: List<String> = emptyList()
+    ): SmartScanResult {
         if (activeKeywords.isEmpty()) return SmartScanResult.Clean
 
         val domain = DomainExtractor.extract(urlStr) ?: return SmartScanResult.Clean
@@ -54,17 +69,19 @@ class SmartScanUseCase @Inject constructor(
             return SmartScanResult.Clean
         }
 
+        val memCacheKey = buildCacheKey(domain, activeCategories)
+
         // Check in-memory cache first
-        getCachedEntry(domain)?.let { entry ->
+        getCachedEntry(memCacheKey)?.let { entry ->
             if (System.currentTimeMillis() - entry.timestamp < CACHE_TTL_MS) {
                 return entry.result
             } else {
-                removeCache(domain)
+                removeCache(memCacheKey)
             }
         }
 
         val cachedStatus = try {
-            blockingRepository.getCachedDomainStatus(domain)
+            blockingRepository.getCachedDomainStatus(domain, activeCategories)
         } catch (e: Exception) {
             timber.log.Timber.e(e, "Database error retrieving domain status")
             return SmartScanResult.FetchFailed("db_error")
@@ -73,12 +90,12 @@ class SmartScanUseCase @Inject constructor(
         when (cachedStatus) {
             "PERMANENT" -> {
                 val result = SmartScanResult.Blocked("cache", "domain_cache")
-                putCache(domain, CacheEntry(result, System.currentTimeMillis()))
+                putCache(memCacheKey, CacheEntry(result, System.currentTimeMillis()))
                 return result
             }
             "CLEAN_CACHE" -> {
                 val result = SmartScanResult.Clean
-                putCache(domain, CacheEntry(result, System.currentTimeMillis()))
+                putCache(memCacheKey, CacheEntry(result, System.currentTimeMillis()))
                 return result
             }
         }
@@ -91,14 +108,14 @@ class SmartScanUseCase @Inject constructor(
                 // FAIL-OPEN: No content evidence available — do NOT block.
                 // Cache briefly to prevent log spam and rapid retries.
                 val result = SmartScanResult.FetchFailed("fetch_incomplete")
-                putCache(domain, CacheEntry(result, System.currentTimeMillis()))
+                putCache(memCacheKey, CacheEntry(result, System.currentTimeMillis()))
                 return result
             }
             is FetchOutcome.FetchError -> {
                 // Network error (e.g. ISP Connection Reset on blocked SNI) — allow, but cache briefly
                 // to prevent log spam and battery drain from rapid-fire retries.
                 val result = SmartScanResult.FetchFailed(outcome.reason)
-                putCache(domain, CacheEntry(result, System.currentTimeMillis()))
+                putCache(memCacheKey, CacheEntry(result, System.currentTimeMillis()))
                 return result
             }
             is FetchOutcome.Success -> {
@@ -109,14 +126,14 @@ class SmartScanUseCase @Inject constructor(
                     val (kw, signalName) = match
                     blockingRepository.addAutoBlockedDomain(domain, kw, "PERMANENT", null)
                     val result = SmartScanResult.Blocked(kw, signalName)
-                    putCache(domain, CacheEntry(result, System.currentTimeMillis()))
+                    putCache(memCacheKey, CacheEntry(result, System.currentTimeMillis()))
                     return result
                 }
 
                 val expiresAt = System.currentTimeMillis() + 24 * 60 * 60 * 1000L // 24 hours
                 blockingRepository.addAutoBlockedDomain(domain, "", "CLEAN_CACHE", expiresAt)
                 val result = SmartScanResult.Clean
-                putCache(domain, CacheEntry(result, System.currentTimeMillis()))
+                putCache(memCacheKey, CacheEntry(result, System.currentTimeMillis()))
                 return result
             }
         }

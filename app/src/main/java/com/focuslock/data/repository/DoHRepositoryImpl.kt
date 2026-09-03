@@ -35,18 +35,8 @@ class DoHRepositoryImpl @Inject constructor(
                 .url("$endpoint?name=$domain&type=A")
                 .header("Accept", "application/dns-json")
                 .build()
-                
-            val bootstrapDns = com.focuslock.service.vpn.BootstrapDns()
-            val customClient = okHttpClient.newBuilder()
-                .connectionPool(okhttp3.ConnectionPool(0, 1, java.util.concurrent.TimeUnit.NANOSECONDS))
-                .dns(bootstrapDns)
-                .connectTimeout(2, TimeUnit.SECONDS)
-                .readTimeout(2, TimeUnit.SECONDS)
-                .writeTimeout(1, TimeUnit.SECONDS)
-                .proxy(java.net.Proxy.NO_PROXY)
-                .build()
 
-            val responseBody = customClient.newCall(request).execute().use { response ->
+            val responseBody = okHttpClient.newCall(request).execute().use { response ->
                 if (!response.isSuccessful) return@withContext DoHResult.QueryFailed
                 response.body?.string() ?: return@withContext DoHResult.QueryFailed
             }

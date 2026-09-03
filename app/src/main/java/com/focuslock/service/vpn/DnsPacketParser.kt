@@ -51,14 +51,18 @@ object DnsPacketParser {
         val domainName = StringBuilder()
         var iterations = 0
         
+        var terminated = false
         while (queryOffset < startPos + length && iterations < 128 && domainName.length < 254) {
-            iterations++
             if (queryOffset >= startPos + length) return null // VULN-002 fix: strict bound check before read
             val labelLength = buffer.get(queryOffset).toInt() and 0xFF
-            if (labelLength == 0) break 
-            
-            if ((labelLength and 0xC0) == 0xC0) {
+            if (labelLength == 0) {
+                terminated = true
                 break 
+            }
+            iterations++
+            
+            if ((labelLength and 0xC0) != 0) {
+                return null 
             }
             
             queryOffset++
@@ -77,7 +81,7 @@ object DnsPacketParser {
             queryOffset += labelLength
         }
         
-        if (iterations >= 128 || domainName.length >= 254) {
+        if (!terminated || domainName.length >= 254) {
             return null
         }
         

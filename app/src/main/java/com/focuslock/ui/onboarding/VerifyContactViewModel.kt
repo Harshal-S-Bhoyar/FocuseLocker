@@ -9,6 +9,8 @@ import com.focuslock.domain.usecase.SaveTrustedContactUseCase
 import com.focuslock.domain.usecase.VerifyContactOtpUseCase
 import com.focuslock.domain.usecase.VerifyOtpResult
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -24,6 +26,7 @@ data class VerifyContactUiState(
     val attemptsRemaining: Int = 3,
     val isResending: Boolean = false,
     val resendSuccess: Boolean = false,
+    val resendCooldownSeconds: Int = 0,
     val navigateToSetup: Boolean = false
 )
 
@@ -97,14 +100,17 @@ class VerifyContactViewModel @Inject constructor(
         }
     }
 
+    // ponytail: job ref only to cancel if user somehow triggers twice; no RateLimiter class needed
+    private var cooldownJob: Job? = null
+
     fun onResendOtpClicked() {
-        val email = _uiState.value.email
-        if (email.isBlank()) return
+        val state = _uiState.value
+        if (state.email.isBlank() || state.isResending || state.resendCooldownSeconds > 0) return
 
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isResending = true, errorMessage = null)
 
-            when (saveTrustedContactUseCase(email)) {
+            when (saveTrustedContactUseCase(state.email)) {
                 is SaveContactResult.OtpSent -> {
                     _uiState.value = _uiState.value.copy(
                         isResending = false,
@@ -112,6 +118,14 @@ class VerifyContactViewModel @Inject constructor(
                         attemptsRemaining = 3,
                         otp = ""
                     )
+                    cooldownJob?.cancel()
+                    cooldownJob = viewModelScope.launch {
+                        for (s in 60 downTo 1) {
+                            _uiState.value = _uiState.value.copy(resendCooldownSeconds = s)
+                            delay(1_000)
+                        }
+                        _uiState.value = _uiState.value.copy(resendCooldownSeconds = 0)
+                    }
                 }
                 is SaveContactResult.Error -> {
                     _uiState.value = _uiState.value.copy(

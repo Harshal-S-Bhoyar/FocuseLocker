@@ -11,11 +11,18 @@ router.post(
   "/request-unlock",
   validate(requestUnlockSchema),
   asyncErrorWrapper(async (req: Request, res: Response) => {
-    const { trustedContactEmail } = req.body;
+    const { trustedContactEmail, timeRemaining, blockedCategories } = req.body;
 
     const otp = await otpService.generateAndStore(trustedContactEmail, "SESSION_UNLOCK");
 
-    const sent = await emailService.sendUnlockOtp(trustedContactEmail, otp);
+    const sent = (timeRemaining !== undefined || blockedCategories !== undefined)
+      ? await emailService.sendUnlockOtp(
+          trustedContactEmail,
+          otp,
+          timeRemaining,
+          blockedCategories
+        )
+      : await emailService.sendUnlockOtp(trustedContactEmail, otp);
 
     if (!sent) {
       res.status(500).json({ success: false, message: "Failed to send Email" });

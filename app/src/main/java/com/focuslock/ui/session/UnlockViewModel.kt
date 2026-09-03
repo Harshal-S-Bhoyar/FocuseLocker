@@ -21,6 +21,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import java.util.Locale
 
 sealed class UnlockUiState {
     object Idle : UnlockUiState()
@@ -105,9 +106,9 @@ class UnlockViewModel @Inject constructor(
                     val hours = millis / (1000 * 60 * 60)
                     val minutes = (millis % (1000 * 60 * 60)) / (1000 * 60)
                     _timeRemainingFormatted.value = if (hours > 0) {
-                        String.format("%dh %02dm", hours, minutes)
+                        String.format(Locale.ROOT, "%dh %02dm", hours, minutes)
                     } else {
-                        String.format("%dm", minutes)
+                        String.format(Locale.ROOT, "%dm", minutes)
                     }
                 }
             }

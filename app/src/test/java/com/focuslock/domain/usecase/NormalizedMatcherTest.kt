@@ -1,5 +1,6 @@
 package com.focuslock.domain.usecase
 
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -40,5 +41,11 @@ class NormalizedMatcherTest {
         // keywords <= 4 chars use \b
         assertFalse(NormalizedMatcher.matches("bet", "alphabet"))
         assertTrue(NormalizedMatcher.matches("bet", "place a bet now"))
+    }
+
+    @Test
+    fun `test normalize removes accents and collapses surrounding whitespace`() {
+        assertEquals("cafe au lait", NormalizedMatcher.normalize("  Café   au lait  "))
+        assertTrue(NormalizedMatcher.matches("café", "CAFE"))
     }
 }

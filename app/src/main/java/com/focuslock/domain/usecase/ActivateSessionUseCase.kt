@@ -18,7 +18,8 @@ class ActivateSessionUseCase @Inject constructor(
     private val sessionRepository: SessionRepository,
     private val sessionWorkerScheduler: SessionWorkerScheduler,
     private val sessionRuntimeController: SessionRuntimeController,
-    private val cleanupStaleSessionUseCase: CleanupStaleSessionUseCase
+    private val cleanupStaleSessionUseCase: CleanupStaleSessionUseCase,
+    private val blockingRepository: com.focuslock.data.repository.BlockingRepository
 ) {
     suspend operator fun invoke(durationMillis: Long): Result<Long> {
         Timber.d("ActivateSessionUseCase: invoke started with duration $durationMillis ms")
@@ -39,7 +40,8 @@ class ActivateSessionUseCase @Inject constructor(
         val expiresAt = System.currentTimeMillis() + durationMillis
         var sessionId: Long? = null
         return try {
-            val createdSessionId = sessionRepository.startSession(expiresAt)
+            val activeCategories = blockingRepository.getActiveCategoryKeys()
+            val createdSessionId = sessionRepository.startSession(expiresAt, activeCategories)
             sessionId = createdSessionId
             Timber.d("ActivateSessionUseCase: started session in repository, sessionId = $sessionId")
             sessionWorkerScheduler.scheduleSessionTimers(expiresAt)

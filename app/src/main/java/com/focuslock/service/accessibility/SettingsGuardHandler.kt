@@ -15,23 +15,35 @@ class SettingsGuardHandler(
         Timber.tag(TAG).d("handleSettingsEvent: Processing settings event.")
         val source = event.source ?: return
         
-        // ponytail: keyword list covers all known OEM/AOSP labels for overlay + existing guards
         val sensitiveKeywords = listOf(
-            "FocusLock", "Device admin", "Device administrator", "VPN", "Accessibility",
+            "Device admin", "Device administrator", "VPN", "Accessibility",
             "Display over other apps", "Appear on top", "Draw over other apps",
-            "Overlay", "permit drawing over", "Show on top", "Display pop-up windows",
+            "Overlay", "permit drawing over", "Show on top", "Display pop-up windows"
+        )
+        
+        val genericActionKeywords = listOf(
             "App info", "Force stop", "Uninstall", "Clear data", "Clear cache"
         )
         
         val allText = mutableListOf<String>()
         collectAllNodeText(source, allText)
-        source.recycle()
         
-        val found = allText.any { text ->
+        val isFocusLock = allText.any { it.contains("FocusLock", ignoreCase = true) } ||
+                source.packageName?.toString()?.contains("focuslock", ignoreCase = true) == true
+                
+        val foundSensitive = allText.any { text ->
             sensitiveKeywords.any { keyword -> 
                 text.contains(keyword, ignoreCase = true)
             }
         }
+        
+        val foundGeneric = allText.any { text ->
+            genericActionKeywords.any { keyword -> 
+                text.contains(keyword, ignoreCase = true)
+            }
+        }
+        
+        val found = foundSensitive || (isFocusLock && foundGeneric)
         
         if (found) {
             service.performGlobalAction(android.accessibilityservice.AccessibilityService.GLOBAL_ACTION_BACK)
@@ -50,7 +62,6 @@ class SettingsGuardHandler(
             val child = node.getChild(i)
             if (child != null) {
                 collectAllNodeText(child, textList)
-                child.recycle()
             }
         }
     }

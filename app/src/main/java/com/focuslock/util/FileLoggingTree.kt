@@ -11,6 +11,8 @@ import java.util.Locale
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 
+// Direct Logcat fallback is intentional here: Timber would recurse through this Timber tree on failure.
+@android.annotation.SuppressLint("LogNotTimber")
 class FileLoggingTree(
     private val context: Context,
     @Volatile var minLogLevel: Int = Log.INFO,

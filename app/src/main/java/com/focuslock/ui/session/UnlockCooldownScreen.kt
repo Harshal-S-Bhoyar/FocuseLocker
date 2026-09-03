@@ -5,6 +5,7 @@ import androidx.compose.material.icons.Icons
 // import removed
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import java.util.Locale
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -31,7 +32,7 @@ fun UnlockCooldownScreen(
 
     // Live countdown in milliseconds — ticks every second
     var remainingMillis by remember(endsAt) {
-        mutableStateOf(maxOf(0L, endsAt - System.currentTimeMillis()))
+        mutableLongStateOf(maxOf(0L, endsAt - System.currentTimeMillis()))
     }
 
     // Tick the countdown every second
@@ -50,7 +51,7 @@ fun UnlockCooldownScreen(
     // Format remainingMillis as MM:SS
     val minutes = (remainingMillis / 1000) / 60
     val seconds = (remainingMillis / 1000) % 60
-    val countdownText = String.format("%02d:%02d", minutes, seconds)
+    val countdownText = String.format(Locale.ROOT, "%02d:%02d", minutes, seconds)
 
     Scaffold(
         topBar = {

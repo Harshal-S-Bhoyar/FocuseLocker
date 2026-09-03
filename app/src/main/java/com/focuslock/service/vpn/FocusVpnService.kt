@@ -21,6 +21,8 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.launch
 
 class FocusVpnService : VpnService() {
@@ -33,8 +35,7 @@ class FocusVpnService : VpnService() {
     private var sessionMonitorJob: Job? = null
     private var domainObserverJob: Job? = null
 
-    private lateinit var getActiveBlockedDomainsUseCase: GetActiveBlockedDomainsUseCase
-    private lateinit var getAllBlockedDomainsFlowUseCase: GetAllBlockedDomainsFlowUseCase
+    private lateinit var blockingRepository: com.focuslock.data.repository.BlockingRepository
     private lateinit var sessionRepository: SessionRepository
 
     @Volatile
@@ -50,8 +51,7 @@ class FocusVpnService : VpnService() {
             applicationContext,
             BlockingServiceEntryPoint::class.java
         )
-        getActiveBlockedDomainsUseCase = entryPoint.getActiveBlockedDomainsUseCase()
-        getAllBlockedDomainsFlowUseCase = entryPoint.getAllBlockedDomainsFlowUseCase()
+        blockingRepository = entryPoint.blockingRepository()
         sessionRepository = entryPoint.sessionRepository()
         okHttpClient = entryPoint.okHttpClient()
         
@@ -65,32 +65,32 @@ class FocusVpnService : VpnService() {
         startForeground(NOTIFICATION_ID, notification)
         
         serviceScope.launch {
-            // Eager initial load — fills activeDomains before VPN starts to prevent race condition
-            // where packets arrive before first Flow emission from Room.
-            val initialDomains = getActiveBlockedDomainsUseCase()
-            activeDomains = HashSet(initialDomains.map { it.lowercase() })
-            Timber.tag(TAG).d("VPN Blocklist initial load: ${activeDomains.size} domains")
-
-            // Live observer — picks up category toggles, auto-blocks, new seeds without restart.
-            domainObserverJob?.cancel()
-            domainObserverJob = launch {
-                getAllBlockedDomainsFlowUseCase().collectLatest { domains ->
-                    activeDomains = HashSet(domains.map { it.lowercase() })
-                    Timber.tag(TAG).d("VPN Blocklist updated: ${activeDomains.size} domains active")
-                }
-            }
-
-            // Monitor session status
+            // Monitor session status and scope activeDomains strictly to selectedCategoryKeys, updating dynamically
             sessionMonitorJob?.cancel()
             sessionMonitorJob = launch {
-                sessionRepository.getActiveSession().collectLatest { session ->
+                sessionRepository.getActiveSession().flatMapLatest { session ->
                     if (session == null) {
+                        flowOf(null)
+                    } else {
+                        val keys = session.selectedCategoryKeys.filter { it.isNotBlank() }
+                        if (keys.isNotEmpty()) {
+                            blockingRepository.getDomainsByCategoriesFlow(keys)
+                        } else {
+                            flowOf(emptyList())
+                        }
+                    }
+                }.collectLatest { domains ->
+                    if (domains == null) {
+                        activeDomains = HashSet()
                         stopVpn()
+                    } else {
+                        activeDomains = HashSet(domains.map { it.lowercase() })
+                        Timber.tag(TAG).d("VPN Blocklist updated for session: ${activeDomains.size} domains active")
+                        // ponytail: invoke startVpn only after active session blocklist is configured
+                        startVpn()
                     }
                 }
             }
-
-            startVpn()
         }
         
         return START_STICKY

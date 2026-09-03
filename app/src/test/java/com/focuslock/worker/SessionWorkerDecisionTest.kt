@@ -19,4 +19,14 @@ class SessionWorkerDecisionTest {
     fun `evaluate returns remaining duration for active session`() {
         assertEquals(SessionWorkerDecision.Active(50L), SessionWorkerDecision.evaluate(150L, 100L))
     }
+
+    @Test
+    fun `evaluate returns expired when current time is after expiry`() {
+        assertEquals(SessionWorkerDecision.Expired, SessionWorkerDecision.evaluate(99L, 100L))
+    }
+
+    @Test
+    fun `evaluate preserves a one millisecond active remainder`() {
+        assertEquals(SessionWorkerDecision.Active(1L), SessionWorkerDecision.evaluate(101L, 100L))
+    }
 }

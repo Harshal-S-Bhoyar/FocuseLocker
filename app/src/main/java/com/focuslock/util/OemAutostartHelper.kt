@@ -76,7 +76,7 @@ object OemAutostartHelper {
         for (component in components) {
             val intent = Intent().apply {
                 this.component = component
-                flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             }
             if (intent.resolveActivity(context.packageManager) != null) {
                 intents.add(intent)
@@ -89,6 +89,9 @@ object OemAutostartHelper {
         val intents = getAutostartIntentsList(context)
         for (intent in intents) {
             try {
+                if (context !is android.app.Activity) {
+                    intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                }
                 Timber.d("OemAutostartHelper: Resolved autostart intent for ${Build.MANUFACTURER}. Launching: ${intent.component}")
                 context.startActivity(intent)
                 return

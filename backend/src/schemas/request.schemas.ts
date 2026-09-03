@@ -18,6 +18,8 @@ export const confirmContactSchema = z.object({
 export const requestUnlockSchema = z.object({
   body: z.object({
     trustedContactEmail: z.string().email("Invalid email address"),
+    timeRemaining: z.union([z.string(), z.number()]).optional(),
+    blockedCategories: z.array(z.string()).optional(),
   }),
 });
 

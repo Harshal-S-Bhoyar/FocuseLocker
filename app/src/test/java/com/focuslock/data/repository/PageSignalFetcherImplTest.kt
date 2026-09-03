@@ -67,7 +67,7 @@ class PageSignalFetcherImplTest {
         assertTrue(outcome2 is FetchOutcome.Success)
         assertEquals(1, mockInterceptor.requests.size) // No new request
         
-        // Fetch for a different path on same host should NOT hit cache
+        // Fetch for a different path on same host should NOT hit cache (distinct page)
         val outcome3 = fetcher.fetchPageSignals("example.com/path2")
         assertTrue(outcome3 is FetchOutcome.Success)
         assertEquals(2, mockInterceptor.requests.size) // New request made
@@ -90,5 +90,46 @@ class PageSignalFetcherImplTest {
         val outcome2 = fetcher.fetchPageSignals("https://example.com/error")
         assertTrue(outcome2 is FetchOutcome.Success)
         assertEquals("Success", (outcome2 as FetchOutcome.Success).signals["meta_description"])
+    }
+
+    @Test
+    fun `test short successful body returns empty and is cached`() = runTest {
+        mockInterceptor.responseBody = "<html><body>short</body></html>"
+
+        val first = fetcher.fetchPageSignals("https://example.com/short")
+        assertTrue(first is FetchOutcome.FetchEmpty)
+        assertEquals(1, mockInterceptor.requests.size)
+
+        val second = fetcher.fetchPageSignals("https://example.com/short")
+        assertTrue(second is FetchOutcome.FetchEmpty)
+        assertEquals(1, mockInterceptor.requests.size)
+    }
+
+    @Test
+    fun `test non-success HTTP response is returned as fetch error`() = runTest {
+        mockInterceptor.responseCode = 503
+        mockInterceptor.responseBody = "service unavailable"
+
+        val outcome = fetcher.fetchPageSignals("https://example.com/unavailable")
+
+        assertTrue(outcome is FetchOutcome.FetchError)
+        assertTrue((outcome as FetchOutcome.FetchError).reason.contains("HTTP error: 503"))
+    }
+
+    @Test
+    fun `test invalid URL is rejected before network access`() = runTest {
+        val outcome = fetcher.fetchPageSignals("https://[invalid")
+
+        assertTrue(outcome is FetchOutcome.FetchError)
+        assertEquals(0, mockInterceptor.requests.size)
+    }
+
+    @Test
+    fun `test private address is blocked by SSRF protection`() = runTest {
+        val outcome = fetcher.fetchPageSignals("http://127.0.0.1/private")
+
+        assertTrue(outcome is FetchOutcome.FetchError)
+        assertTrue((outcome as FetchOutcome.FetchError).reason.contains("private address"))
+        assertEquals(0, mockInterceptor.requests.size)
     }
 }

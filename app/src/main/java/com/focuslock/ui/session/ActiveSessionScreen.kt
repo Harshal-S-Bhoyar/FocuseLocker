@@ -30,7 +30,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.remember
 import kotlinx.coroutines.delay
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -50,6 +50,7 @@ import java.util.Locale
  * Shows the live countdown and provides the option to request an early unlock.
  */
 @OptIn(ExperimentalMaterial3Api::class)
+@android.annotation.SuppressLint("BatteryLife")
 @Composable
 fun ActiveSessionScreen(
     onNavigateToSessionComplete: () -> Unit,
@@ -180,7 +181,7 @@ fun ActiveSessionScreen(
             if (unlockInfo?.status == com.focuslock.domain.model.UnlockRequestStatus.COOLDOWN) {
                 val endsAt = unlockInfo?.cooldownEndsAt ?: 0L
                 var cooldownRemainingMillis by remember(endsAt) {
-                    mutableStateOf(maxOf(0L, endsAt - System.currentTimeMillis()))
+                    mutableLongStateOf(maxOf(0L, endsAt - System.currentTimeMillis()))
                 }
 
                 LaunchedEffect(endsAt) {
@@ -196,7 +197,7 @@ fun ActiveSessionScreen(
                 if (endsAt > 0L) {
                     val minutes = (cooldownRemainingMillis / 1000) / 60
                     val seconds = (cooldownRemainingMillis / 1000) % 60
-                    val countdownText = String.format("%02d:%02d", minutes, seconds)
+                    val countdownText = String.format(Locale.ROOT, "%02d:%02d", minutes, seconds)
                     
                     Card(
                         modifier = Modifier.fillMaxWidth(),

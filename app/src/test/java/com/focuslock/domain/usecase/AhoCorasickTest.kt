@@ -44,4 +44,15 @@ class AhoCorasickTest {
         val match = aho.searchFirst("hello world")
         assertNull(match)
     }
+
+    @Test
+    fun searchFirst_matchesPatternsContainingDigits_andReportsEndPosition() {
+        val aho = AhoCorasick.Builder().addPattern("v2").build()
+
+        val match = aho.searchFirst("release v2")
+
+        assertNotNull(match)
+        assertEquals("v2", match?.keyword)
+        assertEquals(9, match?.position)
+    }
 }

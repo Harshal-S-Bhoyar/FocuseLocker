@@ -11,6 +11,7 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.yield
 import okhttp3.MediaType.Companion.toMediaType
@@ -32,16 +33,16 @@ class VpnPacketLoop(
 ) {
     private val TAG = "SVC_VPN_PACKET"
     private val loopScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
-    private val bufferPool = java.util.concurrent.ConcurrentLinkedQueue<ByteArray>()
+    // ponytail: bump pool to 32 and semaphore to 64 to prevent mobile DNS queue starvation
+    private val bufferPool = java.util.concurrent.ArrayBlockingQueue<ByteArray>(32)
+    private val dohSemaphore = Semaphore(64)
 
     private fun getBuffer(): ByteArray {
         return bufferPool.poll() ?: ByteArray(32767)
     }
 
     private fun releaseBuffer(buffer: ByteArray) {
-        if (bufferPool.size < 10) {
-            bufferPool.offer(buffer)
-        }
+        bufferPool.offer(buffer)
     }
 
     suspend fun runLoop() = withContext(Dispatchers.IO) {
@@ -106,29 +107,42 @@ class VpnPacketLoop(
                                 if (isDomainBlocked(domain)) {
                                     Timber.tag(TAG).v("DNS BLOCKED (local): $domain")
                                     val responseLength = buildNxDomainResponse(packet, length, nxBuffer)
-                                    outputStream.write(nxBuffer, 0, responseLength)
+                                    synchronized(outputLock) {
+                                        outputStream.write(nxBuffer, 0, responseLength)
+                                    }
                                 } else {
                                     val dnsOffset = udpOffset + 8
                                     val dnsPayloadLength = length - dnsOffset
 
+                                    dohSemaphore.acquire()
                                     val packetBytes = getBuffer()
-                                    packet.position(0)
-                                    packet.get(packetBytes, 0, length)
+                                    var launched = false
+                                    try {
+                                        packet.position(0)
+                                        packet.get(packetBytes, 0, length)
 
-                                    loopScope.launch {
-                                        try {
-                                            forwardDnsViaDoH(
-                                                packetBytes = packetBytes,
-                                                outputStream = outputStream,
-                                                domain = domain,
-                                                dnsPayloadLength = dnsPayloadLength,
-                                                isIpv6 = isIpv6,
-                                                ipHeaderLength = ipHeaderLength,
-                                                udpOffset = udpOffset,
-                                                dnsOffset = dnsOffset
-                                            )
-                                        } finally {
+                                        loopScope.launch {
+                                            try {
+                                                forwardDnsViaDoH(
+                                                    packetBytes = packetBytes,
+                                                    outputStream = outputStream,
+                                                    domain = domain,
+                                                    dnsPayloadLength = dnsPayloadLength,
+                                                    isIpv6 = isIpv6,
+                                                    ipHeaderLength = ipHeaderLength,
+                                                    udpOffset = udpOffset,
+                                                    dnsOffset = dnsOffset
+                                                )
+                                            } finally {
+                                                releaseBuffer(packetBytes)
+                                                dohSemaphore.release()
+                                            }
+                                        }
+                                        launched = true
+                                    } finally {
+                                        if (!launched) {
                                             releaseBuffer(packetBytes)
+                                            dohSemaphore.release()
                                         }
                                     }
                                 }
@@ -209,7 +223,7 @@ class VpnPacketLoop(
                         )
 
                         try {
-                            synchronized(outputStream) {
+                            synchronized(outputLock) {
                                 outputStream.write(responseArray, 0, responseLen)
                             }
                         } finally {
@@ -231,6 +245,8 @@ class VpnPacketLoop(
             Timber.tag(TAG).e(e, "DoH EXC: ep=${dnsConfig.dohEndpoint} ${e.javaClass.simpleName}:${e.message}")
         }
     }
+
+    private val outputLock = Any()
 
     // ponytail: returns (responseArray, responseLength) using pooled buffer
     // ceiling: pool capped at 10; if exhausted, falls back to fresh alloc (same as before)

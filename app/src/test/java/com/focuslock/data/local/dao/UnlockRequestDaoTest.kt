@@ -82,4 +82,41 @@ class UnlockRequestDaoTest {
         val attempts = dao.getOtpAttempts(id)
         assertEquals(2, attempts)
     }
+
+    @Test
+    fun `requests by session are ordered newest first`() = runBlocking {
+        sessionDao.insertSession(SessionEntity(id = 1L, status = SessionStatus.ACTIVE, startedAt = 1L, expiresAt = 2L, createdAt = 1L))
+        dao.insertRequest(UnlockRequestEntity(sessionId = 1L, status = UnlockRequestStatus.PENDING, requestedAt = 10L, cooldownEndsAt = null))
+        dao.insertRequest(UnlockRequestEntity(sessionId = 1L, status = UnlockRequestStatus.COMPLETED, requestedAt = 20L, cooldownEndsAt = null))
+
+        val requests = dao.getRequestsBySession(1L).first()
+
+        assertEquals(listOf(20L, 10L), requests.map { it.requestedAt })
+    }
+
+    @Test
+    fun `update request status and cooldown fields`() = runBlocking {
+        sessionDao.insertSession(SessionEntity(id = 1L, status = SessionStatus.ACTIVE, startedAt = 1L, expiresAt = 2L, createdAt = 1L))
+        val id = dao.insertRequest(UnlockRequestEntity(sessionId = 1L, status = UnlockRequestStatus.PENDING, requestedAt = 10L, cooldownEndsAt = null))
+
+        dao.updateRequestStatus(id, UnlockRequestStatus.COMPLETED)
+        dao.updateCooldownEndsAt(id, 99L)
+
+        val request = dao.getRequestById(id).first()
+        assertEquals(UnlockRequestStatus.COMPLETED, request?.status)
+        assertEquals(99L, request?.cooldownEndsAt)
+    }
+
+    @Test
+    fun `delete requests by session preserves other session requests`() = runBlocking {
+        sessionDao.insertSession(SessionEntity(id = 1L, status = SessionStatus.ACTIVE, startedAt = 1L, expiresAt = 2L, createdAt = 1L))
+        sessionDao.insertSession(SessionEntity(id = 2L, status = SessionStatus.ACTIVE, startedAt = 3L, expiresAt = 4L, createdAt = 3L))
+        dao.insertRequest(UnlockRequestEntity(sessionId = 1L, status = UnlockRequestStatus.PENDING, requestedAt = 10L, cooldownEndsAt = null))
+        dao.insertRequest(UnlockRequestEntity(sessionId = 2L, status = UnlockRequestStatus.PENDING, requestedAt = 20L, cooldownEndsAt = null))
+
+        dao.deleteRequestsBySession(1L)
+
+        assertEquals(emptyList<UnlockRequestEntity>(), dao.getRequestsBySession(1L).first())
+        assertEquals(1, dao.getRequestsBySession(2L).first().size)
+    }
 }

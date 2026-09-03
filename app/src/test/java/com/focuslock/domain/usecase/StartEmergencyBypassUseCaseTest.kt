@@ -113,4 +113,27 @@ class StartEmergencyBypassUseCaseTest {
         // Assert diff is less than 1 second (1000ms) to account for execution time
         assertTrue("EndsAt difference was $diff ms, expected < 1000ms", diff < 1000L)
     }
+
+    @Test
+    fun `invoke creates a new emergency after a non-emergency request`() = runTest {
+        val sessionId = 2L
+        val newRequestId = 20L
+        val priorRequest = UnlockRequest(
+            id = 6L,
+            sessionId = sessionId,
+            requestedAt = System.currentTimeMillis(),
+            status = UnlockRequestStatus.COMPLETED,
+            otpAttempts = 1,
+            cooldownEndsAt = null
+        )
+        coEvery { unlockRepository.getLatestRequestSync(sessionId) } returns priorRequest
+        coEvery { unlockRepository.createRequest(sessionId) } returns newRequestId
+
+        val result = useCase(sessionId)
+
+        assertTrue(result.isSuccess)
+        coVerify(exactly = 1) { unlockRepository.createRequest(sessionId) }
+        coVerify(exactly = 1) { unlockRepository.updateStatus(newRequestId, UnlockRequestStatus.EMERGENCY) }
+        coVerify(exactly = 1) { unlockWorkerScheduler.scheduleEmergencyBypass(any()) }
+    }
 }

@@ -1,6 +1,7 @@
 package com.focuslock.service.accessibility
 
 import android.content.Intent
+import android.os.SystemClock
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
 import com.focuslock.domain.model.BlockCheckResult
@@ -13,12 +14,16 @@ class BrowserEventHandler(
     private val checkUrlForBlockedContentUseCase: CheckUrlForBlockedContentUseCase,
     private val smartScanOrchestrator: SmartScanOrchestrator,
     private val getActiveKeywords: () -> List<String>,
-    private val getActiveDomains: () -> List<String>
+    private val getActiveDomains: () -> List<String>,
+    private val getActiveCategories: () -> List<String> = { emptyList() },
+    private val getDomainRevision: () -> Long = { 0L }
 ) {
     private var lastProcessedUrl: String? = null
+    private var lastProcessedUrlAtMillis = 0L
     
     companion object {
         private const val TAG = "SVC_ACCESSIBILITY"
+        private const val URL_DEBOUNCE_MILLIS = 500L
     }
 
     fun handleBrowserEvent(event: AccessibilityEvent, packageName: String) {
@@ -28,25 +33,29 @@ class BrowserEventHandler(
         
         val urlNode = findUrlNode(root, packageName)
         val url = urlNode?.text?.toString()
-        urlNode?.recycle()
-        if (root != source) {
-            root.recycle()
-        }
-        source?.recycle()
-        
         val isValidUrl = url != null && url.contains(".") && !url.contains(" ")
         if (isValidUrl) {
             if (isDuplicateUrlEvent(url)) return
 
-            val result = checkUrlForBlockedContentUseCase(url, getActiveKeywords(), getActiveDomains())
+            val result = checkUrlForBlockedContentUseCase(url, getActiveKeywords(), getActiveDomains(), getDomainRevision())
             if (result is BlockCheckResult.Blocked) {
                 service.performGlobalAction(android.accessibilityservice.AccessibilityService.GLOBAL_ACTION_BACK)
                 service.launchOverlayService(result.matchedTerm, result.reason.name)
             } else {
                 service.stopService(Intent(service, BlockingOverlayService::class.java))
-                smartScanOrchestrator.startScan(url, getActiveKeywords())
+                smartScanOrchestrator.startScan(url, getActiveKeywords(), getActiveCategories())
             }
         }
+    }
+
+    private fun isDuplicateUrlEvent(url: String): Boolean {
+        val now = SystemClock.elapsedRealtime()
+        val isDuplicate = url == lastProcessedUrl && now - lastProcessedUrlAtMillis < URL_DEBOUNCE_MILLIS
+        if (!isDuplicate) {
+            lastProcessedUrl = url
+            lastProcessedUrlAtMillis = now
+        }
+        return isDuplicate
     }
 
     private fun findUrlNode(root: AccessibilityNodeInfo, packageName: String): AccessibilityNodeInfo? {
@@ -67,16 +76,6 @@ class BrowserEventHandler(
         
         val nodes = root.findAccessibilityNodeInfosByViewId(urlBarId)
         val firstNode = nodes.firstOrNull()
-        nodes.drop(1).forEach { it.recycle() }
         return firstNode
-    }
-
-    private fun isDuplicateUrlEvent(url: String): Boolean {
-        Timber.tag(TAG).v("isDuplicateUrlEvent: Checking if URL is duplicate.")
-        val isDuplicate = url == lastProcessedUrl
-        if (!isDuplicate) {
-            lastProcessedUrl = url
-        }
-        return isDuplicate
     }
 }

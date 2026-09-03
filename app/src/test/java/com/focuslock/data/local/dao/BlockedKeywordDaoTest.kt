@@ -74,4 +74,37 @@ class BlockedKeywordDaoTest {
         assertEquals(1, activeKeywords.size)
         assertEquals("distraction", activeKeywords[0].keyword)
     }
+
+    @Test
+    fun `get all keywords returns alphabetical order`() = runBlocking {
+        dao.insertKeyword(BlockedKeywordEntity(keyword = "zeta", isActive = true, createdAt = 1L))
+        dao.insertKeyword(BlockedKeywordEntity(keyword = "alpha", isActive = false, createdAt = 2L))
+
+        val keywords = dao.getAllKeywords().first()
+
+        assertEquals(listOf("alpha", "zeta"), keywords.map { it.keyword })
+    }
+
+    @Test
+    fun `duplicate keyword is ignored and original remains`() = runBlocking {
+        val firstId = dao.insertKeyword(BlockedKeywordEntity(keyword = "repeat", isActive = false, createdAt = 1L))
+        val duplicateId = dao.insertKeyword(BlockedKeywordEntity(keyword = "repeat", isActive = true, createdAt = 2L))
+
+        assertTrue(firstId > 0)
+        assertEquals(-1L, duplicateId)
+        assertEquals(1, dao.getKeywordCount())
+        assertEquals(false, dao.getAllKeywords().first().single().isActive)
+    }
+
+    @Test
+    fun `delete keyword removes only requested record`() = runBlocking {
+        val deleteId = dao.insertKeyword(BlockedKeywordEntity(keyword = "remove", isActive = true, createdAt = 1L))
+        dao.insertKeyword(BlockedKeywordEntity(keyword = "keep", isActive = true, createdAt = 2L))
+
+        dao.deleteKeyword(deleteId)
+
+        assertEquals(1, dao.getKeywordCount())
+        assertTrue(!dao.keywordExists("remove"))
+        assertTrue(dao.keywordExists("keep"))
+    }
 }

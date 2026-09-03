@@ -24,7 +24,7 @@ class SessionRepository @Inject constructor(
         return sessionDao.getActiveSessionSync()?.toDomain()
     }
 
-    suspend fun startSession(expiresAt: Long): Long {
+    suspend fun startSession(expiresAt: Long, categoryKeys: List<String>): Long {
         val now = System.currentTimeMillis()
         val entity = SessionEntity(
             status = EntityStatus.ACTIVE,
@@ -32,7 +32,8 @@ class SessionRepository @Inject constructor(
             expiresAt = expiresAt,
             unlockedEarly = false,
             unlockRequestedAt = null,
-            createdAt = now
+            createdAt = now,
+            selectedCategoryKeys = categoryKeys.joinToString(",")
         )
         return sessionDao.insertSession(entity)
     }
@@ -62,7 +63,8 @@ class SessionRepository @Inject constructor(
             expiresAt = expiresAt,
             unlockedEarly = unlockedEarly,
             unlockRequestedAt = unlockRequestedAt,
-            createdAt = createdAt
+            createdAt = createdAt,
+            selectedCategoryKeys = if (selectedCategoryKeys.isBlank()) emptyList() else selectedCategoryKeys.split(",")
         )
     }
 
