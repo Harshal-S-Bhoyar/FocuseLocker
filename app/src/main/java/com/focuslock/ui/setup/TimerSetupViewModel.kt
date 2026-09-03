@@ -13,7 +13,7 @@ import javax.inject.Inject
 
 /**
  * ViewModel for the TimerSetupScreen.
- * Manages the duration logic and validation (minimum 1 min, maximum 72 hours).
+ * Manages the duration logic and validation (minimum 1 min, maximum 7 days).
  */
 @HiltViewModel
 class TimerSetupViewModel @Inject constructor(
@@ -40,7 +40,7 @@ class TimerSetupViewModel @Inject constructor(
 
     fun updateHours(h: Int) {
         Timber.d("TimerSetupViewModel: updateHours called with $h")
-        if (h in 0..72) {
+        if (h in 0..168) { // 7 days = 168 hours
             _hours.value = h
         }
     }
@@ -56,8 +56,8 @@ class TimerSetupViewModel @Inject constructor(
         val totalMinutes = (_hours.value * 60) + _minutes.value
         // Enforce 1 min minimum
         val validMinutes = totalMinutes.coerceAtLeast(1)
-        // Enforce 72 hours maximum
-        val boundedMinutes = validMinutes.coerceAtMost(72 * 60)
+        // Enforce 7-day maximum
+        val boundedMinutes = validMinutes.coerceAtMost(168 * 60)
         val durationMillis = boundedMinutes * 60 * 1000L
         Timber.d("TimerSetupViewModel: computed durationMillis = $durationMillis from hours = ${_hours.value}, minutes = ${_minutes.value}")
         return durationMillis
@@ -65,7 +65,7 @@ class TimerSetupViewModel @Inject constructor(
     
     fun isValid(): Boolean {
         val totalMinutes = (_hours.value * 60) + _minutes.value
-        val valid = totalMinutes in 1..(72 * 60)
+        val valid = totalMinutes in 1..(168 * 60)
         Timber.d("TimerSetupViewModel: isValid check returned $valid (total minutes = $totalMinutes)")
         return valid
     }

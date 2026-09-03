@@ -70,4 +70,44 @@ class TrustedContactDaoTest {
         assertTrue(retrieved?.isVerified == true)
         assertEquals(now, retrieved?.verifiedAt)
     }
+
+    @Test
+    fun `verified contact query excludes unverified contact`() = runBlocking {
+        dao.insertContact(
+            TrustedContactEntity(email = "pending@example.com", isVerified = false, verifiedAt = null, createdAt = 1L)
+        )
+
+        assertEquals(null, dao.getVerifiedContact().first())
+    }
+
+    @Test
+    fun `insert with same id replaces existing contact`() = runBlocking {
+        val id = dao.insertContact(
+            TrustedContactEntity(email = "old@example.com", isVerified = false, verifiedAt = null, createdAt = 1L)
+        )
+        dao.insertContact(
+            TrustedContactEntity(id = id, email = "new@example.com", isVerified = true, verifiedAt = 2L, createdAt = 3L)
+        )
+
+        val retrieved = dao.getContactSync()
+        assertEquals(1, dao.getContactCount())
+        assertEquals("new@example.com", retrieved?.email)
+        assertTrue(retrieved?.isVerified == true)
+    }
+
+    @Test
+    fun `delete all contacts clears contact and verified queries`() = runBlocking {
+        dao.insertContact(
+            TrustedContactEntity(email = "one@example.com", isVerified = true, verifiedAt = 1L, createdAt = 1L)
+        )
+        dao.insertContact(
+            TrustedContactEntity(email = "two@example.com", isVerified = false, verifiedAt = null, createdAt = 2L)
+        )
+
+        dao.deleteAllContacts()
+
+        assertEquals(0, dao.getContactCount())
+        assertEquals(null, dao.getContactSync())
+        assertEquals(null, dao.getVerifiedContact().first())
+    }
 }

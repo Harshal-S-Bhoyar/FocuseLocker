@@ -66,4 +66,30 @@ class CheckOnboardingStatusUseCaseTest {
         assertFalse(status.hasVerifiedContact)
         assertTrue(status.hasActiveSession)
     }
+
+    @Test
+    fun `when only verified contact exists returns the corresponding mixed status`() = runTest {
+        coEvery { appSettingsRepository.isOnboardingComplete() } returns false
+        coEvery { trustedContactRepository.hasVerifiedContact() } returns true
+        coEvery { sessionRepository.hasActiveSession() } returns false
+
+        val status = useCase()
+
+        assertFalse(status.isOnboardingComplete)
+        assertTrue(status.hasVerifiedContact)
+        assertFalse(status.hasActiveSession)
+    }
+
+    @Test
+    fun `when a repository check fails the failure is propagated`() = runTest {
+        val failure = IllegalStateException("status lookup failed")
+        coEvery { appSettingsRepository.isOnboardingComplete() } throws failure
+
+        try {
+            useCase()
+            throw AssertionError("Expected status lookup failure")
+        } catch (error: IllegalStateException) {
+            assertEquals(failure, error)
+        }
+    }
 }

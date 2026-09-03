@@ -37,6 +37,7 @@ class SessionManagementFunctionalTest {
 
     private lateinit var database: FocusDatabase
     private lateinit var sessionRepository: SessionRepository
+    private lateinit var blockingRepository: com.focuslock.data.repository.BlockingRepository
 
     private lateinit var sessionWorkerScheduler: SessionWorkerScheduler
     private lateinit var sessionRuntimeController: SessionRuntimeController
@@ -59,6 +60,7 @@ class SessionManagementFunctionalTest {
             .build()
 
         sessionRepository = SessionRepository(database.sessionDao())
+        blockingRepository = mockk(relaxed = true)
         
         sessionWorkerScheduler = mockk(relaxed = true)
         sessionRuntimeController = mockk(relaxed = true)
@@ -83,7 +85,8 @@ class SessionManagementFunctionalTest {
             sessionRepository,
             sessionWorkerScheduler,
             sessionRuntimeController,
-            cleanupStaleSessionUseCase
+            cleanupStaleSessionUseCase,
+            blockingRepository
         )
 
         getSessionRemainingTimeUseCase = GetSessionRemainingTimeUseCase(sessionRepository)
@@ -135,5 +138,54 @@ class SessionManagementFunctionalTest {
         assertFalse("Session should no longer be active", isSessionActiveUseCase())
         val finalRemainingTime = getSessionRemainingTimeUseCase().first()
         assertEquals("Remaining time should be 0", 0L, finalRemainingTime)
+    }
+
+    @Test
+    fun `activation rejects durations below the supported minimum`() = runBlocking {
+        val result = activateSessionUseCase(59_999L)
+
+        assertTrue(result.isFailure)
+        assertFalse(isSessionActiveUseCase())
+        verify(exactly = 0) { sessionWorkerScheduler.scheduleSessionTimers(any()) }
+        verify(exactly = 0) { sessionRuntimeController.startRuntime(any()) }
+    }
+
+    @Test
+    fun `activation removes an expired predecessor before creating a new session`() = runBlocking {
+        sessionRepository.startSession(
+            expiresAt = System.currentTimeMillis() - 1_000L,
+            categoryKeys = emptyList()
+        )
+
+        val result = activateSessionUseCase(60_000L)
+
+        assertTrue(result.isSuccess)
+        assertTrue(isSessionActiveUseCase())
+        verify(exactly = 1) { sessionWorkerScheduler.scheduleSessionTimers(any()) }
+        verify(exactly = 1) { sessionRuntimeController.startRuntime(60_000L) }
+    }
+
+    @Test
+    fun `remaining time is zero for an expired persisted session`() = runBlocking {
+        sessionRepository.startSession(
+            expiresAt = System.currentTimeMillis() - 1L,
+            categoryKeys = listOf("NEWS")
+        )
+
+        assertEquals(0L, getSessionRemainingTimeUseCase().first())
+        assertFalse(isSessionActiveUseCase())
+    }
+
+    @Test
+    fun `runtime start failure rolls back the newly persisted session`() = runBlocking {
+        every { sessionRuntimeController.startRuntime(any()) } throws
+            IllegalStateException("runtime unavailable")
+
+        val result = activateSessionUseCase(60_000L)
+
+        assertTrue(result.isFailure)
+        assertFalse(isSessionActiveUseCase())
+        verify(exactly = 1) { sessionWorkerScheduler.cancelSessionTimers() }
+        verify(exactly = 1) { sessionRuntimeController.stopRuntime() }
     }
 }

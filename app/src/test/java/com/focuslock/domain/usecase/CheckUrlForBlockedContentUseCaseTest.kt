@@ -78,4 +78,26 @@ class CheckUrlForBlockedContentUseCaseTest {
         val result = useCase("facebook.com", emptyList(), listOf("facebook.com"))
         assertEquals(BlockCheckResult.Blocked("facebook.com", BlockReason.DOMAIN_BLOCKED), result)
     }
+
+    @Test
+    fun `invoke with trailing dot in domain returns BLOCKED`() {
+        val result = useCase(
+            url = "https://facebook.com./profile",
+            keywords = emptyList(),
+            domains = listOf("facebook.com")
+        )
+        
+        assertEquals(BlockCheckResult.Blocked("facebook.com", BlockReason.DOMAIN_BLOCKED), result)
+    }
+
+    @Test
+    fun `invoke with no authority returns ALLOWED`() {
+        val result = useCase(
+            url = "https:///path/only",
+            keywords = listOf("path"),
+            domains = emptyList()
+        )
+        
+        assertEquals(BlockCheckResult.Allowed, result)
+    }
 }

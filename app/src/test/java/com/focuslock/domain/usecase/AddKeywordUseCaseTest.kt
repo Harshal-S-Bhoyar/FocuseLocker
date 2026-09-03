@@ -36,4 +36,27 @@ class AddKeywordUseCaseTest {
         assertTrue(result.isSuccess)
         coVerify { blockingRepository.addKeyword("distraction") }
     }
+
+    @Test
+    fun `invoke accepts the final available keyword slot and trims input`() = runTest {
+        coEvery { blockingRepository.getKeywordCount() } returns 49
+        coEvery { blockingRepository.addKeyword("focus") } returns Result.success(Unit)
+
+        val result = useCase("  Focus  ")
+
+        assertTrue(result.isSuccess)
+        coVerify { blockingRepository.addKeyword("focus") }
+    }
+
+    @Test
+    fun `invoke returns repository failure unchanged`() = runTest {
+        val failure = IllegalStateException("storage failure")
+        coEvery { blockingRepository.getKeywordCount() } returns 0
+        coEvery { blockingRepository.addKeyword("focus") } returns Result.failure(failure)
+
+        val result = useCase("focus")
+
+        assertTrue(result.isFailure)
+        assertTrue(result.exceptionOrNull() === failure)
+    }
 }

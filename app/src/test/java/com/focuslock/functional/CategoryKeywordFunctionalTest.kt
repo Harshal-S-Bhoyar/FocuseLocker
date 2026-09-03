@@ -111,4 +111,52 @@ class CategoryKeywordFunctionalTest {
         assertEquals("Should have 1 keyword left", 1, keywords.size)
         assertFalse("Removed keyword should not exist", keywords.any { it.keyword == "tiktok" })
     }
+
+    @Test
+    fun `seeding categories twice is idempotent`() = runBlocking {
+        blockingRepository.seedDomainDataIfNeeded()
+        val first = getAllCategoriesUseCase().first()
+
+        blockingRepository.seedDomainDataIfNeeded()
+        val second = getAllCategoriesUseCase().first()
+
+        assertEquals(first.size, second.size)
+        assertEquals(first.map { it.categoryKey }.toSet(), second.map { it.categoryKey }.toSet())
+    }
+
+    @Test
+    fun `a disabled category can be reactivated through the repository flow`() = runBlocking {
+        blockingRepository.seedDomainDataIfNeeded()
+        val categoryKey = "SOCIAL_MEDIA"
+
+        assertTrue(toggleCategoryUseCase(categoryKey, false).isSuccess)
+        assertFalse(getAllCategoriesUseCase().first().first { it.categoryKey == categoryKey }.isActive)
+
+        assertTrue(toggleCategoryUseCase(categoryKey, true).isSuccess)
+        assertTrue(getAllCategoriesUseCase().first().first { it.categoryKey == categoryKey }.isActive)
+    }
+
+    @Test
+    fun `duplicate keywords are rejected after normalization`() = runBlocking {
+        assertTrue(addKeywordUseCase("Instagram").isSuccess)
+
+        val duplicate = addKeywordUseCase("  instagram  ")
+        val keywords = getAllKeywordsUseCase().first()
+
+        assertTrue(duplicate.isFailure)
+        assertEquals(1, keywords.size)
+        assertEquals("instagram", keywords.single().keyword)
+    }
+
+    @Test
+    fun `removing an unknown keyword ID is a successful no-op`() = runBlocking {
+        assertTrue(addKeywordUseCase("focus").isSuccess)
+        val before = getAllKeywordsUseCase().first()
+
+        val result = removeKeywordUseCase(Long.MAX_VALUE)
+        val after = getAllKeywordsUseCase().first()
+
+        assertTrue(result.isSuccess)
+        assertEquals(before, after)
+    }
 }

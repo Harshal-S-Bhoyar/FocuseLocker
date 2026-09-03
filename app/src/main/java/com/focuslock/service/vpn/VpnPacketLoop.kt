@@ -11,6 +11,7 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.yield
 import okhttp3.MediaType.Companion.toMediaType
@@ -32,29 +33,31 @@ class VpnPacketLoop(
 ) {
     private val TAG = "SVC_VPN_PACKET"
     private val loopScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
-    private val bufferPool = java.util.concurrent.ConcurrentLinkedQueue<ByteArray>()
+    // ponytail: bump pool to 32 and semaphore to 64 to prevent mobile DNS queue starvation
+    private val bufferPool = java.util.concurrent.ArrayBlockingQueue<ByteArray>(32)
+    private val dohSemaphore = Semaphore(64)
 
     private fun getBuffer(): ByteArray {
         return bufferPool.poll() ?: ByteArray(32767)
     }
 
     private fun releaseBuffer(buffer: ByteArray) {
-        if (bufferPool.size < 10) {
-            bufferPool.offer(buffer)
-        }
+        bufferPool.offer(buffer)
     }
 
     suspend fun runLoop() = withContext(Dispatchers.IO) {
         val inputStream = injectedInputStream ?: FileInputStream(vpnInterface.fileDescriptor)
         val outputStream = injectedOutputStream ?: FileOutputStream(vpnInterface.fileDescriptor)
         
-        val packet = ByteBuffer.allocate(32767)
+        // ponytail: reuse single backing array; ByteBuffer is a lightweight view, not an allocation per iteration
+        val packetArray = ByteArray(32767)
+        val packet = ByteBuffer.wrap(packetArray)
         val nxBuffer = ByteArray(32767)
         
         try {
             while (isActive) {
                 yield()
-                val length = inputStream.read(packet.array())
+                val length = inputStream.read(packetArray)
                 try {
                     when {
                         length > 0 -> {
@@ -95,7 +98,7 @@ class VpnPacketLoop(
 
                             val destPort = ((packet.get(udpOffset + 2).toInt() and 0xFF) shl 8) or (packet.get(udpOffset + 3).toInt() and 0xFF)
                             if (destPort != 53) {
-                                Timber.tag(TAG).d("PACKET IGNORED: Non-DNS UDP packet (port $destPort)")
+                                Timber.tag(TAG).v("PACKET IGNORED: Non-DNS UDP packet (port %d)", destPort)
                                 continue
                             }
 
@@ -104,29 +107,42 @@ class VpnPacketLoop(
                                 if (isDomainBlocked(domain)) {
                                     Timber.tag(TAG).v("DNS BLOCKED (local): $domain")
                                     val responseLength = buildNxDomainResponse(packet, length, nxBuffer)
-                                    outputStream.write(nxBuffer, 0, responseLength)
+                                    synchronized(outputLock) {
+                                        outputStream.write(nxBuffer, 0, responseLength)
+                                    }
                                 } else {
                                     val dnsOffset = udpOffset + 8
                                     val dnsPayloadLength = length - dnsOffset
 
+                                    dohSemaphore.acquire()
                                     val packetBytes = getBuffer()
-                                    packet.position(0)
-                                    packet.get(packetBytes, 0, length)
+                                    var launched = false
+                                    try {
+                                        packet.position(0)
+                                        packet.get(packetBytes, 0, length)
 
-                                    loopScope.launch {
-                                        try {
-                                            forwardDnsViaDoH(
-                                                packetBytes = packetBytes,
-                                                outputStream = outputStream,
-                                                domain = domain,
-                                                dnsPayloadLength = dnsPayloadLength,
-                                                isIpv6 = isIpv6,
-                                                ipHeaderLength = ipHeaderLength,
-                                                udpOffset = udpOffset,
-                                                dnsOffset = dnsOffset
-                                            )
-                                        } finally {
+                                        loopScope.launch {
+                                            try {
+                                                forwardDnsViaDoH(
+                                                    packetBytes = packetBytes,
+                                                    outputStream = outputStream,
+                                                    domain = domain,
+                                                    dnsPayloadLength = dnsPayloadLength,
+                                                    isIpv6 = isIpv6,
+                                                    ipHeaderLength = ipHeaderLength,
+                                                    udpOffset = udpOffset,
+                                                    dnsOffset = dnsOffset
+                                                )
+                                            } finally {
+                                                releaseBuffer(packetBytes)
+                                                dohSemaphore.release()
+                                            }
+                                        }
+                                        launched = true
+                                    } finally {
+                                        if (!launched) {
                                             releaseBuffer(packetBytes)
+                                            dohSemaphore.release()
                                         }
                                     }
                                 }
@@ -197,7 +213,7 @@ class VpnPacketLoop(
 
                         Timber.tag(TAG).v("DoH OK: resp=${responseData.size}B")
 
-                        val responseArray = buildTunDnsResponse(
+                        val (responseArray, responseLen) = buildTunDnsResponse(
                             packetBytes = packetBytes,
                             dnsOffset = dnsOffset,
                             ipHeaderLength = ipHeaderLength,
@@ -206,8 +222,12 @@ class VpnPacketLoop(
                             isIpv6 = isIpv6
                         )
 
-                        synchronized(outputStream) {
-                            outputStream.write(responseArray)
+                        try {
+                            synchronized(outputLock) {
+                                outputStream.write(responseArray, 0, responseLen)
+                            }
+                        } finally {
+                            releaseBuffer(responseArray)
                         }
                         return@withContext
                     }
@@ -226,22 +246,26 @@ class VpnPacketLoop(
         }
     }
 
-    private fun buildTunDnsResponse(
+    private val outputLock = Any()
 
+    // ponytail: returns (responseArray, responseLength) using pooled buffer
+    // ceiling: pool capped at 10; if exhausted, falls back to fresh alloc (same as before)
+    private fun buildTunDnsResponse(
         packetBytes: ByteArray,
         dnsOffset: Int,
         ipHeaderLength: Int,
         udpOffset: Int,
         responseData: ByteArray,
         isIpv6: Boolean
-    ): ByteArray {
+    ): Pair<ByteArray, Int> {
         val responseLength = dnsOffset + responseData.size
-        val responseBuffer = ByteBuffer.allocate(responseLength)
+        if (responseLength > 65535) {
+            throw IllegalArgumentException("Response length $responseLength exceeds UDP/IP maximum")
+        }
+        val responseArray = if (responseLength > 32767) ByteArray(responseLength) else getBuffer()
 
-        responseBuffer.put(packetBytes, 0, dnsOffset)
-        responseBuffer.put(responseData)
-
-        val responseArray = responseBuffer.array()
+        System.arraycopy(packetBytes, 0, responseArray, 0, dnsOffset)
+        System.arraycopy(responseData, 0, responseArray, dnsOffset, responseData.size)
 
         if (isIpv6) {
             val payloadLength = responseLength - 40
@@ -272,7 +296,7 @@ class VpnPacketLoop(
         responseArray[udpOffset + 6] = (udpChecksum shr 8).toByte()
         responseArray[udpOffset + 7] = udpChecksum.toByte()
 
-        return responseArray
+        return Pair(responseArray, responseLength)
     }
 
     /**

@@ -13,90 +13,94 @@ object OemAutostartHelper {
 
     fun needsAutostart(): Boolean {
         Timber.tag("OemAutostartHelper").v("needsAutostart: Checking for manufacturer")
-        val manufacturer = Build.MANUFACTURER.lowercase()
+        val manufacturer = (Build.MANUFACTURER ?: "").lowercase()
         return MANUFACTURERS.any { manufacturer.contains(it) }
     }
 
+    @Deprecated("Use getAutostartIntentsList instead", ReplaceWith("getAutostartIntentsList(context).firstOrNull()"))
     fun getAutostartIntent(context: Context): Intent? {
-        Timber.tag("OemAutostartHelper").v("getAutostartIntent: Getting intent for manufacturer")
-        val intent = Intent()
-        val manufacturer = Build.MANUFACTURER.lowercase()
-        
+        return getAutostartIntentsList(context).firstOrNull()
+    }
+
+    private fun populateComponents(manufacturer: String, components: MutableList<ComponentName>) {
         when {
             manufacturer.contains("xiaomi") || manufacturer.contains("poco") -> {
-                intent.component = ComponentName(
-                    "com.miui.securitycenter",
-                    "com.miui.permcenter.autostart.AutoStartManagementActivity"
-                )
+                components.add(ComponentName("com.miui.securitycenter", "com.miui.permcenter.autostart.AutoStartManagementActivity"))
             }
             manufacturer.contains("oppo") || manufacturer.contains("realme") -> {
-                intent.component = ComponentName(
-                    "com.coloros.safecenter",
-                    "com.coloros.safecenter.permission.startup.StartupAppListActivity"
-                )
+                components.add(ComponentName("com.coloros.safecenter", "com.coloros.safecenter.permission.startup.StartupAppListActivity"))
+                components.add(ComponentName("com.coloros.safecenter", "com.coloros.safecenter.startupapp.StartupAppListActivity"))
+                components.add(ComponentName("com.oppo.safe", "com.oppo.safe.permission.startup.StartupAppListActivity"))
             }
             manufacturer.contains("vivo") -> {
-                intent.component = ComponentName(
-                    "com.vivo.permissionmanager",
-                    "com.vivo.permissionmanager.activity.BgStartUpManagerActivity"
-                )
+                components.add(ComponentName("com.vivo.permissionmanager", "com.vivo.permissionmanager.activity.BgStartUpManagerActivity"))
+                components.add(ComponentName("com.iqoo.secure", "com.iqoo.secure.ui.phoneoptimize.AddWhiteListActivity"))
+                components.add(ComponentName("com.vivo.permissionmanager", "com.vivo.permissionmanager.activity.PurviewTabActivity"))
             }
             manufacturer.contains("letv") -> {
-                intent.component = ComponentName(
-                    "com.letv.android.letvsafe",
-                    "com.letv.android.letvsafe.AutobootManageActivity"
-                )
+                components.add(ComponentName("com.letv.android.letvsafe", "com.letv.android.letvsafe.AutobootManageActivity"))
             }
             manufacturer.contains("honor") || manufacturer.contains("huawei") -> {
-                intent.component = ComponentName(
-                    "com.huawei.systemmanager",
-                    "com.huawei.systemmanager.optimize.process.ProtectActivity"
-                )
+                components.add(ComponentName("com.huawei.systemmanager", "com.huawei.systemmanager.optimize.process.ProtectActivity"))
+                components.add(ComponentName("com.huawei.systemmanager", "com.huawei.systemmanager.appcontrol.activity.StartupAppControlActivity"))
+                components.add(ComponentName("com.huawei.systemmanager", "com.huawei.systemmanager.startupmgr.ui.StartupNormalAppListActivity"))
             }
             manufacturer.contains("oneplus") -> {
-                intent.component = ComponentName(
-                    "com.oneplus.security",
-                    "com.oneplus.security.chainlaunch.view.ChainLaunchAppListActivity"
-                )
+                components.add(ComponentName("com.oneplus.security", "com.oneplus.security.chainlaunch.view.ChainLaunchAppListActivity"))
             }
             manufacturer.contains("samsung") -> {
-                intent.component = ComponentName(
-                    "com.samsung.android.lool",
-                    "com.samsung.android.sm.ui.battery.BatteryActivity"
-                )
+                components.add(ComponentName("com.samsung.android.lool", "com.samsung.android.sm.ui.battery.BatteryActivity"))
+                components.add(ComponentName("com.samsung.android.sm", "com.samsung.android.sm.ui.battery.BatteryActivity"))
+                components.add(ComponentName("com.samsung.android.sm_cn", "com.samsung.android.sm.ui.battery.BatteryActivity"))
+                components.add(ComponentName("com.samsung.android.sm", "com.samsung.android.sm.ui.battery.AppSleepListActivity"))
+                components.add(ComponentName("com.samsung.android.sm", "com.samsung.android.sm.ui.battery.UnusedAppsListActivity"))
             }
             manufacturer.contains("asus") -> {
-                intent.component = ComponentName(
-                    "com.asus.mobilemanager",
-                    "com.asus.mobilemanager.autostart.AutoStartActivity"
-                )
+                components.add(ComponentName("com.asus.mobilemanager", "com.asus.mobilemanager.autostart.AutoStartActivity"))
+                components.add(ComponentName("com.asus.mobilemanager", "com.asus.mobilemanager.entry.FunctionActivity"))
             }
-            else -> return null
-        }
-
-        intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
-        
-        return if (intent.resolveActivity(context.packageManager) != null) {
-            intent
-        } else {
-            null
         }
     }
 
-    fun openAutostartSettings(context: Context) {
-        try {
-            val intent = getAutostartIntent(context)
-            if (intent != null) {
-                Timber.d("OemAutostartHelper: Resolved autostart intent for ${Build.MANUFACTURER}. Launching.")
-                context.startActivity(intent)
-            } else {
-                Timber.d("OemAutostartHelper: No specific autostart intent found for ${Build.MANUFACTURER}. Falling back to App Settings.")
-                openAppSettings(context)
+    init {
+        // Just defining the function, actual population happens below.
+    }
+
+    fun getAutostartIntentsList(context: Context): List<Intent> {
+        val manufacturer = (Build.MANUFACTURER ?: "").lowercase()
+        val components = mutableListOf<ComponentName>()
+        val intents = mutableListOf<Intent>()
+        
+        populateComponents(manufacturer, components)
+
+        for (component in components) {
+            val intent = Intent().apply {
+                this.component = component
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             }
-        } catch (e: Exception) {
-            Timber.e(e, "OemAutostartHelper: Failed to open autostart settings. Falling back.")
-            openAppSettings(context)
+            if (intent.resolveActivity(context.packageManager) != null) {
+                intents.add(intent)
+            }
         }
+        return intents
+    }
+
+    fun openAutostartSettings(context: Context) {
+        val intents = getAutostartIntentsList(context)
+        for (intent in intents) {
+            try {
+                if (context !is android.app.Activity) {
+                    intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                }
+                Timber.d("OemAutostartHelper: Resolved autostart intent for ${Build.MANUFACTURER}. Launching: ${intent.component}")
+                context.startActivity(intent)
+                return
+            } catch (e: Exception) {
+                Timber.e(e, "OemAutostartHelper: Failed to open autostart settings for ${intent.component}")
+            }
+        }
+        Timber.d("OemAutostartHelper: No specific autostart intent worked for ${Build.MANUFACTURER}. Falling back to App Settings.")
+        openAppSettings(context)
     }
 
     private fun openAppSettings(context: Context) {

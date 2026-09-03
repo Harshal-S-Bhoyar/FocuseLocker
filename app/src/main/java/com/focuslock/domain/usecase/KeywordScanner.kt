@@ -1,8 +1,6 @@
 package com.focuslock.domain.usecase
 
-import android.content.Context
-import dagger.hilt.android.qualifiers.ApplicationContext
-import org.json.JSONObject
+import com.focuslock.domain.repository.SynonymRepository
 import java.util.concurrent.atomic.AtomicReference
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -14,28 +12,17 @@ import javax.inject.Singleton
  */
 @Singleton
 class KeywordScanner @Inject constructor(
-    @ApplicationContext private val context: Context
+    private val synonymRepository: SynonymRepository
 ) {
     private val automatonRef = AtomicReference<AhoCorasick?>(null)
     private val keywordMapRef = AtomicReference<Map<String, String>>(emptyMap())
 
-    // Loaded once from assets/keyword_synonyms.json
+    // Loaded once from SynonymRepository
     private val synonymsMap: Map<String, List<String>> by lazy {
         try {
-            val jsonStr = context.assets.open("keyword_synonyms.json")
-                .bufferedReader().use { it.readText() }
-            val json = JSONObject(jsonStr)
-            val map = mutableMapOf<String, List<String>>()
-            for (key in json.keys()) {
-                val array = json.getJSONArray(key)
-                val list = mutableListOf<String>()
-                for (i in 0 until array.length()) {
-                    list.add(array.getString(i))
-                }
-                map[key] = list
-            }
-            map
+            synonymRepository.getSynonyms()
         } catch (e: Exception) {
+            timber.log.Timber.e(e, "Failed to load synonyms; falling back to empty map")
             emptyMap()
         }
     }
@@ -51,13 +38,18 @@ class KeywordScanner @Inject constructor(
         for (keyword in keywords) {
             val kw = keyword.lowercase()
             val normalized = NormalizedMatcher.normalize(kw)
-            builder.addPattern(normalized)
+            // ponytail: only >=5 into AC automaton so short words don't shadow long words
+            if (normalized.length >= 5) {
+                builder.addPattern(normalized)
+            }
             termToKeyword[normalized] = kw
 
             val synonyms = synonymsMap[kw] ?: emptyList()
             for (syn in synonyms) {
                 val normalizedSyn = NormalizedMatcher.normalize(syn)
-                builder.addPattern(normalizedSyn)
+                if (normalizedSyn.length >= 5) {
+                    builder.addPattern(normalizedSyn)
+                }
                 termToKeyword[normalizedSyn] = kw
             }
         }

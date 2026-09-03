@@ -1,7 +1,10 @@
 package com.focuslock.data.local
 
+import androidx.room.AutoMigration
 import androidx.room.Database
 import androidx.room.RoomDatabase
+import androidx.room.migration.AutoMigrationSpec
+import androidx.sqlite.db.SupportSQLiteDatabase
 import com.focuslock.data.local.dao.AppSettingDao
 import com.focuslock.data.local.dao.BlockedCategoryDao
 import com.focuslock.data.local.dao.BlockedDomainDao
@@ -27,15 +30,33 @@ import com.focuslock.data.local.entity.UnlockRequestEntity
         UnlockRequestEntity::class,
         AppSettingEntity::class
     ],
-    version = 7,
+    version = 8,
     exportSchema = true,
     autoMigrations = [
-        androidx.room.AutoMigration(from = 4, to = 5),
-        androidx.room.AutoMigration(from = 5, to = 6),
-        androidx.room.AutoMigration(from = 6, to = 7)
+        AutoMigration(from = 4, to = 5),
+        AutoMigration(from = 5, to = 6),
+        AutoMigration(from = 6, to = 7),
+        AutoMigration(from = 7, to = 8, spec = FocusDatabase.Migration7To8Spec::class)
     ]
 )
 abstract class FocusDatabase : RoomDatabase() {
+    
+    // ponytail: backfill selected_category_keys for existing active sessions from currently active categories
+    class Migration7To8Spec : AutoMigrationSpec {
+        override fun onPostMigrate(db: SupportSQLiteDatabase) {
+            db.execSQL(
+                """
+                UPDATE sessions 
+                SET selected_category_keys = (
+                    SELECT COALESCE(GROUP_CONCAT(category_key, ','), '') 
+                    FROM blocked_categories 
+                    WHERE is_active = 1
+                )
+                WHERE status = 'ACTIVE' AND (selected_category_keys IS NULL OR selected_category_keys = '')
+                """.trimIndent()
+            )
+        }
+    }
     
     abstract fun sessionDao(): SessionDao
     abstract fun blockedKeywordDao(): BlockedKeywordDao

@@ -56,11 +56,7 @@ class PermissionEnforcementService : Service(), LifecycleOwner, ViewModelStoreOw
             val intent = Intent(context, PermissionEnforcementService::class.java).apply {
                 action = ACTION_START
             }
-            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
-                context.startForegroundService(intent)
-            } else {
-                context.startService(intent)
-            }
+            context.startForegroundService(intent)
         }
         
         fun stop(context: Context) {
@@ -97,7 +93,15 @@ class PermissionEnforcementService : Service(), LifecycleOwner, ViewModelStoreOw
         lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_CREATE)
         
         createNotificationChannel()
-        startForeground(NOTIFICATION_ID, createNotification())
+        if (android.os.Build.VERSION.SDK_INT >= 34) {
+            startForeground(
+                NOTIFICATION_ID,
+                createNotification(),
+                android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE
+            )
+        } else {
+            startForeground(NOTIFICATION_ID, createNotification())
+        }
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -128,9 +132,12 @@ class PermissionEnforcementService : Service(), LifecycleOwner, ViewModelStoreOw
                     stopSelf()
                     break
                 } else if (composeView == null && System.currentTimeMillis() > gracePeriodEndTime) {
-                    // ponytail: Naive 15s timeout for Settings escape. Ceiling: 15s fixed window allows temporary escape if user ignores Settings. Upgrade path: Use UsageStatsManager to detect when user leaves com.android.settings to instantly reshow overlay.
-                    Timber.tag(TAG).i("Grace period expired. Re-showing.")
-                    showOverlay()
+                    // Check if Accessibility is really disabled before re-showing
+                    if (!PermissionChecker.isAccessibilityServiceEnabled(this@PermissionEnforcementService)) {
+                        // ponytail: Naive 15s timeout for Settings escape. Ceiling: 15s fixed window allows temporary escape if user ignores Settings. Upgrade path: Use UsageStatsManager to detect when user leaves com.android.settings to instantly reshow overlay.
+                        Timber.tag(TAG).i("Grace period expired. Re-showing.")
+                        showOverlay()
+                    }
                 }
                 delay(2000L) // Poll every 2 seconds
             }
@@ -153,7 +160,7 @@ class PermissionEnforcementService : Service(), LifecycleOwner, ViewModelStoreOw
             setContent {
                 FocusLockTheme {
                     PermissionEnforcementScreen(
-                        showAutostartOption = OemAutostartHelper.getAutostartIntent(this@PermissionEnforcementService) != null,
+                        showAutostartOption = OemAutostartHelper.getAutostartIntentsList(this@PermissionEnforcementService).isNotEmpty(),
                         onEnableAccessibility = { openAccessibilitySettings() },
                         onEnableAutostart = { 
                             gracePeriodEndTime = System.currentTimeMillis() + 15_000L
@@ -169,6 +176,12 @@ class PermissionEnforcementService : Service(), LifecycleOwner, ViewModelStoreOw
         composeView?.isFocusableInTouchMode = true
         composeView?.setOnKeyListener { _, keyCode, event ->
             if (keyCode == KeyEvent.KEYCODE_BACK && event.action == KeyEvent.ACTION_UP) {
+                // Route BACK to home screen
+                val homeIntent = Intent(Intent.ACTION_MAIN).apply {
+                    addCategory(Intent.CATEGORY_HOME)
+                    flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                }
+                startActivity(homeIntent)
                 true // Intercept back button
             } else {
                 false
@@ -254,12 +267,32 @@ class PermissionEnforcementService : Service(), LifecycleOwner, ViewModelStoreOw
 
     private fun createNotification(): Notification {
         Timber.tag(TAG).d("createNotification: Building foreground notification.")
+        // ponytail: no-op PendingIntent prevents default tap→App Info navigation
+        val noOpIntent = android.app.PendingIntent.getActivity(
+            this, 0,
+            Intent(this, com.focuslock.MainActivity::class.java).apply {
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+            },
+            android.app.PendingIntent.FLAG_IMMUTABLE
+        )
+        
+        val repairIntent = Intent(this, com.focuslock.MainActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+            putExtra("navigate_to", "permissions_repair")
+        }
+        val repairPendingIntent = android.app.PendingIntent.getActivity(
+            this, 1, repairIntent, android.app.PendingIntent.FLAG_IMMUTABLE
+        )
+        
         return NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle(getString(R.string.enforcement_overlay_title))
             .setContentText(getString(R.string.enforcement_overlay_description))
             .setSmallIcon(R.drawable.ic_focuslock_secure)
             .setPriority(NotificationCompat.PRIORITY_LOW)
             .setOngoing(true)
+            .setContentIntent(noOpIntent)
+            .setVisibility(NotificationCompat.VISIBILITY_SECRET)
+            .addAction(0, "Repair Permissions", repairPendingIntent)
             .build()
     }
 }

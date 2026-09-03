@@ -69,6 +69,10 @@
     <string name="verify_contact_no_otp">Didn\'t receive it?</string>
     <string name="verify_contact_resend">Resend OTP</string>
     <string name="verify_contact_resend_success">OTP resent successfully</string>
+    <plurals name="verify_contact_resend_cooldown">
+        <item quantity="one">Resend in %d second</item>
+        <item quantity="other">Resend in %d seconds</item>
+    </plurals>
 
     <!-- Common -->
     <string name="dismiss">Dismiss</string>
@@ -96,7 +100,7 @@
     <string name="timer_review">Review &amp; Lock In</string>
     <string name="timer_hours">Hours</string>
     <string name="timer_minutes">Minutes</string>
-    <string name="timer_invalid">Timer must be between 1 minute and 72 hours.</string>
+    <string name="timer_invalid">Timer must be between 1 minute and 7 days.</string>
     <string name="number_picker_increase">Increase %1$s</string>
     <string name="number_picker_decrease">Decrease %1$s</string>
     <string name="session_confirmation_title">Confirm Session</string>
@@ -159,7 +163,7 @@
     <string name="unlock_request_description">Ending your session early requires an OTP sent to your trusted contact, followed by a 10-minute cooldown.</string>
     <string name="unlock_cooldown_title">Unlock Approved</string>
     <string name="unlock_cooldown_description">A 10-minute cooldown period has started. You will be able to access all content once the countdown reaches zero.</string>
-    <string name="unlock_cooldown_unlocks_at">Unlocks at: %1$s</string>
+    
     <string name="otp_entry_sent_message">We sent a code to your trusted contact.</string>
     <string name="otp_entry_instruction">Enter the 6-digit code below to approve the early unlock.</string>
     <string name="emergency_bypass_description">Emergency bypass allows you to end the session immediately without a trusted contact, but you will be blocked from starting a new session for 24 hours.</string>

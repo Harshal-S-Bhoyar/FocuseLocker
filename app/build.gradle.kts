@@ -133,6 +133,11 @@ android {
         unitTests.isReturnDefaultValues = true
         unitTests.isIncludeAndroidResources = true
     }
+
+    // GradleDependency is advisory; these versions are pinned as a tested compatibility set.
+    lint {
+        disable += "GradleDependency"
+    }
 }
 
 ksp {

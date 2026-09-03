@@ -91,4 +91,59 @@ class BlockedDomainDaoTest {
         assertEquals(1, count)
         assertTrue(domainDao.domainExists("active.com"))
     }
+
+    @Test
+    fun `get domains by categories excludes other categories and expired entries`() = runBlocking {
+        categoryDao.insertCategories(
+            listOf(
+                BlockedCategoryEntity(categoryKey = "SELECTED", isActive = true),
+                BlockedCategoryEntity(categoryKey = "OTHER", isActive = true)
+            )
+        )
+        val now = 10_000L
+        domainDao.insertDomains(
+            listOf(
+                BlockedDomainEntity(domain = "selected.com", categoryKey = "SELECTED", blockStatus = "PERMANENT", isAutoBlocked = false),
+                BlockedDomainEntity(domain = "other.com", categoryKey = "OTHER", blockStatus = "PERMANENT", isAutoBlocked = false),
+                BlockedDomainEntity(domain = "expired-selected.com", categoryKey = "SELECTED", blockStatus = "TEMPORARY", expiresAt = now - 1, isAutoBlocked = false)
+            )
+        )
+
+        val domains = domainDao.getDomainsByCategories(listOf("SELECTED"), now)
+
+        assertEquals(listOf("selected.com"), domains)
+    }
+
+    @Test
+    fun `delete domains by category leaves unrelated domains`() = runBlocking {
+        categoryDao.insertCategories(
+            listOf(
+                BlockedCategoryEntity(categoryKey = "REMOVE", isActive = true),
+                BlockedCategoryEntity(categoryKey = "KEEP", isActive = true)
+            )
+        )
+        domainDao.insertDomains(
+            listOf(
+                BlockedDomainEntity(domain = "remove.com", categoryKey = "REMOVE", blockStatus = "PERMANENT", isAutoBlocked = false),
+                BlockedDomainEntity(domain = "keep.com", categoryKey = "KEEP", blockStatus = "PERMANENT", isAutoBlocked = false)
+            )
+        )
+
+        domainDao.deleteDomainsByCategory("REMOVE")
+
+        assertEquals(1, domainDao.getDomainCount())
+        assertTrue(!domainDao.domainExists("remove.com"))
+        assertTrue(domainDao.domainExists("keep.com"))
+    }
+
+    @Test
+    fun `bulk insert ignores duplicate domain`() = runBlocking {
+        categoryDao.insertCategory(BlockedCategoryEntity(categoryKey = "CUSTOM", isActive = true))
+        val first = BlockedDomainEntity(domain = "duplicate.com", categoryKey = "CUSTOM", blockStatus = "PERMANENT", isAutoBlocked = false)
+        domainDao.insertDomain(first)
+        domainDao.insertDomains(listOf(first.copy(categoryKey = "CUSTOM")))
+
+        assertEquals(1, domainDao.getDomainCount())
+        assertTrue(domainDao.findActiveDomain("duplicate.com", System.currentTimeMillis()) != null)
+    }
 }

@@ -2,8 +2,9 @@ package com.focuslock.domain.usecase
 
 import com.focuslock.domain.model.FetchOutcome
 import com.focuslock.domain.model.SmartScanResult
+import com.focuslock.domain.repository.PageSignalFetcher
 import com.focuslock.data.repository.BlockingRepository
-import android.util.LruCache
+import com.focuslock.domain.util.SimpleLruCache
 import kotlinx.coroutines.ensureActive
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -11,7 +12,7 @@ import kotlin.coroutines.coroutineContext
 
 @Singleton
 class SmartScanUseCase @Inject constructor(
-    private val fetcher: MetaDescriptionFetcher,
+    private val fetcher: PageSignalFetcher,
     private val blockingRepository: BlockingRepository,
     private val keywordScanner: KeywordScanner
 ) {
@@ -28,14 +29,36 @@ class SmartScanUseCase @Inject constructor(
 
     // In-memory cache to prevent excessive DB queries during rapid navigation (Battery Optimization)
     private data class CacheEntry(val result: SmartScanResult, val timestamp: Long)
-    private val memoryCache = LruCache<String, CacheEntry>(50)
+    private val memoryCache = SimpleLruCache<String, CacheEntry>(50)
+
+    private fun getCachedEntry(key: String): CacheEntry? = memoryCache.get(key)
+
+    private fun putCache(key: String, value: CacheEntry) { memoryCache.put(key, value) }
+
+    private fun removeCache(key: String) { memoryCache.remove(key) }
+
     private val CACHE_TTL_MS = 15 * 60 * 1000L  // 15 minutes
+
+    // ponytail: clear in-memory LRU on session state changes
+    fun clearCache() {
+        memoryCache.clear()
+    }
+
+    // ponytail: key memory cache by domain + canonical categories to prevent cross-category reuse
+    private fun buildCacheKey(domain: String, categories: List<String>): String {
+        val canonical = categories.filter { it.isNotBlank() }.sorted().joinToString(",")
+        return "$domain|$canonical"
+    }
 
     /**
      * Scans the given URL's meta description for blocked keywords.
      * Returns SmartScanResult with rich match data.
      */
-    suspend operator fun invoke(urlStr: String, activeKeywords: List<String>): SmartScanResult {
+    suspend operator fun invoke(
+        urlStr: String, 
+        activeKeywords: List<String>,
+        activeCategories: List<String> = emptyList()
+    ): SmartScanResult {
         if (activeKeywords.isEmpty()) return SmartScanResult.Clean
 
         val domain = DomainExtractor.extract(urlStr) ?: return SmartScanResult.Clean
@@ -46,17 +69,19 @@ class SmartScanUseCase @Inject constructor(
             return SmartScanResult.Clean
         }
 
+        val memCacheKey = buildCacheKey(domain, activeCategories)
+
         // Check in-memory cache first
-        memoryCache.get(domain)?.let { entry ->
+        getCachedEntry(memCacheKey)?.let { entry ->
             if (System.currentTimeMillis() - entry.timestamp < CACHE_TTL_MS) {
                 return entry.result
             } else {
-                memoryCache.remove(domain)
+                removeCache(memCacheKey)
             }
         }
 
         val cachedStatus = try {
-            blockingRepository.getCachedDomainStatus(domain)
+            blockingRepository.getCachedDomainStatus(domain, activeCategories)
         } catch (e: Exception) {
             timber.log.Timber.e(e, "Database error retrieving domain status")
             return SmartScanResult.FetchFailed("db_error")
@@ -65,12 +90,12 @@ class SmartScanUseCase @Inject constructor(
         when (cachedStatus) {
             "PERMANENT" -> {
                 val result = SmartScanResult.Blocked("cache", "domain_cache")
-                memoryCache.put(domain, CacheEntry(result, System.currentTimeMillis()))
+                putCache(memCacheKey, CacheEntry(result, System.currentTimeMillis()))
                 return result
             }
             "CLEAN_CACHE" -> {
                 val result = SmartScanResult.Clean
-                memoryCache.put(domain, CacheEntry(result, System.currentTimeMillis()))
+                putCache(memCacheKey, CacheEntry(result, System.currentTimeMillis()))
                 return result
             }
         }
@@ -83,14 +108,14 @@ class SmartScanUseCase @Inject constructor(
                 // FAIL-OPEN: No content evidence available — do NOT block.
                 // Cache briefly to prevent log spam and rapid retries.
                 val result = SmartScanResult.FetchFailed("fetch_incomplete")
-                memoryCache.put(domain, CacheEntry(result, System.currentTimeMillis()))
+                putCache(memCacheKey, CacheEntry(result, System.currentTimeMillis()))
                 return result
             }
             is FetchOutcome.FetchError -> {
                 // Network error (e.g. ISP Connection Reset on blocked SNI) — allow, but cache briefly
                 // to prevent log spam and battery drain from rapid-fire retries.
                 val result = SmartScanResult.FetchFailed(outcome.reason)
-                memoryCache.put(domain, CacheEntry(result, System.currentTimeMillis()))
+                putCache(memCacheKey, CacheEntry(result, System.currentTimeMillis()))
                 return result
             }
             is FetchOutcome.Success -> {
@@ -101,14 +126,14 @@ class SmartScanUseCase @Inject constructor(
                     val (kw, signalName) = match
                     blockingRepository.addAutoBlockedDomain(domain, kw, "PERMANENT", null)
                     val result = SmartScanResult.Blocked(kw, signalName)
-                    memoryCache.put(domain, CacheEntry(result, System.currentTimeMillis()))
+                    putCache(memCacheKey, CacheEntry(result, System.currentTimeMillis()))
                     return result
                 }
 
                 val expiresAt = System.currentTimeMillis() + 24 * 60 * 60 * 1000L // 24 hours
                 blockingRepository.addAutoBlockedDomain(domain, "", "CLEAN_CACHE", expiresAt)
                 val result = SmartScanResult.Clean
-                memoryCache.put(domain, CacheEntry(result, System.currentTimeMillis()))
+                putCache(memCacheKey, CacheEntry(result, System.currentTimeMillis()))
                 return result
             }
         }

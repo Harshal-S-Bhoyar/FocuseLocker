@@ -1,11 +1,11 @@
 package com.focuslock.domain.usecase
 
-import android.content.Context
-import android.content.res.AssetManager
+import com.focuslock.domain.repository.PageSignalFetcher
 import com.focuslock.domain.model.FetchOutcome
 import com.focuslock.domain.model.SmartScanResult
 import com.focuslock.data.repository.BlockingRepository
 import io.mockk.coEvery
+import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -19,24 +19,18 @@ import java.io.ByteArrayInputStream
 @OptIn(ExperimentalCoroutinesApi::class)
 class SmartScanIntegrationTest {
 
-    private lateinit var fetcher: MetaDescriptionFetcher
+    private lateinit var fetcher: PageSignalFetcher
     private lateinit var blockingRepository: BlockingRepository
     private lateinit var keywordScanner: KeywordScanner
     private lateinit var useCase: SmartScanUseCase
-    private lateinit var context: Context
-    private lateinit var assetManager: AssetManager
+    private lateinit var synonymRepository: com.focuslock.domain.repository.SynonymRepository
 
     @Before
     fun setup() {
-        context = mockk()
-        assetManager = mockk()
-        every { context.assets } returns assetManager
+        synonymRepository = mockk()
+        every { synonymRepository.getSynonyms() } returns emptyMap()
         
-        // Mock the synonyms JSON to an empty object for test
-        val emptyJson = "{}"
-        every { assetManager.open("keyword_synonyms.json") } returns ByteArrayInputStream(emptyJson.toByteArray())
-
-        keywordScanner = KeywordScanner(context)
+        keywordScanner = KeywordScanner(synonymRepository)
         fetcher = mockk()
         blockingRepository = mockk(relaxed = true)
 
@@ -82,5 +76,90 @@ class SmartScanIntegrationTest {
         assertTrue(result is SmartScanResult.Blocked)
         assertEquals("cache", (result as SmartScanResult.Blocked).keyword)
         assertEquals("domain_cache", result.signal)
+    }
+
+    @Test
+    fun `integration - empty active keyword list fails open without fetching`() = runTest {
+        val result = useCase("https://example.com/page", emptyList())
+
+        assertEquals(SmartScanResult.Clean, result)
+        coVerify(exactly = 0) { fetcher.fetchPageSignals(any()) }
+    }
+
+    @Test
+    fun `integration - invalid URL fails open without repository or network access`() = runTest {
+        val result = useCase("https://[invalid", listOf("casino"))
+
+        assertEquals(SmartScanResult.Clean, result)
+        coVerify(exactly = 0) { fetcher.fetchPageSignals(any()) }
+        coVerify(exactly = 0) { blockingRepository.getCachedDomainStatus(any()) }
+    }
+
+    @Test
+    fun `integration - search-engine domains are skipped`() = runTest {
+        val result = useCase("https://www.google.com/search?q=casino", listOf("casino"))
+
+        assertEquals(SmartScanResult.Clean, result)
+        coVerify(exactly = 0) { fetcher.fetchPageSignals(any()) }
+        coVerify(exactly = 0) { blockingRepository.getCachedDomainStatus(any()) }
+    }
+
+    @Test
+    fun `integration - incomplete fetch returns a cached fetch failure`() = runTest {
+        val url = "https://incomplete.example.com/page"
+        coEvery { fetcher.fetchPageSignals(url) } returns FetchOutcome.FetchEmpty
+
+        val first = useCase(url, listOf("casino"))
+        assertEquals(SmartScanResult.FetchFailed("fetch_incomplete"), first)
+
+        coEvery { fetcher.fetchPageSignals(url) } returns FetchOutcome.Success(
+            mapOf("page_description" to "casino")
+        )
+        val second = useCase(url, listOf("casino"))
+
+        assertEquals(first, second)
+        coVerify(exactly = 1) { fetcher.fetchPageSignals(url) }
+    }
+
+    @Test
+    fun `integration - fetch error reason is propagated as a fail-open result`() = runTest {
+        val url = "https://error.example.com/page"
+        coEvery { fetcher.fetchPageSignals(url) } returns FetchOutcome.FetchError("timeout")
+
+        val result = useCase(url, listOf("casino"))
+
+        assertEquals(SmartScanResult.FetchFailed("timeout"), result)
+    }
+
+    @Test
+    fun `integration - database failure returns a stable database error`() = runTest {
+        val url = "https://database.example.com/page"
+        coEvery { blockingRepository.getCachedDomainStatus("database.example.com") } throws
+            IllegalStateException("database unavailable")
+
+        val result = useCase(url, listOf("casino"))
+
+        assertEquals(SmartScanResult.FetchFailed("db_error"), result)
+        coVerify(exactly = 0) { fetcher.fetchPageSignals(any()) }
+    }
+
+    @Test
+    fun `integration - clean page result is cached and prevents a later fetch`() = runTest {
+        keywordScanner.rebuild(listOf("casino"))
+        val url = "https://clean.example.com/page"
+        coEvery { fetcher.fetchPageSignals(url) } returns FetchOutcome.Success(
+            mapOf("page_description" to "a calm reading page")
+        )
+
+        val first = useCase(url, listOf("casino"))
+        assertEquals(SmartScanResult.Clean, first)
+
+        coEvery { fetcher.fetchPageSignals(url) } returns FetchOutcome.Success(
+            mapOf("page_description" to "casino")
+        )
+        val second = useCase(url, listOf("casino"))
+
+        assertEquals(SmartScanResult.Clean, second)
+        coVerify(exactly = 1) { fetcher.fetchPageSignals(url) }
     }
 }

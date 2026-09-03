@@ -18,13 +18,14 @@ class ActivateSessionUseCase @Inject constructor(
     private val sessionRepository: SessionRepository,
     private val sessionWorkerScheduler: SessionWorkerScheduler,
     private val sessionRuntimeController: SessionRuntimeController,
-    private val cleanupStaleSessionUseCase: CleanupStaleSessionUseCase
+    private val cleanupStaleSessionUseCase: CleanupStaleSessionUseCase,
+    private val blockingRepository: com.focuslock.data.repository.BlockingRepository
 ) {
     suspend operator fun invoke(durationMillis: Long): Result<Long> {
         Timber.d("ActivateSessionUseCase: invoke started with duration $durationMillis ms")
         if (durationMillis !in MIN_DURATION_MILLIS..MAX_DURATION_MILLIS) {
             Timber.w("ActivateSessionUseCase: Invalid session duration $durationMillis ms")
-            return Result.failure(IllegalArgumentException("Session duration must be between 1 minute and 72 hours."))
+            return Result.failure(IllegalArgumentException("Session duration must be between 1 minute and 168 hours."))
         }
 
         // Clean up any expired session first.
@@ -39,7 +40,8 @@ class ActivateSessionUseCase @Inject constructor(
         val expiresAt = System.currentTimeMillis() + durationMillis
         var sessionId: Long? = null
         return try {
-            val createdSessionId = sessionRepository.startSession(expiresAt)
+            val activeCategories = blockingRepository.getActiveCategoryKeys()
+            val createdSessionId = sessionRepository.startSession(expiresAt, activeCategories)
             sessionId = createdSessionId
             Timber.d("ActivateSessionUseCase: started session in repository, sessionId = $sessionId")
             sessionWorkerScheduler.scheduleSessionTimers(expiresAt)
@@ -78,6 +80,6 @@ class ActivateSessionUseCase @Inject constructor(
 
     private companion object {
         const val MIN_DURATION_MILLIS = 1 * 60 * 1000L
-        const val MAX_DURATION_MILLIS = 72 * 60 * 60 * 1000L
+        const val MAX_DURATION_MILLIS = 168 * 60 * 60 * 1000L
     }
 }

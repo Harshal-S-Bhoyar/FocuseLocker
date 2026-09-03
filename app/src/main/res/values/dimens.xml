@@ -6,9 +6,7 @@
     <dimen name="spacing_lg">16dp</dimen>
     <dimen name="spacing_xl">24dp</dimen>
     <dimen name="spacing_xxl">32dp</dimen>
-    <dimen name="spacing_xxxl">48dp</dimen>
     <dimen name="button_height">56dp</dimen>
-    <dimen name="confirmation_button_height">64dp</dimen>
     <dimen name="progress_indicator_size">28dp</dimen>
     <dimen name="card_elevation_low">1dp</dimen>
     <dimen name="card_elevation_medium">2dp</dimen>

@@ -33,4 +33,34 @@ abstract class RepositoryModule {
     abstract fun bindAppPermissionStatusProvider(
         impl: AndroidAppPermissionStatusProvider
     ): AppPermissionStatusProvider
+
+    @Binds
+    @Singleton
+    abstract fun bindPageSignalFetcher(
+        impl: com.focuslock.data.repository.PageSignalFetcherImpl
+    ): com.focuslock.domain.repository.PageSignalFetcher
+
+    @Binds
+    @Singleton
+    abstract fun bindSynonymRepository(
+        impl: com.focuslock.data.repository.SynonymRepositoryImpl
+    ): com.focuslock.domain.repository.SynonymRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindConfigRepository(
+        impl: com.focuslock.data.repository.ConfigRepositoryImpl
+    ): com.focuslock.domain.repository.ConfigRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindDoHRepository(
+        impl: com.focuslock.data.repository.DoHRepositoryImpl
+    ): com.focuslock.domain.repository.DoHRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindBackgroundSyncScheduler(
+        impl: com.focuslock.data.scheduler.WorkManagerSyncScheduler
+    ): com.focuslock.domain.repository.BackgroundSyncScheduler
 }

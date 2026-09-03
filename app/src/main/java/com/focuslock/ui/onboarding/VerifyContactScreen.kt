@@ -22,6 +22,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
@@ -140,8 +141,16 @@ private fun VerifyContactContent(
                 CyberpunkLoadingIndicator(modifier = Modifier.width(100.dp).height(36.dp))
             } else {
                 PrimaryButton(
-                    label = stringResource(R.string.verify_contact_resend),
-                    onClick = onResendClicked
+                    label = if (state.resendCooldownSeconds > 0)
+                        pluralStringResource(
+                            R.plurals.verify_contact_resend_cooldown,
+                            state.resendCooldownSeconds,
+                            state.resendCooldownSeconds
+                        )
+                    else
+                        stringResource(R.string.verify_contact_resend),
+                    onClick = onResendClicked,
+                    enabled = state.resendCooldownSeconds == 0
                 )
             }
         }

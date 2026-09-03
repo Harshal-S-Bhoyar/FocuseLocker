@@ -108,4 +108,47 @@ class SessionWorkerSchedulerTest {
         verify { workManager.cancelUniqueWork("session_expiry_work") }
         verify { workManager.cancelUniqueWork(AccessibilityHealthWorker.WORK_NAME) }
     }
+
+    @Test
+    fun `scheduleSessionTimers skips expiry work at the current-time boundary`() {
+        scheduler.scheduleSessionTimers(System.currentTimeMillis())
+
+        verify(exactly = 1) {
+            workManager.enqueueUniquePeriodicWork(
+                "session_timer_work",
+                ExistingPeriodicWorkPolicy.UPDATE,
+                (any() as androidx.work.PeriodicWorkRequest)
+            )
+        }
+        verify(exactly = 0) {
+            workManager.enqueueUniqueWork(
+                "session_expiry_work",
+                any<ExistingWorkPolicy>(),
+                any<androidx.work.OneTimeWorkRequest>()
+            )
+        }
+    }
+
+    @Test
+    fun `scheduleSessionTimers replaces work when called repeatedly`() {
+        val futureTime = System.currentTimeMillis() + 60_000L
+
+        scheduler.scheduleSessionTimers(futureTime)
+        scheduler.scheduleSessionTimers(futureTime)
+
+        verify(exactly = 2) {
+            workManager.enqueueUniquePeriodicWork(
+                "session_timer_work",
+                ExistingPeriodicWorkPolicy.UPDATE,
+                (any() as androidx.work.PeriodicWorkRequest)
+            )
+        }
+        verify(exactly = 2) {
+            workManager.enqueueUniqueWork(
+                "session_expiry_work",
+                ExistingWorkPolicy.REPLACE,
+                (any() as androidx.work.OneTimeWorkRequest)
+            )
+        }
+    }
 }

@@ -80,7 +80,7 @@ class SessionRepositoryTest {
     fun `startSession inserts entity with current time`() = runTest {
         coEvery { sessionDao.insertSession(any()) } returns 5L
 
-        val id = repository.startSession(5000L)
+        val id = repository.startSession(5000L, emptyList())
 
         assertEquals(5L, id)
         coVerify { 

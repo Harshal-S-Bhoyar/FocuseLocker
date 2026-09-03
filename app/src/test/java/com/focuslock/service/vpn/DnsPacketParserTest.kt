@@ -67,10 +67,14 @@ class DnsPacketParserTest {
         bytes[22] = 0x00.toByte()
         bytes[23] = 0x35.toByte() // Dest port 53
         
-        // DNS Query starting at byte 28
+        // DNS Header starts at byte 28
+        bytes[32] = 0x00.toByte()
+        bytes[33] = 0x01.toByte() // QDCOUNT = 1
+        
+        // DNS Query starts at byte 40
         // Label pointer that points to itself to cause infinite loop
         bytes[40] = 0xc0.toByte() // Pointer flag
-        bytes[41] = 40.toByte()   // Point to offset 40
+        bytes[41] = 12.toByte()   // Point to offset 12 (relative to DNS header, which is byte 40)
         
         val buffer = ByteBuffer.wrap(bytes)
         val domain = DnsPacketParser.extractDomainName(buffer, bytes.size)
@@ -79,7 +83,7 @@ class DnsPacketParserTest {
 
     @Test
     fun testExtractDomainName_TooLongDomain() {
-        val bytes = ByteArray(300)
+        val bytes = ByteArray(400)
         bytes[0] = 0x45.toByte() // IPv4, IHL=5
         bytes[9] = 0x11.toByte() // Protocol = UDP
         bytes[20] = 0x00.toByte()
@@ -87,11 +91,15 @@ class DnsPacketParserTest {
         bytes[22] = 0x00.toByte()
         bytes[23] = 0x35.toByte() // Dest port 53
         
-        // DNS Query starting at byte 28
-        var offset = 28
+        // DNS Header starts at byte 28
+        bytes[32] = 0x00.toByte()
+        bytes[33] = 0x01.toByte() // QDCOUNT = 1
+        
+        // DNS Query starts at byte 40
+        var offset = 40
         // Add labels of length 6
         for (i in 0 until 50) {
-            if (offset >= 290) break
+            if (offset >= 390) break
             bytes[offset] = 6.toByte()
             offset++
             for (j in 0 until 6) {

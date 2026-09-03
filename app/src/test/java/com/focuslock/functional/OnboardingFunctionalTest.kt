@@ -74,4 +74,51 @@ class OnboardingFunctionalTest {
         status = checkOnboardingStatusUseCase()
         assertTrue("Onboarding should be complete after saving", status.isOnboardingComplete)
     }
+
+    @Test
+    fun `default settings initialization does not overwrite completed onboarding`() = runBlocking {
+        appSettingsRepository.initializeDefaultSettings()
+        appSettingsRepository.setOnboardingComplete()
+        appSettingsRepository.initializeDefaultSettings()
+
+        assertTrue(appSettingsRepository.isOnboardingComplete())
+        assertTrue(checkOnboardingStatusUseCase().isOnboardingComplete)
+    }
+
+    @Test
+    fun `unverified contact is excluded until it is marked verified`() = runBlocking {
+        val contactId = trustedContactRepository.saveContact("guardian@example.com")
+
+        assertFalse(trustedContactRepository.hasVerifiedContact())
+        assertFalse(checkOnboardingStatusUseCase().hasVerifiedContact)
+
+        trustedContactRepository.markVerified(contactId)
+
+        assertTrue(trustedContactRepository.hasVerifiedContact())
+        assertTrue(checkOnboardingStatusUseCase().hasVerifiedContact)
+    }
+
+    @Test
+    fun `future active session is reflected in onboarding status`() = runBlocking {
+        sessionRepository.startSession(
+            expiresAt = System.currentTimeMillis() + 60_000L,
+            categoryKeys = listOf("SOCIAL_MEDIA")
+        )
+
+        val status = checkOnboardingStatusUseCase()
+
+        assertTrue(status.hasActiveSession)
+    }
+
+    @Test
+    fun `expired active session is not treated as active`() = runBlocking {
+        sessionRepository.startSession(
+            expiresAt = System.currentTimeMillis() - 1_000L,
+            categoryKeys = listOf("SOCIAL_MEDIA")
+        )
+
+        val status = checkOnboardingStatusUseCase()
+
+        assertFalse(status.hasActiveSession)
+    }
 }

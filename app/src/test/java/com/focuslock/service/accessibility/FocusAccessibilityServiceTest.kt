@@ -34,17 +34,19 @@ class FocusAccessibilityServiceTest {
     private lateinit var getActiveKeywordsUseCase: GetActiveKeywordsUseCase
     private lateinit var getAllBlockedDomainsFlowUseCase: GetAllBlockedDomainsFlowUseCase
     private lateinit var sessionRepository: SessionRepository
+    private lateinit var blockingRepository: com.focuslock.data.repository.BlockingRepository
     private lateinit var smartScanUseCase: SmartScanUseCase
     private lateinit var dohQueryUseCase: DoHQueryUseCase
     private lateinit var keywordScanner: KeywordScanner
 
     @Before
     fun setup() {
-        checkUrlForBlockedContentUseCase = mockk()
+        checkUrlForBlockedContentUseCase = mockk(relaxed = true)
         getActiveKeywordsUseCase = mockk()
         getAllBlockedDomainsFlowUseCase = mockk()
         sessionRepository = mockk()
-        smartScanUseCase = mockk()
+        blockingRepository = mockk(relaxed = true)
+        smartScanUseCase = mockk(relaxed = true)
         dohQueryUseCase = mockk()
         keywordScanner = mockk(relaxed = true)
 
@@ -74,6 +76,7 @@ class FocusAccessibilityServiceTest {
         every { entryPoint.getActiveKeywordsUseCase() } returns getActiveKeywordsUseCase
         every { entryPoint.getAllBlockedDomainsFlowUseCase() } returns getAllBlockedDomainsFlowUseCase
         every { entryPoint.sessionRepository() } returns sessionRepository
+        every { entryPoint.blockingRepository() } returns blockingRepository
         every { entryPoint.smartScanUseCase() } returns smartScanUseCase
         every { entryPoint.dohQueryUseCase() } returns dohQueryUseCase
         every { entryPoint.keywordScanner() } returns keywordScanner
@@ -91,8 +94,8 @@ class FocusAccessibilityServiceTest {
         assertFieldInitialized(service, "smartScanUseCase")
         assertFieldInitialized(service, "checkUrlForBlockedContentUseCase")
         assertFieldInitialized(service, "getActiveKeywordsUseCase")
-        assertFieldInitialized(service, "getAllBlockedDomainsFlowUseCase")
         assertFieldInitialized(service, "sessionRepository")
+        assertFieldInitialized(service, "blockingRepository")
         assertFieldInitialized(service, "dohQueryUseCase")
         assertFieldInitialized(service, "keywordScanner")
 

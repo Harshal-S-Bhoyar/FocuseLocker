@@ -22,10 +22,14 @@ data class DnsConfig(
 
         fun fromContext(context: Context): DnsConfig {
             val profileId = resolveProfileId(context)
-            val endpoint = if (profileId.isBlank()) {
+            val sanitizedId = profileId.filter { it.isLetterOrDigit() }.take(12)
+            val endpoint = if (sanitizedId.isBlank()) {
                 com.focuslock.BuildConfig.FALLBACK_DNS_ENDPOINT
             } else {
-                "${com.focuslock.BuildConfig.NEXTDNS_BASE_URL}$profileId"
+                "${com.focuslock.BuildConfig.NEXTDNS_BASE_URL}$sanitizedId"
+            }
+            require(endpoint.startsWith("https://")) {
+                "DoH endpoint must use HTTPS: $endpoint"
             }
             return DnsConfig(
                 virtualIpv4 = com.focuslock.BuildConfig.VIRTUAL_IPV4,

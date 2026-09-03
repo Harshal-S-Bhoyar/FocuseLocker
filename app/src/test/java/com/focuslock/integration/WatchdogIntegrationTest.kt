@@ -57,17 +57,19 @@ class WatchdogIntegrationTest {
     fun `Integration Flow - Watchdog polling triggers enforcement when permissions revoked`() = runTest {
         watchdogService = Robolectric.buildService(PermissionWatchdogService::class.java).get()
         
-        // Start service
+        // Start service (this may call Hilt injection which overwrites dependencies)
         watchdogService.onCreate()
 
         // Mock private/injected properties AFTER onCreate so Hilt doesn't overwrite them
+        watchdogService.ioDispatcher = kotlinx.coroutines.test.StandardTestDispatcher(testScheduler)
+        
+        val scopeField = PermissionWatchdogService::class.java.getDeclaredField("serviceScope")
+        scopeField.isAccessible = true
+        scopeField.set(watchdogService, kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.SupervisorJob() + watchdogService.ioDispatcher))
+
         val repoField = PermissionWatchdogService::class.java.getDeclaredField("sessionRepository")
         repoField.isAccessible = true
         repoField.set(watchdogService, sessionRepository)
-
-        val scopeField = PermissionWatchdogService::class.java.getDeclaredField("serviceScope")
-        scopeField.isAccessible = true
-        scopeField.set(watchdogService, kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.test.UnconfinedTestDispatcher(testScheduler)))
 
         // Simulate active session
         val activeSession = Session(
@@ -100,8 +102,8 @@ class WatchdogIntegrationTest {
         // Now revoke accessibility permission
         every { PermissionChecker.isAccessibilityServiceEnabled(any()) } returns false
 
-        // Advance time again by another polling interval
-        advanceTimeBy(31000)
+        // Advance time again by another polling interval plus the internal retry delays
+        advanceTimeBy(36000)
         runCurrent()
 
         // Verify enforcement STARTED

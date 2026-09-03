@@ -58,11 +58,7 @@ class PermissionRepairActivity : ComponentActivity() {
                         FocusAccessibilityService.settingsGuardMode = true
                         startActivity(intent)
                     },
-                    onEnableBattery = {
-                        val intent = Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS)
-                        FocusAccessibilityService.settingsGuardMode = true
-                        startActivity(intent)
-                    },
+
                     onEnableVpn = {
                         val prepareIntent = VpnService.prepare(this@PermissionRepairActivity)
                         if (prepareIntent != null) {
@@ -73,8 +69,7 @@ class PermissionRepairActivity : ComponentActivity() {
                             if (PermissionChecker.isOverlayPermissionGranted(this@PermissionRepairActivity) &&
                                 PermissionChecker.isAccessibilityServiceEnabled(this@PermissionRepairActivity) &&
                                 PermissionChecker.isDeviceAdminEnabled(this@PermissionRepairActivity) &&
-                                PermissionChecker.isVpnPermissionGranted(this@PermissionRepairActivity) &&
-                                PermissionChecker.isBatteryOptimizationIgnored(this@PermissionRepairActivity)) {
+                                PermissionChecker.isVpnPermissionGranted(this@PermissionRepairActivity)) {
                                 finish()
                             }
                         }
@@ -90,8 +85,7 @@ class PermissionRepairActivity : ComponentActivity() {
         val allPermissionsOk = PermissionChecker.isOverlayPermissionGranted(this) &&
                 PermissionChecker.isAccessibilityServiceEnabled(this) &&
                 PermissionChecker.isDeviceAdminEnabled(this) &&
-                PermissionChecker.isVpnPermissionGranted(this) &&
-                PermissionChecker.isBatteryOptimizationIgnored(this)
+                PermissionChecker.isVpnPermissionGranted(this)
 
         if (allPermissionsOk) {
             finish()
@@ -113,7 +107,6 @@ fun RepairScreen(
     onEnableOverlay: () -> Unit,
     onEnableAccessibility: () -> Unit,
     onEnableDeviceAdmin: () -> Unit,
-    onEnableBattery: () -> Unit,
     onEnableVpn: () -> Unit
 ) {
     // ponytail: Swallows back navigation to prevent lockdown escape (Android 13+ compatible).
@@ -181,21 +174,11 @@ fun RepairScreen(
             Spacer(modifier = Modifier.height(16.dp))
             
             Button(
-                onClick = onEnableBattery,
-                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text("4. Disable Battery Optimization")
-            }
-            
-            Spacer(modifier = Modifier.height(16.dp))
-            
-            Button(
                 onClick = onEnableVpn,
                 colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Text("5. Restore VPN")
+                Text("4. Restore VPN")
             }
         }
     }

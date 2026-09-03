@@ -31,6 +31,24 @@ interface BlockedDomainDao {
     """)
     fun getActiveBlockedDomainListFlow(now: Long = System.currentTimeMillis()): Flow<List<String>>
     
+    @Query("""
+        SELECT DISTINCT bd.domain 
+        FROM blocked_domains bd
+        WHERE bd.category_key IN (:categoryKeys)
+          AND (bd.block_status IS NULL OR bd.block_status = 'PERMANENT')
+          AND (bd.expires_at IS NULL OR bd.expires_at > :now)
+    """)
+    suspend fun getDomainsByCategories(categoryKeys: List<String>, now: Long = System.currentTimeMillis()): List<String>
+
+    @Query("""
+        SELECT DISTINCT bd.domain 
+        FROM blocked_domains bd
+        WHERE bd.category_key IN (:categoryKeys)
+          AND (bd.block_status IS NULL OR bd.block_status = 'PERMANENT')
+          AND (bd.expires_at IS NULL OR bd.expires_at > :now)
+    """)
+    fun getDomainsByCategoriesFlow(categoryKeys: List<String>, now: Long = System.currentTimeMillis()): Flow<List<String>>
+
 
     @Query("SELECT EXISTS(SELECT 1 FROM blocked_domains WHERE domain = :domain)")
     suspend fun domainExists(domain: String): Boolean
@@ -56,6 +74,20 @@ interface BlockedDomainDao {
 
     @Query("SELECT * FROM blocked_domains WHERE domain = :domain AND (expires_at IS NULL OR expires_at > :now)")
     suspend fun findActiveDomain(domain: String, now: Long = System.currentTimeMillis()): BlockedDomainEntity?
+
+    // ponytail: scope domain cache status by active categories + AUTO_BLOCKED
+    @Query("""
+        SELECT * FROM blocked_domains 
+        WHERE domain = :domain 
+          AND (category_key IN (:categoryKeys) OR category_key = 'AUTO_BLOCKED')
+          AND (expires_at IS NULL OR expires_at > :now)
+        LIMIT 1
+    """)
+    suspend fun findActiveDomainByCategories(
+        domain: String, 
+        categoryKeys: List<String>, 
+        now: Long = System.currentTimeMillis()
+    ): BlockedDomainEntity?
 
     @Query("DELETE FROM blocked_domains WHERE expires_at IS NOT NULL AND expires_at < :now")
     suspend fun deleteExpiredEntries(now: Long = System.currentTimeMillis())

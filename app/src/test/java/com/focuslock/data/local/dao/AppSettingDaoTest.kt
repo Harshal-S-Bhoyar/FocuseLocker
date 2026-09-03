@@ -76,4 +76,17 @@ class AppSettingDaoTest {
         val value = dao.getSettingValue("test_key")
         assertEquals("new_value", value)
     }
+
+    @Test
+    fun `getSettingValue returns null for missing key`() = runBlocking {
+        assertNull(dao.getSettingValue("missing_key"))
+    }
+
+    @Test
+    fun `insertSetting replaces an existing key`() = runBlocking {
+        dao.insertSetting(AppSettingEntity("test_key", "first_value"))
+        dao.insertSetting(AppSettingEntity("test_key", "second_value"))
+
+        assertEquals("second_value", dao.getSettingValue("test_key"))
+    }
 }

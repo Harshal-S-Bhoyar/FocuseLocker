@@ -75,7 +75,6 @@ object DatabaseModule {
             FocusDatabase.DATABASE_NAME
         )
             .addMigrations(MIGRATION_2_3, MIGRATION_3_4)
-            .fallbackToDestructiveMigration()
             .build()
     }
     
