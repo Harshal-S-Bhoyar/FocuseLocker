@@ -24,6 +24,7 @@ sealed class Screen(val route: String) {
 
     // Setup (Phase 4)
     object CategorySelection : Screen("category_selection")
+    object AppBlockSelection : Screen("app_block_selection")
     object KeywordSelection : Screen("keyword_selection")
     object TimerSetup : Screen("timer_setup")
     object SessionConfirmation : Screen("session_confirmation")
@@ -113,6 +114,14 @@ fun AppNavigation(
 
         composable(Screen.CategorySelection.route) {
             com.focuslock.ui.setup.CategorySelectionScreen(
+                onNavigateNext = {
+                    navController.navigate(Screen.AppBlockSelection.route)
+                }
+            )
+        }
+
+        composable(Screen.AppBlockSelection.route) {
+            com.focuslock.ui.setup.AppBlockScreen(
                 onNavigateNext = {
                     navController.navigate(Screen.KeywordSelection.route)
                 }

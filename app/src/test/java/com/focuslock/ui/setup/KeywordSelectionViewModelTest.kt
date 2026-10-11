@@ -1,5 +1,6 @@
 package com.focuslock.ui.setup
 
+import com.focuslock.data.repository.MAX_KEYWORDS
 import com.focuslock.domain.model.BlockedKeyword
 import com.focuslock.domain.usecase.AddKeywordUseCase
 import com.focuslock.domain.usecase.GetAllKeywordsUseCase
@@ -105,8 +106,7 @@ class KeywordSelectionViewModelTest {
     }
 
     @Test
-    fun `removeKeyword clears a prior error even when removal fails`() = runTest {
-        coEvery { addKeywordUseCase("blocked") } returns Result.failure(Exception("Limit reached"))
+    fun `removeKeyword clears a prior error even when removal fails`() = runTest {        coEvery { addKeywordUseCase("blocked") } returns Result.failure(Exception("Limit reached"))
         coEvery { removeKeywordUseCase(9L) } returns Result.failure(Exception("Missing keyword"))
         val viewModel = KeywordSelectionViewModel(getAllKeywordsUseCase, addKeywordUseCase, removeKeywordUseCase)
 
@@ -115,5 +115,12 @@ class KeywordSelectionViewModelTest {
 
         assertEquals(null, viewModel.error.value)
         coVerify(exactly = 1) { removeKeywordUseCase(9L) }
+    }
+
+    @Test
+    fun `ui max matches enforced repository max`() {
+        val viewModel = KeywordSelectionViewModel(getAllKeywordsUseCase, addKeywordUseCase, removeKeywordUseCase)
+
+        assertEquals(MAX_KEYWORDS, viewModel.maxKeywords)
     }
 }

@@ -7,5 +7,6 @@ sealed class BlockCheckResult {
 
 enum class BlockReason { 
     KEYWORD_MATCH, 
-    DOMAIN_BLOCKED 
+    DOMAIN_BLOCKED,
+    APP_BLOCKED 
 }

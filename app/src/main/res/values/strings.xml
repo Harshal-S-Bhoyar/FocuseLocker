@@ -84,6 +84,10 @@
 
     <!-- Phase 4 setup screens -->
     <string name="category_selection_title">Select Categories to Block</string>
+    <string name="app_block_selection_title">Select Apps to Block</string>
+    <string name="app_block_search">Search apps</string>
+    <string name="app_block_loading">Loading apps…</string>
+    <string name="app_block_empty">No launchable apps found</string>
     <string name="auto_mode_title">Automatic Setup</string>
     <string name="auto_mode_description">Let FocusLock select the best settings based on your goals.</string>
     <string name="category_example_domains">e.g., %1$s</string>
@@ -98,6 +102,7 @@
     <string name="timer_setup_title">Set Timer</string>
     <string name="timer_setup_prompt">How long do you want to focus?</string>
     <string name="timer_review">Review &amp; Lock In</string>
+    <string name="timer_days">Days</string>
     <string name="timer_hours">Hours</string>
     <string name="timer_minutes">Minutes</string>
     <string name="timer_invalid">Timer must be between 1 minute and 7 days.</string>
@@ -107,7 +112,10 @@
     <string name="session_lock_in">Lock In</string>
     <string name="session_confirmation_description">Review your focus session settings. Once locked in, you cannot stop this session early without your trusted contact.</string>
     <string name="session_duration">Duration</string>
-    <string name="session_duration_value">%1$s, %2$s</string>
+    <plurals name="session_duration_days">
+        <item quantity="one">%d day</item>
+        <item quantity="other">%d days</item>
+    </plurals>
     <plurals name="session_duration_hours">
         <item quantity="one">%d hour</item>
         <item quantity="other">%d hours</item>

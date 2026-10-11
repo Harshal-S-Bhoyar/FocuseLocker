@@ -3,6 +3,7 @@ package com.focuslock.integration
 import android.content.Context
 import android.os.Build
 import androidx.test.core.app.ApplicationProvider
+import com.focuslock.data.apps.AppBlockSelectionStore
 import com.focuslock.data.local.entity.CategoryKey
 import com.focuslock.data.repository.BlockingRepository
 import com.focuslock.domain.model.BlockedCategory
@@ -67,6 +68,7 @@ class CategoryIntegrationTest {
         val viewModel = CategorySelectionViewModel(
             getAllCategoriesUseCase,
             toggleCategoryUseCase,
+            AppBlockSelectionStore(),
             context
         )
 
@@ -118,12 +120,12 @@ class CategoryIntegrationTest {
     @Test
     fun `auto mode state persists and is restored by a recreated view model`() = runTest {
         every { getAllCategoriesUseCase() } returns flowOf(emptyList())
-        val firstViewModel = CategorySelectionViewModel(getAllCategoriesUseCase, toggleCategoryUseCase, context)
+        val firstViewModel = CategorySelectionViewModel(getAllCategoriesUseCase, toggleCategoryUseCase, AppBlockSelectionStore(), context)
 
         firstViewModel.onAutoModeToggled(true)
         runCurrent()
 
-        val secondViewModel = CategorySelectionViewModel(getAllCategoriesUseCase, toggleCategoryUseCase, context)
+        val secondViewModel = CategorySelectionViewModel(getAllCategoriesUseCase, toggleCategoryUseCase, AppBlockSelectionStore(), context)
         assertEquals(true, secondViewModel.autoMode.value)
         assertEquals(true, context.getSharedPreferences("focuslock_prefs", Context.MODE_PRIVATE)
             .getBoolean("auto_mode_enabled", false))
@@ -132,7 +134,7 @@ class CategoryIntegrationTest {
     @Test
     fun `user category toggle delegates the requested state`() = runTest {
         every { getAllCategoriesUseCase() } returns flowOf(emptyList())
-        val viewModel = CategorySelectionViewModel(getAllCategoriesUseCase, toggleCategoryUseCase, context)
+        val viewModel = CategorySelectionViewModel(getAllCategoriesUseCase, toggleCategoryUseCase, AppBlockSelectionStore(), context)
 
         viewModel.onCategoryToggled(CategoryKey.ADULT, false)
         runCurrent()
@@ -147,7 +149,7 @@ class CategoryIntegrationTest {
             BlockedCategory(2L, CategoryKey.GAMING, true)
         )
         every { getAllCategoriesUseCase() } returns flowOf(categories)
-        val viewModel = CategorySelectionViewModel(getAllCategoriesUseCase, toggleCategoryUseCase, context)
+        val viewModel = CategorySelectionViewModel(getAllCategoriesUseCase, toggleCategoryUseCase, AppBlockSelectionStore(), context)
 
         val collectJob = launch { viewModel.categories.collect {} }
         runCurrent()
@@ -159,7 +161,7 @@ class CategoryIntegrationTest {
     @Test
     fun `disabling auto mode updates state without activating categories`() = runTest {
         every { getAllCategoriesUseCase() } returns flowOf(emptyList())
-        val viewModel = CategorySelectionViewModel(getAllCategoriesUseCase, toggleCategoryUseCase, context)
+        val viewModel = CategorySelectionViewModel(getAllCategoriesUseCase, toggleCategoryUseCase, AppBlockSelectionStore(), context)
 
         viewModel.onAutoModeToggled(false)
         runCurrent()

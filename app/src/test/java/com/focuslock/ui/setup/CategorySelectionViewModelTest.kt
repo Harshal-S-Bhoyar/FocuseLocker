@@ -4,6 +4,7 @@ import com.focuslock.domain.model.BlockedCategory
 import com.focuslock.data.local.entity.CategoryKey
 import com.focuslock.domain.usecase.GetAllCategoriesUseCase
 import com.focuslock.domain.usecase.ToggleCategoryUseCase
+import com.focuslock.data.apps.AppBlockSelectionStore
 import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
@@ -52,7 +53,7 @@ class CategorySelectionViewModelTest {
         val categoryList = listOf(BlockedCategory(id = 1, categoryKey = CategoryKey.ADULT, isActive = false))
         every { getAllCategoriesUseCase() } returns flowOf(categoryList)
 
-        val viewModel = CategorySelectionViewModel(getAllCategoriesUseCase, toggleCategoryUseCase, mockContext)
+        val viewModel = CategorySelectionViewModel(getAllCategoriesUseCase, toggleCategoryUseCase, AppBlockSelectionStore(), mockContext)
 
         // Start collecting so SharingStarted.WhileSubscribed triggers
         val collectJob = launch {
@@ -68,7 +69,7 @@ class CategorySelectionViewModelTest {
     @Test
     fun `onCategoryToggled calls use case`() = runTest {
         every { getAllCategoriesUseCase() } returns flowOf(emptyList())
-        val viewModel = CategorySelectionViewModel(getAllCategoriesUseCase, toggleCategoryUseCase, mockContext)
+        val viewModel = CategorySelectionViewModel(getAllCategoriesUseCase, toggleCategoryUseCase, AppBlockSelectionStore(), mockContext)
 
         viewModel.onCategoryToggled(CategoryKey.ADULT, true)
 
@@ -82,7 +83,7 @@ class CategorySelectionViewModelTest {
             BlockedCategory(id = 2, categoryKey = CategoryKey.GAMING, isActive = false)
         )
         every { getAllCategoriesUseCase() } returns flowOf(categoryList)
-        val viewModel = CategorySelectionViewModel(getAllCategoriesUseCase, toggleCategoryUseCase, mockContext)
+        val viewModel = CategorySelectionViewModel(getAllCategoriesUseCase, toggleCategoryUseCase, AppBlockSelectionStore(), mockContext)
 
         val collectJob = launch { viewModel.autoMode.collect {} }
         runCurrent()

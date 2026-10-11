@@ -41,9 +41,12 @@ fun TimerSetupScreen(
     onNavigateNext: (Long, Boolean) -> Unit,
     viewModel: TimerSetupViewModel = hiltViewModel()
 ) {
+    val days by viewModel.days.collectAsStateWithLifecycle()
     val hours by viewModel.hours.collectAsStateWithLifecycle()
     val minutes by viewModel.minutes.collectAsStateWithLifecycle()
     val hasVerifiedContact by viewModel.hasVerifiedContact.collectAsStateWithLifecycle()
+    val totalMinutes = days * 24 * 60 + hours * 60 + minutes
+    val maxTotalMinutes = 7 * 24 * 60
 
     Scaffold(
         topBar = {
@@ -82,14 +85,26 @@ fun TimerSetupScreen(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.Center
             ) {
+                // Days Picker
+                NumberPicker(
+                    value = days,
+                    label = stringResource(R.string.timer_days),
+                    onIncrement = { viewModel.updateDays(days + 1) },
+                    onDecrement = { viewModel.updateDays(days - 1) },
+                    enabledIncrement = days < 7 && totalMinutes + 24 * 60 <= maxTotalMinutes,
+                    enabledDecrement = days > 0
+                )
+
+                Spacer(modifier = Modifier.width(dimensionResource(R.dimen.spacing_xxl)))
+
                 // Hours Picker
                 NumberPicker(
                     value = hours,
                     label = stringResource(R.string.timer_hours),
                     onIncrement = { viewModel.updateHours(hours + 1) },
                     onDecrement = { viewModel.updateHours(hours - 1) },
-                    enabledIncrement = hours < 167 || (hours == 167 && minutes == 0),
-                    enabledDecrement = hours > 0
+                    enabledIncrement = totalMinutes + 60 <= maxTotalMinutes,
+                    enabledDecrement = hours > 0 || days > 0
                 )
                 
                 Spacer(modifier = Modifier.width(dimensionResource(R.dimen.spacing_xxl)))
@@ -100,7 +115,7 @@ fun TimerSetupScreen(
                     label = stringResource(R.string.timer_minutes),
                     onIncrement = { viewModel.updateMinutes(minutes + 1) },
                     onDecrement = { viewModel.updateMinutes(minutes - 1) },
-                    enabledIncrement = minutes < 59 && hours < 168,
+                    enabledIncrement = minutes < 59 && totalMinutes + 1 <= maxTotalMinutes,
                     enabledDecrement = minutes > 0
                 )
             }

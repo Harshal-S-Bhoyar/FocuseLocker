@@ -1,0 +1,79 @@
+{
+  "totalDecisions": 0,
+  "modelDistribution": {
+    "haiku": 0,
+    "sonnet": 0,
+    "opus": 0,
+    "inherit": 0
+  },
+  "avgComplexity": 0.5,
+  "avgConfidence": 0.8,
+  "circuitBreakerTrips": 1,
+  "lastUpdated": "2026-10-02T10:40:39.174Z",
+  "learningHistory": [
+    {
+      "task": "Ponytail-review this Android Kotlin diff for OVER-ENGINEERING ONLY (correctness/security/perf out of",
+      "model": "haiku",
+      "complexity": 0.6041772625280478,
+      "outcome": "failure",
+      "timestamp": "2026-10-02T10:40:39.169Z"
+    }
+  ],
+  "version": 2,
+  "priors": {
+    "low": {
+      "haiku": {
+        "alpha": 1,
+        "beta": 1
+      },
+      "sonnet": {
+        "alpha": 1,
+        "beta": 1
+      },
+      "opus": {
+        "alpha": 1,
+        "beta": 1
+      },
+      "inherit": {
+        "alpha": 1,
+        "beta": 1
+      }
+    },
+    "med": {
+      "haiku": {
+        "alpha": 1,
+        "beta": 2
+      },
+      "sonnet": {
+        "alpha": 1,
+        "beta": 1
+      },
+      "opus": {
+        "alpha": 1,
+        "beta": 1
+      },
+      "inherit": {
+        "alpha": 1,
+        "beta": 1
+      }
+    },
+    "high": {
+      "haiku": {
+        "alpha": 1,
+        "beta": 1
+      },
+      "sonnet": {
+        "alpha": 1,
+        "beta": 1
+      },
+      "opus": {
+        "alpha": 1,
+        "beta": 1
+      },
+      "inherit": {
+        "alpha": 1,
+        "beta": 1
+      }
+    }
+  }
+}

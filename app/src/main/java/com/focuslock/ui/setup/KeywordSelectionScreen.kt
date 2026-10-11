@@ -52,7 +52,7 @@ fun KeywordSelectionScreen(
     val error by viewModel.error.collectAsStateWithLifecycle()
     
     var inputText by remember { mutableStateOf("") }
-    val maxKeywords = 50
+    val maxKeywords = viewModel.maxKeywords
 
     Scaffold(
         topBar = {

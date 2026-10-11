@@ -18,7 +18,8 @@ class ActivateSessionUseCaseTest {
     private val runtimeController = mockk<SessionRuntimeController>(relaxed = true)
     private val cleanupStaleSessionUseCase = mockk<CleanupStaleSessionUseCase>(relaxed = true)
     private val blockingRepository = mockk<com.focuslock.data.repository.BlockingRepository>(relaxed = true)
-    private val useCase = ActivateSessionUseCase(sessionRepository, workerScheduler, runtimeController, cleanupStaleSessionUseCase, blockingRepository)
+    private val appBlockSelectionStore = com.focuslock.data.apps.AppBlockSelectionStore()
+    private val useCase = ActivateSessionUseCase(sessionRepository, workerScheduler, runtimeController, cleanupStaleSessionUseCase, blockingRepository, appBlockSelectionStore)
 
     @Test
     fun `invoke fails if duration is outside supported range`() = runTest {
@@ -44,7 +45,7 @@ class ActivateSessionUseCaseTest {
     fun `invoke succeeds and schedules workers if no active session`() = runTest {
         // Arrange
         coEvery { sessionRepository.hasActiveSession() } returns false
-        coEvery { sessionRepository.startSession(any(), any()) } returns 1L
+        coEvery { sessionRepository.startSession(any(), any(), any()) } returns 1L
 
         val durationMillis = 1 * 60 * 1000L
 
@@ -53,7 +54,7 @@ class ActivateSessionUseCaseTest {
 
         // Assert
         assertTrue(result.isSuccess)
-        coVerify { sessionRepository.startSession(any(), any()) }
+        coVerify { sessionRepository.startSession(any(), any(), any()) }
         coVerify { workerScheduler.scheduleSessionTimers(any()) }
         coVerify { runtimeController.startRuntime(any()) }
     }
@@ -61,7 +62,7 @@ class ActivateSessionUseCaseTest {
     @Test
     fun `invoke rolls back created session when runtime startup fails`() = runTest {
         coEvery { sessionRepository.hasActiveSession() } returns false
-        coEvery { sessionRepository.startSession(any(), any()) } returns 9L
+        coEvery { sessionRepository.startSession(any(), any(), any()) } returns 9L
         every { runtimeController.startRuntime(any()) } throws IllegalStateException("startup failed")
 
         val result = useCase(1 * 60 * 1000L)
@@ -76,12 +77,25 @@ class ActivateSessionUseCaseTest {
     fun `invoke permits activation after stale cleanup even when active record exists`() = runTest {
         coEvery { cleanupStaleSessionUseCase() } returns true
         coEvery { sessionRepository.hasActiveSession() } returns true
-        coEvery { sessionRepository.startSession(any(), any()) } returns 42L
+        coEvery { sessionRepository.startSession(any(), any(), any()) } returns 42L
 
         val result = useCase(168L * 60L * 60L * 1000L)
 
         assertTrue(result.isSuccess)
         assertTrue(result.getOrNull() == 42L)
-        coVerify { sessionRepository.startSession(any(), any()) }
+        coVerify { sessionRepository.startSession(any(), any(), any()) }
+    }
+
+    @Test
+    fun `invoke persists selected app keys and clears selection`() = runTest {
+        coEvery { sessionRepository.hasActiveSession() } returns false
+        coEvery { sessionRepository.startSession(any(), any(), any()) } returns 7L
+        appBlockSelectionStore.toggle("com.example.youtube", true)
+
+        val result = useCase(1 * 60 * 1000L)
+
+        assertTrue(result.isSuccess)
+        coVerify { sessionRepository.startSession(any(), any(), listOf("com.example.youtube")) }
+        assertTrue(appBlockSelectionStore.selected.value.isEmpty())
     }
 }

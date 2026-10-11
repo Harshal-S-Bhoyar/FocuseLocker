@@ -45,24 +45,25 @@ class TimerSetupViewModelTest {
         assertTrue(viewModel.isValid())
         assertEquals((2 * 60 + 30) * 60 * 1000L, viewModel.getDurationMillis())
 
-        // Test boundary 168 hours
-        viewModel.updateHours(168)
+        // Test boundary 7 days exact
+        viewModel.updateHours(0)
         viewModel.updateMinutes(0)
+        viewModel.updateDays(7)
+        assertEquals(7, viewModel.days.value)
         assertTrue(viewModel.isValid())
-        assertEquals((168 * 60) * 60 * 1000L, viewModel.getDurationMillis())
+        assertEquals((7 * 24 * 60) * 60 * 1000L, viewModel.getDurationMillis())
 
-        // Test beyond 168 hours (invalid theoretically but update doesn't allow beyond 168 directly)
-        viewModel.updateHours(169)
-        // should stay at 168
-        assertEquals(168, viewModel.hours.value)
-
-        // However, if one updates minutes to 1 at 168 hours, it should cap via getDurationMillis()
+        // 7 days with nonzero minutes is invalid (minutes set directly, continue gated)
         viewModel.updateMinutes(1)
-        // Note: isValid() returns false because totalMinutes > 168 * 60
         assertFalse(viewModel.isValid())
-        
-        // getDurationMillis caps at 168 hours
-        assertEquals((168 * 60) * 60 * 1000L, viewModel.getDurationMillis())
+
+        // getDurationMillis stays exact below the cap (gated updates can't exceed it)
+        viewModel.updateMinutes(0)
+        viewModel.updateDays(6)
+        viewModel.updateHours(23)
+        viewModel.updateMinutes(59)
+        assertTrue(viewModel.isValid())
+        assertEquals((6 * 24 * 60 + 23 * 60 + 59) * 60 * 1000L, viewModel.getDurationMillis())
     }
 
     @Test
@@ -102,5 +103,61 @@ class TimerSetupViewModelTest {
         viewModel.updateMinutes(60)
 
         assertEquals(30, viewModel.minutes.value)
+    }
+
+    @Test
+    fun `hour increment rolls over into days`() = runTest {
+        viewModel.updateHours(23)
+        viewModel.updateMinutes(0)
+        viewModel.updateHours(24)
+
+        assertEquals(1, viewModel.days.value)
+        assertEquals(0, viewModel.hours.value)
+        assertEquals((24 * 60) * 60 * 1000L, viewModel.getDurationMillis())
+    }
+
+    @Test
+    fun `hour decrement borrows a day`() = runTest {
+        viewModel.updateDays(1)
+        viewModel.updateMinutes(0)
+        viewModel.updateHours(0)
+        viewModel.updateHours(-1)
+
+        assertEquals(0, viewModel.days.value)
+        assertEquals(23, viewModel.hours.value)
+    }
+
+    @Test
+    fun `rollover past 7 days is refused`() = runTest {
+        viewModel.updateDays(6)
+        viewModel.updateHours(23)
+        viewModel.updateMinutes(59)
+        viewModel.updateHours(24)
+
+        assertEquals(6, viewModel.days.value)
+        assertEquals(23, viewModel.hours.value)
+        assertTrue(viewModel.isValid())
+    }
+
+    @Test
+    fun `days reach 7 only with hours and minutes at zero`() = runTest {
+        viewModel.updateHours(5)
+        viewModel.updateDays(7)
+        assertEquals(0, viewModel.days.value)
+
+        viewModel.updateHours(0)
+        viewModel.updateMinutes(0)
+        viewModel.updateDays(7)
+        assertEquals(7, viewModel.days.value)
+        assertTrue(viewModel.isValid())
+    }
+
+    @Test
+    fun `out of range day updates are ignored`() = runTest {
+        viewModel.updateDays(3)
+        viewModel.updateDays(-1)
+        viewModel.updateDays(8)
+
+        assertEquals(3, viewModel.days.value)
     }
 }

@@ -6,6 +6,7 @@ import com.focuslock.domain.model.BlockedKeyword
 import com.focuslock.domain.usecase.AddKeywordUseCase
 import com.focuslock.domain.usecase.GetAllKeywordsUseCase
 import com.focuslock.domain.usecase.RemoveKeywordUseCase
+import com.focuslock.data.repository.MAX_KEYWORDS
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -34,6 +35,9 @@ class KeywordSelectionViewModel @Inject constructor(
             started = SharingStarted.WhileSubscribed(5000),
             initialValue = emptyList()
         )
+
+    // Single source for the UI cap: same const the repository enforces
+    val maxKeywords: Int = MAX_KEYWORDS
 
     // Manage error state to show feedback (e.g., limit reached)
     private val _error = MutableStateFlow<String?>(null)

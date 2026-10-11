@@ -76,12 +76,16 @@ fun SessionConfirmationScreen(
             )
 
             SummaryCard(stringResource(R.string.session_duration)) {
-                val hours = viewModel.durationMillis / (60 * 60 * 1000)
+                val days = viewModel.durationMillis / (24 * 60 * 60 * 1000)
+                val hours = (viewModel.durationMillis % (24 * 60 * 60 * 1000)) / (60 * 60 * 1000)
                 val minutes = (viewModel.durationMillis % (60 * 60 * 1000)) / (60 * 1000)
-                val hoursText = pluralStringResource(R.plurals.session_duration_hours, hours.toInt(), hours)
-                val minutesText = pluralStringResource(R.plurals.session_duration_minutes, minutes.toInt(), minutes)
+                val parts = buildList {
+                    if (days > 0) add(pluralStringResource(R.plurals.session_duration_days, days.toInt(), days))
+                    if (hours > 0) add(pluralStringResource(R.plurals.session_duration_hours, hours.toInt(), hours))
+                    if (minutes > 0 || isEmpty()) add(pluralStringResource(R.plurals.session_duration_minutes, minutes.toInt(), minutes))
+                }
                 Text(
-                    text = stringResource(R.string.session_duration_value, hoursText, minutesText),
+                    text = parts.joinToString(", "),
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold
                 )

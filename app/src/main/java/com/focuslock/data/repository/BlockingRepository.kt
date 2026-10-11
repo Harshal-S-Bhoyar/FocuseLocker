@@ -20,7 +20,8 @@ import kotlinx.coroutines.Dispatchers
 import javax.inject.Inject
 import javax.inject.Singleton
 
-private const val MAX_KEYWORDS = 10
+// ponytail: [cap is product judgment against over-blocking, not a technical ceiling; single owner for UI + enforcement]
+const val MAX_KEYWORDS = 50
 
 @Singleton
 class BlockingRepository @Inject constructor(

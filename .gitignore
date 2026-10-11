@@ -124,3 +124,6 @@ ehthumbs.db
 *.swp
 *.swo
 *~
+
+# --- Local Agent Tooling State (never commit: machine-local history) ---
+.claude-flow/
