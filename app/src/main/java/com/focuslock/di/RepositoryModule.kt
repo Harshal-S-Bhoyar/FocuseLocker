@@ -63,4 +63,10 @@ abstract class RepositoryModule {
     abstract fun bindBackgroundSyncScheduler(
         impl: com.focuslock.data.scheduler.WorkManagerSyncScheduler
     ): com.focuslock.domain.repository.BackgroundSyncScheduler
+
+    @Binds
+    @Singleton
+    abstract fun bindInstalledAppsProvider(
+        impl: com.focuslock.data.apps.PackageManagerInstalledAppsProvider
+    ): com.focuslock.domain.apps.InstalledAppsProvider
 }

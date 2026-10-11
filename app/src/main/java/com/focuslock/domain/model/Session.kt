@@ -7,8 +7,9 @@ data class Session(
     val expiresAt: Long,
     val unlockedEarly: Boolean,
     val unlockRequestedAt: Long?,
-    val createdAt: Long,
-    val selectedCategoryKeys: List<String> = emptyList()
+    val     createdAt: Long,
+    val selectedCategoryKeys: List<String> = emptyList(),
+    val selectedAppKeys: List<String> = emptyList()
 ) {
     val isActive: Boolean get() = status == SessionStatus.ACTIVE
     val isExpired: Boolean get() = expiresAt <= System.currentTimeMillis()

@@ -7,6 +7,7 @@ import com.focuslock.domain.model.BlockedCategory
 import com.focuslock.domain.usecase.GetAllCategoriesUseCase
 import com.focuslock.domain.usecase.ToggleCategoryUseCase
 import com.focuslock.data.local.entity.CategoryKey
+import com.focuslock.data.apps.AppBlockSelectionStore
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -26,8 +27,15 @@ import com.focuslock.util.PrefsKeys
 class CategorySelectionViewModel @Inject constructor(
     getAllCategoriesUseCase: GetAllCategoriesUseCase,
     private val toggleCategoryUseCase: ToggleCategoryUseCase,
+    private val appBlockSelectionStore: AppBlockSelectionStore,
     @ApplicationContext private val context: Context
 ) : ViewModel() {
+
+    init {
+        // New setup entry discards selections abandoned by a previous incomplete setup.
+        // Back-navigation reuses this instance, so in-setup selections are preserved.
+        appBlockSelectionStore.clear()
+    }
 
     // Expose the list of categories as a StateFlow for Compose to observe
     val categories: StateFlow<List<BlockedCategory>> = getAllCategoriesUseCase()

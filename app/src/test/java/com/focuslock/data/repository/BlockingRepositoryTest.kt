@@ -61,10 +61,19 @@ class BlockingRepositoryTest {
 
     @Test
     fun `addKeyword fails if limit reached`() = runTest {
-        coEvery { keywordDao.getKeywordCount() } returns 10
+        coEvery { keywordDao.getKeywordCount() } returns 50
         val result = repository.addKeyword("test")
         assertTrue(result.isFailure)
-        assertEquals("Maximum 10 keywords reached", result.exceptionOrNull()?.message)
+        assertEquals("Maximum 50 keywords reached", result.exceptionOrNull()?.message)
+    }
+
+    @Test
+    fun `addKeyword succeeds below limit`() = runTest {
+        coEvery { keywordDao.getKeywordCount() } returns 49
+        coEvery { keywordDao.keywordExists("test") } returns false
+        coEvery { keywordDao.insertKeyword(any()) } returns 1L
+        val result = repository.addKeyword("test")
+        assertTrue(result.isSuccess)
     }
 
     @Test

@@ -14,11 +14,15 @@ import javax.inject.Inject
 /**
  * ViewModel for the TimerSetupScreen.
  * Manages the duration logic and validation (minimum 1 min, maximum 7 days).
+ * Hours roll over into days past 23 and borrow symmetrically; 7 days needs hours/minutes at 0.
  */
 @HiltViewModel
 class TimerSetupViewModel @Inject constructor(
     private val hasVerifiedContactUseCase: HasVerifiedContactUseCase
 ) : ViewModel() {
+
+    private val _days = MutableStateFlow(0)
+    val days: StateFlow<Int> = _days.asStateFlow()
 
     private val _hours = MutableStateFlow(0)
     val hours: StateFlow<Int> = _hours.asStateFlow()
@@ -38,10 +42,22 @@ class TimerSetupViewModel @Inject constructor(
         }
     }
 
+    fun updateDays(d: Int) {
+        if (d !in 0..MAX_DAYS) return
+        // 7 days exact needs hours/minutes at 0; lowering days is always fine
+        val total = d * MINUTES_PER_DAY + _hours.value * 60 + _minutes.value
+        if (total <= MAX_TOTAL_MINUTES) {
+            _days.value = d
+        }
+    }
+
     fun updateHours(h: Int) {
         Timber.d("TimerSetupViewModel: updateHours called with $h")
-        if (h in 0..168) { // 7 days = 168 hours
-            _hours.value = h
+        // Normalize through the total so 24 rolls into days and -1 borrows; out-of-range totals refused
+        val total = _days.value * MINUTES_PER_DAY + h * 60 + _minutes.value
+        if (total in 1..MAX_TOTAL_MINUTES) {
+            _days.value = total / MINUTES_PER_DAY
+            _hours.value = (total % MINUTES_PER_DAY) / 60
         }
     }
 
@@ -51,22 +67,26 @@ class TimerSetupViewModel @Inject constructor(
             _minutes.value = m
         }
     }
+
+    fun totalMinutes(): Int = _days.value * MINUTES_PER_DAY + _hours.value * 60 + _minutes.value
     
     fun getDurationMillis(): Long {
-        val totalMinutes = (_hours.value * 60) + _minutes.value
-        // Enforce 1 min minimum
-        val validMinutes = totalMinutes.coerceAtLeast(1)
-        // Enforce 7-day maximum
-        val boundedMinutes = validMinutes.coerceAtMost(168 * 60)
+        // Enforce 1 min minimum, 7-day maximum
+        val boundedMinutes = totalMinutes().coerceIn(1, MAX_TOTAL_MINUTES)
         val durationMillis = boundedMinutes * 60 * 1000L
-        Timber.d("TimerSetupViewModel: computed durationMillis = $durationMillis from hours = ${_hours.value}, minutes = ${_minutes.value}")
+        Timber.d("TimerSetupViewModel: computed durationMillis = $durationMillis from days = ${_days.value}, hours = ${_hours.value}, minutes = ${_minutes.value}")
         return durationMillis
     }
     
     fun isValid(): Boolean {
-        val totalMinutes = (_hours.value * 60) + _minutes.value
-        val valid = totalMinutes in 1..(168 * 60)
-        Timber.d("TimerSetupViewModel: isValid check returned $valid (total minutes = $totalMinutes)")
+        val valid = totalMinutes() in 1..MAX_TOTAL_MINUTES
+        Timber.d("TimerSetupViewModel: isValid check returned $valid (total minutes = ${totalMinutes()})")
         return valid
+    }
+
+    private companion object {
+        const val MAX_DAYS = 7
+        const val MINUTES_PER_DAY = 24 * 60
+        const val MAX_TOTAL_MINUTES = 7 * 24 * 60
     }
 }

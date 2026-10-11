@@ -8,6 +8,7 @@ import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
 import com.focuslock.di.BlockingServiceEntryPoint
 import com.focuslock.domain.model.BlockCheckResult
+import com.focuslock.domain.model.BlockReason
 import com.focuslock.data.repository.SessionRepository
 import com.focuslock.domain.usecase.CheckUrlForBlockedContentUseCase
 import com.focuslock.domain.usecase.GetAllBlockedDomainsFlowUseCase
@@ -22,12 +23,8 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
-import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
-import kotlinx.coroutines.selects.select
-import kotlinx.coroutines.async
 import java.util.concurrent.atomic.AtomicLong
 import java.util.concurrent.atomic.AtomicReference
 
@@ -87,6 +84,7 @@ class FocusAccessibilityService : AccessibilityService() {
     private val activeKeywords = AtomicReference<List<String>>(emptyList())
     private val activeDomains = AtomicReference<List<String>>(emptyList())
     private val activeCategories = AtomicReference<List<String>>(emptyList())
+    private val blockedAppPackages = AtomicReference<Set<String>>(emptySet())
     private val domainRevision = AtomicLong(0L)
     @Volatile private var activeSessionExpiresAt: Long? = null
     private var lastProcessedUrl: String? = null
@@ -162,6 +160,9 @@ class FocusAccessibilityService : AccessibilityService() {
                 if (session != null) {
                     val keys = session.selectedCategoryKeys.filter { it.isNotBlank() }
                     activeCategories.set(keys)
+                    // Sanitize here so stale selections (predating exclusions) can never reach the handler
+                    blockedAppPackages.set(sanitizeBlockedPackages(session.selectedAppKeys.toSet()))
+                    updateServiceInfoForGuardMode(settingsGuardMode)
                     if (keys.isNotEmpty()) {
                         blockingRepository.getDomainsByCategoriesFlow(keys)
                     } else {
@@ -169,6 +170,8 @@ class FocusAccessibilityService : AccessibilityService() {
                     }
                 } else {
                     activeCategories.set(emptyList())
+                    blockedAppPackages.set(emptySet())
+                    updateServiceInfoForGuardMode(settingsGuardMode)
                     settingsGuardMode = false
                     flowOf(null)
                 }
@@ -198,12 +201,28 @@ class FocusAccessibilityService : AccessibilityService() {
     private fun updateServiceInfoForGuardMode(isGuardActive: Boolean) {
         val runnable = Runnable {
             val info = serviceInfo ?: return@Runnable
-            info.packageNames = if (isGuardActive) null
+            // App blocking needs events from blocked packages: listen to all when set is non-empty
+            info.packageNames = if (isGuardActive || blockedAppPackages.get().isNotEmpty()) null
                 else (SUPPORTED_BROWSERS + SETTINGS_PACKAGES).toTypedArray()
             serviceInfo = info
         }
         if (android.os.Looper.myLooper() == android.os.Looper.getMainLooper()) runnable.run()
         else mainHandler.post(runnable)
+    }
+
+    private fun sanitizeBlockedPackages(raw: Set<String>): Set<String> {
+        val launcherPkg = resolveLauncherPackage()
+        return raw - com.focuslock.domain.apps.BlockedAppExclusions.SETTINGS_PACKAGES - packageName - setOfNotNull(launcherPkg)
+    }
+
+    private fun resolveLauncherPackage(): String? {
+        val home = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME)
+        val info = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+            packageManager?.resolveActivity(home, android.content.pm.PackageManager.ResolveInfoFlags.of(0))
+        } else {
+            @Suppress("DEPRECATION") packageManager?.resolveActivity(home, 0)
+        }
+        return info?.activityInfo?.packageName
     }
 
     private fun updateForegroundState(isActive: Boolean) {
@@ -265,11 +284,10 @@ class FocusAccessibilityService : AccessibilityService() {
         val eventType = event.eventType
 
         if (settingsGuardMode) {
-            val currentPackage = packageName
             // User left Settings entirely (opened another app, went to home)
-            if (currentPackage != "com.android.settings" &&
-                !SETTINGS_PACKAGES.contains(currentPackage) &&
-                currentPackage != this.packageName) {
+            if (packageName != "com.android.settings" &&
+                !SETTINGS_PACKAGES.contains(packageName) &&
+                packageName != this.packageName) {
                 // Force back to overlay
                 com.focuslock.service.overlay.PermissionEnforcementService.start(this)
                 settingsGuardMode = false
@@ -290,7 +308,19 @@ class FocusAccessibilityService : AccessibilityService() {
             return
         }
 
-        // 2. Browser Filtering — accept BOTH event types:
+        // 2. App Blocking — hard block on foreground window for blocked packages.
+        // O(1) Set lookup per window-state event; package filter widened only while set non-empty.
+        // ponytail: [widened to all packages during block; upgrade to dynamic per-package filter if event cost matters]
+        if (eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED &&
+            packageName != this.packageName &&
+            blockedAppPackages.get().contains(packageName)
+        ) {
+            performGlobalAction(GLOBAL_ACTION_BACK)
+            launchOverlayService(packageName, BlockReason.APP_BLOCKED.name)
+            return
+        }
+
+        // 3. Browser Filtering — accept BOTH event types:
         //    STATE_CHANGED  → tab switch, app open
         //    CONTENT_CHANGED → URL bar update after navigation
         //    Battery safety: Throttle CONTENT_CHANGED to max 2 times a second (500ms) to prevent excessive DOM traversal

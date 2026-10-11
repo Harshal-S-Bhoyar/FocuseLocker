@@ -19,10 +19,10 @@ class ActivateSessionUseCase @Inject constructor(
     private val sessionWorkerScheduler: SessionWorkerScheduler,
     private val sessionRuntimeController: SessionRuntimeController,
     private val cleanupStaleSessionUseCase: CleanupStaleSessionUseCase,
-    private val blockingRepository: com.focuslock.data.repository.BlockingRepository
+    private val blockingRepository: com.focuslock.data.repository.BlockingRepository,
+    private val appBlockSelectionStore: com.focuslock.data.apps.AppBlockSelectionStore
 ) {
     suspend operator fun invoke(durationMillis: Long): Result<Long> {
-        Timber.d("ActivateSessionUseCase: invoke started with duration $durationMillis ms")
         if (durationMillis !in MIN_DURATION_MILLIS..MAX_DURATION_MILLIS) {
             Timber.w("ActivateSessionUseCase: Invalid session duration $durationMillis ms")
             return Result.failure(IllegalArgumentException("Session duration must be between 1 minute and 168 hours."))
@@ -31,7 +31,6 @@ class ActivateSessionUseCase @Inject constructor(
         // Clean up any expired session first.
         // If nothing was cleaned AND a live session exists → block creation.
         val cleaned = cleanupStaleSessionUseCase()
-        Timber.d("ActivateSessionUseCase: cleanupStaleSessionUseCase returned $cleaned")
         if (!cleaned && sessionRepository.hasActiveSession()) {
             Timber.w("ActivateSessionUseCase: Active session already exists, blocking creation")
             return Result.failure(IllegalStateException("An active session already exists."))
@@ -41,12 +40,13 @@ class ActivateSessionUseCase @Inject constructor(
         var sessionId: Long? = null
         return try {
             val activeCategories = blockingRepository.getActiveCategoryKeys()
-            val createdSessionId = sessionRepository.startSession(expiresAt, activeCategories)
+            val blockedApps = appBlockSelectionStore.selected.value.toList()
+            val createdSessionId = sessionRepository.startSession(expiresAt, activeCategories, blockedApps)
             sessionId = createdSessionId
-            Timber.d("ActivateSessionUseCase: started session in repository, sessionId = $sessionId")
             sessionWorkerScheduler.scheduleSessionTimers(expiresAt)
-            Timber.d("ActivateSessionUseCase: scheduled session timers")
             sessionRuntimeController.startRuntime(durationMillis)
+            // Clear only after everything succeeded so a scheduler/runtime failure preserves selection for retry
+            appBlockSelectionStore.clear()
             Timber.i("ActivateSessionUseCase: Session successfully activated. SessionId: $createdSessionId, expiresAt: $expiresAt")
             Result.success(createdSessionId)
         } catch (e: CancellationException) {
@@ -61,19 +61,15 @@ class ActivateSessionUseCase @Inject constructor(
     }
 
     private suspend fun rollbackActivation(sessionId: Long?) = withContext(NonCancellable) {
-        Timber.d("ActivateSessionUseCase: rollbackActivation called for sessionId = $sessionId")
         runCatching { 
             sessionWorkerScheduler.cancelSessionTimers() 
-            Timber.d("ActivateSessionUseCase: rollback cancelled session timers")
         }
         runCatching { 
             sessionRuntimeController.stopRuntime() 
-            Timber.d("ActivateSessionUseCase: rollback stopped session runtime")
         }
         sessionId?.let { id ->
             runCatching { 
                 sessionRepository.endSession(id, SessionStatus.CANCELLED) 
-                Timber.d("ActivateSessionUseCase: rollback ended session in repository (status = CANCELLED)")
             }
         }
     }

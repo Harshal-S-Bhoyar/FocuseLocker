@@ -24,7 +24,7 @@ class SessionRepository @Inject constructor(
         return sessionDao.getActiveSessionSync()?.toDomain()
     }
 
-    suspend fun startSession(expiresAt: Long, categoryKeys: List<String>): Long {
+    suspend fun startSession(expiresAt: Long, categoryKeys: List<String>, appKeys: List<String> = emptyList()): Long {
         val now = System.currentTimeMillis()
         val entity = SessionEntity(
             status = EntityStatus.ACTIVE,
@@ -33,7 +33,8 @@ class SessionRepository @Inject constructor(
             unlockedEarly = false,
             unlockRequestedAt = null,
             createdAt = now,
-            selectedCategoryKeys = categoryKeys.joinToString(",")
+            selectedCategoryKeys = encodeKeys(categoryKeys),
+            selectedAppKeys = encodeKeys(appKeys)
         )
         return sessionDao.insertSession(entity)
     }
@@ -51,6 +52,18 @@ class SessionRepository @Inject constructor(
         return activeSession.expiresAt > System.currentTimeMillis()
     }
 
+    // ponytail: app block list derived from active session, no new table.
+    // CSV safe: package names never contain commas.
+    suspend fun getBlockedAppPackagesSync(): Set<String> {
+        return getActiveSessionSync()?.selectedAppKeys?.toSet() ?: emptySet()
+    }
+
+    // O(N) join/split on small bounded key lists; package names never contain commas
+    private fun encodeKeys(keys: List<String>): String = keys.joinToString(",")
+
+    private fun decodeKeys(csv: String): List<String> =
+        if (csv.isBlank()) emptyList() else csv.split(",")
+
     private fun SessionEntity.toDomain(): Session {
         return Session(
             id = id,
@@ -64,7 +77,8 @@ class SessionRepository @Inject constructor(
             unlockedEarly = unlockedEarly,
             unlockRequestedAt = unlockRequestedAt,
             createdAt = createdAt,
-            selectedCategoryKeys = if (selectedCategoryKeys.isBlank()) emptyList() else selectedCategoryKeys.split(",")
+            selectedCategoryKeys = decodeKeys(selectedCategoryKeys),
+            selectedAppKeys = decodeKeys(selectedAppKeys)
         )
     }
 

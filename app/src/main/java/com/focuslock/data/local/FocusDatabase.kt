@@ -30,13 +30,14 @@ import com.focuslock.data.local.entity.UnlockRequestEntity
         UnlockRequestEntity::class,
         AppSettingEntity::class
     ],
-    version = 8,
+    version = 9,
     exportSchema = true,
     autoMigrations = [
         AutoMigration(from = 4, to = 5),
         AutoMigration(from = 5, to = 6),
         AutoMigration(from = 6, to = 7),
-        AutoMigration(from = 7, to = 8, spec = FocusDatabase.Migration7To8Spec::class)
+        AutoMigration(from = 7, to = 8, spec = FocusDatabase.Migration7To8Spec::class),
+        AutoMigration(from = 8, to = 9, spec = FocusDatabase.Migration8To9Spec::class)
     ]
 )
 abstract class FocusDatabase : RoomDatabase() {
@@ -53,6 +54,19 @@ abstract class FocusDatabase : RoomDatabase() {
                     WHERE is_active = 1
                 )
                 WHERE status = 'ACTIVE' AND (selected_category_keys IS NULL OR selected_category_keys = '')
+                """.trimIndent()
+            )
+        }
+    }
+    
+    // ponytail: backfill selected_app_keys empty for existing active sessions
+    class Migration8To9Spec : AutoMigrationSpec {
+        override fun onPostMigrate(db: SupportSQLiteDatabase) {
+            db.execSQL(
+                """
+                UPDATE sessions 
+                SET selected_app_keys = ''
+                WHERE status = 'ACTIVE' AND (selected_app_keys IS NULL OR selected_app_keys = '')
                 """.trimIndent()
             )
         }

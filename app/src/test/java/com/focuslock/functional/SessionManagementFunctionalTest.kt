@@ -86,7 +86,8 @@ class SessionManagementFunctionalTest {
             sessionWorkerScheduler,
             sessionRuntimeController,
             cleanupStaleSessionUseCase,
-            blockingRepository
+            blockingRepository,
+            com.focuslock.data.apps.AppBlockSelectionStore()
         )
 
         getSessionRemainingTimeUseCase = GetSessionRemainingTimeUseCase(sessionRepository)
