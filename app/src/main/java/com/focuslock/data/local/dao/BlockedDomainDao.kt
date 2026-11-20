@@ -16,7 +16,7 @@ interface BlockedDomainDao {
         FROM blocked_domains bd
         INNER JOIN blocked_categories bc ON bd.category_key = bc.category_key
         WHERE bc.is_active = 1 
-          AND (bd.block_status IS NULL OR bd.block_status = 'PERMANENT')
+          AND (bd.block_status IS NULL OR bd.block_status = 'PERMANENT' OR bd.block_status = 'TEMPORARY')
           AND (bd.expires_at IS NULL OR bd.expires_at > :now)
     """)
     suspend fun getActiveBlockedDomainList(now: Long = System.currentTimeMillis()): List<String>
@@ -26,7 +26,7 @@ interface BlockedDomainDao {
         FROM blocked_domains bd
         INNER JOIN blocked_categories bc ON bd.category_key = bc.category_key
         WHERE bc.is_active = 1 
-          AND (bd.block_status IS NULL OR bd.block_status = 'PERMANENT')
+          AND (bd.block_status IS NULL OR bd.block_status = 'PERMANENT' OR bd.block_status = 'TEMPORARY')
           AND (bd.expires_at IS NULL OR bd.expires_at > :now)
     """)
     fun getActiveBlockedDomainListFlow(now: Long = System.currentTimeMillis()): Flow<List<String>>
@@ -35,7 +35,7 @@ interface BlockedDomainDao {
         SELECT DISTINCT bd.domain 
         FROM blocked_domains bd
         WHERE bd.category_key IN (:categoryKeys)
-          AND (bd.block_status IS NULL OR bd.block_status = 'PERMANENT')
+          AND (bd.block_status IS NULL OR bd.block_status = 'PERMANENT' OR bd.block_status = 'TEMPORARY')
           AND (bd.expires_at IS NULL OR bd.expires_at > :now)
     """)
     suspend fun getDomainsByCategories(categoryKeys: List<String>, now: Long = System.currentTimeMillis()): List<String>
@@ -44,7 +44,7 @@ interface BlockedDomainDao {
         SELECT DISTINCT bd.domain 
         FROM blocked_domains bd
         WHERE bd.category_key IN (:categoryKeys)
-          AND (bd.block_status IS NULL OR bd.block_status = 'PERMANENT')
+          AND (bd.block_status IS NULL OR bd.block_status = 'PERMANENT' OR bd.block_status = 'TEMPORARY')
           AND (bd.expires_at IS NULL OR bd.expires_at > :now)
     """)
     fun getDomainsByCategoriesFlow(categoryKeys: List<String>, now: Long = System.currentTimeMillis()): Flow<List<String>>

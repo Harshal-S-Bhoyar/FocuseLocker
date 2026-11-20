@@ -50,6 +50,8 @@ class AppSettingsRepository @Inject constructor(
     }
 
     suspend fun setDomainSeeded() {
-        appSettingDao.updateSettingValue(AppSettingKey.DOMAINS_SEEDED, "true")
+        // Upsert, not bare UPDATE: the defaults batch never contains this key,
+        // so UPDATE would affect zero rows and every launch would reseed.
+        appSettingDao.insertSetting(AppSettingEntity(AppSettingKey.DOMAINS_SEEDED, "true"))
     }
 }
