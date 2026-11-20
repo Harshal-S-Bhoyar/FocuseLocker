@@ -61,7 +61,7 @@ abstract class RepositoryModule {
     @Binds
     @Singleton
     abstract fun bindBackgroundSyncScheduler(
-        impl: com.focuslock.data.scheduler.WorkManagerSyncScheduler
+        impl: com.focuslock.data.worker.WorkScheduler
     ): com.focuslock.domain.repository.BackgroundSyncScheduler
 
     @Binds

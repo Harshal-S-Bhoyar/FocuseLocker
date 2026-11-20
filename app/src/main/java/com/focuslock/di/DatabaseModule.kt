@@ -8,6 +8,7 @@ import com.focuslock.data.local.dao.BlockedCategoryDao
 import com.focuslock.data.local.dao.BlockedDomainDao
 import com.focuslock.data.local.dao.BlockedKeywordDao
 import com.focuslock.data.local.dao.SessionDao
+import com.focuslock.data.local.dao.ScheduleDao
 import com.focuslock.data.local.dao.TrustedContactDao
 import com.focuslock.data.local.dao.UnlockRequestDao
 import dagger.Module
@@ -118,5 +119,11 @@ object DatabaseModule {
     @Singleton
     fun provideAppSettingDao(database: FocusDatabase): AppSettingDao {
         return database.appSettingDao()
+    }
+
+    @Provides
+    @Singleton
+    fun provideScheduleDao(database: FocusDatabase): ScheduleDao {
+        return database.scheduleDao()
     }
 }
