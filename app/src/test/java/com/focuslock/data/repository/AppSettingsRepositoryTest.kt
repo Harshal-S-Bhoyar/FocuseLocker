@@ -93,4 +93,17 @@ class AppSettingsRepositoryTest {
         repository.setOnboardingComplete()
         coVerify { appSettingDao.updateSettingValue(AppSettingKey.ONBOARDING_COMPLETE, "true") }
     }
+
+    @Test
+    fun `setDomainSeeded upserts so the flag survives without a preexisting row`() = runTest {
+        repository.setDomainSeeded()
+
+        coVerify {
+            appSettingDao.insertSetting(withArg {
+                assertEquals(AppSettingKey.DOMAINS_SEEDED, it.key)
+                assertEquals("true", it.value)
+            })
+        }
+        coVerify(exactly = 0) { appSettingDao.updateSettingValue(any(), any()) }
+    }
 }
