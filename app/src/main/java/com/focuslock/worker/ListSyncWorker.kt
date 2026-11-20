@@ -8,6 +8,7 @@ import com.focuslock.data.local.dao.BlockedDomainDao
 import com.focuslock.data.parser.StevenBlackConfig
 import com.focuslock.data.parser.StevenBlackParser
 import com.focuslock.data.repository.BlockingRepository
+import com.focuslock.util.PrefsKeys
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 import kotlinx.coroutines.Dispatchers
@@ -24,6 +25,8 @@ class ListSyncWorker @AssistedInject constructor(
     private val okHttpClient: OkHttpClient
 ) : CoroutineWorker(context, workerParams) {
 
+    private fun etagKey(categoryKey: String) = "etag_$categoryKey"
+
     override suspend fun doWork(): Result = withContext(Dispatchers.IO) {
         try {
             timber.log.Timber.i("ListSyncWorker started.")
@@ -33,7 +36,7 @@ class ListSyncWorker @AssistedInject constructor(
 
             val activeCategories = blockingRepository.getActiveCategoryKeys()
             
-            val sharedPreferences = context.getSharedPreferences("focuslock_prefs", Context.MODE_PRIVATE)
+            val sharedPreferences = context.getSharedPreferences(PrefsKeys.FILE, Context.MODE_PRIVATE)
             val editor = sharedPreferences.edit()
             
             val customClient = okHttpClient.newBuilder()
@@ -45,7 +48,7 @@ class ListSyncWorker @AssistedInject constructor(
             for (categoryKey in activeCategories) {
                 val url = StevenBlackConfig.categoryToUrlMap[categoryKey] ?: continue
                 
-                val lastETag = sharedPreferences.getString("etag_$categoryKey", null)
+                val lastETag = sharedPreferences.getString(etagKey(categoryKey), null)
                 
                 val requestBuilder = Request.Builder().url(url)
                 if (lastETag != null) {
@@ -60,7 +63,7 @@ class ListSyncWorker @AssistedInject constructor(
                     if (response.isSuccessful) {
                         val newETag = response.header("ETag")
                         if (newETag != null) {
-                            editor.putString("etag_$categoryKey", newETag)
+                            editor.putString(etagKey(categoryKey), newETag)
                         }
 
                         response.body?.byteStream()?.let { inputStream ->
