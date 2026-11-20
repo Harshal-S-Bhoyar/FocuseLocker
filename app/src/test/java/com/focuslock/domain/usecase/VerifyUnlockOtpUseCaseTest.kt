@@ -3,7 +3,7 @@ package com.focuslock.domain.usecase
 import com.focuslock.domain.model.UnlockRequestStatus
 import com.focuslock.data.repository.UnlockRepository
 import com.focuslock.data.repository.SessionRepository
-import com.focuslock.data.worker.UnlockWorkerScheduler
+import com.focuslock.data.worker.WorkScheduler
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
@@ -19,18 +19,18 @@ class VerifyUnlockOtpUseCaseTest {
 
     private lateinit var unlockRepository: UnlockRepository
     private lateinit var sessionRepository: SessionRepository
-    private lateinit var unlockWorkerScheduler: UnlockWorkerScheduler
+    private lateinit var workScheduler: WorkScheduler
     private lateinit var useCase: VerifyUnlockOtpUseCase
 
     @Before
     fun setup() {
         unlockRepository = mockk(relaxed = true)
         sessionRepository = mockk(relaxed = true)
-        unlockWorkerScheduler = mockk(relaxed = true)
+        workScheduler = mockk(relaxed = true)
         useCase = VerifyUnlockOtpUseCase(
             unlockRepository = unlockRepository,
             sessionRepository = sessionRepository,
-            unlockWorkerScheduler = unlockWorkerScheduler
+            workScheduler = workScheduler
         )
     }
 
@@ -81,7 +81,7 @@ class VerifyUnlockOtpUseCaseTest {
         assertEquals(VerifyUnlockResult.Valid, result)
         coVerify { unlockRepository.updateStatus(requestId, UnlockRequestStatus.COOLDOWN) }
         coVerify { unlockRepository.setCooldownEndsAt(eq(requestId), any()) }
-        coVerify { unlockWorkerScheduler.scheduleCooldownTimer(any()) }
+        coVerify { workScheduler.scheduleCooldownTimer(any()) }
     }
 
     @Test
