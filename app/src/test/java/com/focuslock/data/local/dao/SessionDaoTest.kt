@@ -115,6 +115,37 @@ class SessionDaoTest {
     }
 
     @Test
+    fun `insertIfNoActiveSession rejects a second live activation`() = runBlocking {
+        val now = System.currentTimeMillis()
+        val first = dao.insertIfNoActiveSession(
+            SessionEntity(status = SessionStatus.ACTIVE, startedAt = now, expiresAt = now + 60_000L, unlockedEarly = false, createdAt = now, unlockRequestedAt = null),
+            now
+        )
+        val second = dao.insertIfNoActiveSession(
+            SessionEntity(status = SessionStatus.ACTIVE, startedAt = now, expiresAt = now + 60_000L, unlockedEarly = false, createdAt = now, unlockRequestedAt = null),
+            now
+        )
+
+        assertNotNull(first)
+        assertNull(second)
+        assertEquals(1, dao.countSessionsByStatus(SessionStatus.ACTIVE))
+    }
+
+    @Test
+    fun `insertIfNoActiveSession ignores an expired active row`() = runBlocking {
+        val now = System.currentTimeMillis()
+        dao.insertSession(SessionEntity(status = SessionStatus.ACTIVE, startedAt = now - 120_000L, expiresAt = now - 60_000L, unlockedEarly = false, createdAt = now - 120_000L, unlockRequestedAt = null))
+
+        val created = dao.insertIfNoActiveSession(
+            SessionEntity(status = SessionStatus.ACTIVE, startedAt = now, expiresAt = now + 60_000L, unlockedEarly = false, createdAt = now, unlockRequestedAt = null),
+            now
+        )
+
+        assertNotNull(created)
+        assertEquals(2, dao.countSessionsByStatus(SessionStatus.ACTIVE))
+    }
+
+    @Test
     fun `delete session removes it and updates status count`() = runBlocking {
         val id = dao.insertSession(SessionEntity(status = SessionStatus.ACTIVE, startedAt = 1L, expiresAt = 2L, unlockedEarly = false, createdAt = 1L, unlockRequestedAt = null))
 
