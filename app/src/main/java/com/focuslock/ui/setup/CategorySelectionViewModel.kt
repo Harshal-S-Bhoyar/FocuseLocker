@@ -28,7 +28,8 @@ class CategorySelectionViewModel @Inject constructor(
     getAllCategoriesUseCase: GetAllCategoriesUseCase,
     private val toggleCategoryUseCase: ToggleCategoryUseCase,
     private val appBlockSelectionStore: AppBlockSelectionStore,
-    @ApplicationContext private val context: Context
+    @ApplicationContext private val context: Context,
+    private val scheduleRepository: com.focuslock.data.repository.ScheduleRepository
 ) : ViewModel() {
 
     init {
@@ -40,6 +41,9 @@ class CategorySelectionViewModel @Inject constructor(
     // Expose the list of categories as a StateFlow for Compose to observe
     val categories: StateFlow<List<BlockedCategory>> = getAllCategoriesUseCase()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    val scheduleEnabled: StateFlow<Boolean> =
+        scheduleRepository.isScheduleEnabled().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
 
     private val _autoMode = MutableStateFlow(
         context.getSharedPreferences(PrefsKeys.FILE, Context.MODE_PRIVATE)

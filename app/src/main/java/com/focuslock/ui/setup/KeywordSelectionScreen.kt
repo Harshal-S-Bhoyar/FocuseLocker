@@ -45,12 +45,14 @@ import com.focuslock.R
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun KeywordSelectionScreen(
-    onNavigateNext: () -> Unit,
+    onNavigateNext: (Boolean) -> Unit,
     viewModel: KeywordSelectionViewModel = hiltViewModel()
 ) {
     val keywords by viewModel.keywords.collectAsStateWithLifecycle()
     val error by viewModel.error.collectAsStateWithLifecycle()
-    
+    val hasVerifiedContact by viewModel.hasVerifiedContact.collectAsStateWithLifecycle()
+    val isContactLoaded by viewModel.isContactLoaded.collectAsStateWithLifecycle()
+
     var inputText by remember { mutableStateOf("") }
     val maxKeywords = viewModel.maxKeywords
 
@@ -63,7 +65,10 @@ fun KeywordSelectionScreen(
         bottomBar = {
             PrimaryButton(
                 label = stringResource(R.string.next),
-                onClick = onNavigateNext,
+                // The contact check loads async: an enabled-by-default button would route
+                // verified users to TrustedContactSetup on the initial false value.
+                enabled = isContactLoaded,
+                onClick = { onNavigateNext(hasVerifiedContact) },
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(dimensionResource(R.dimen.spacing_lg))
@@ -83,9 +88,9 @@ fun KeywordSelectionScreen(
             ) {
                 OutlinedTextField(
                     value = inputText,
-                    onValueChange = { 
+                    onValueChange = {
                         inputText = it
-                        if (error != null) viewModel.clearError() 
+                        if (error != null) viewModel.clearError()
                     },
                     modifier = Modifier.weight(1f),
                     label = { Text(stringResource(R.string.keyword_input_label)) },
@@ -106,7 +111,7 @@ fun KeywordSelectionScreen(
                     enabled = keywords.size < maxKeywords && inputText.isNotBlank()
                 )
             }
-            
+
             // Error Message Display
             error?.let { errorMessage ->
                 Text(
@@ -116,18 +121,18 @@ fun KeywordSelectionScreen(
                     modifier = Modifier.padding(top = dimensionResource(R.dimen.spacing_xs))
                 )
             }
-            
+
             Spacer(modifier = Modifier.height(dimensionResource(R.dimen.spacing_lg)))
-            
+
             // Counter indicating limit
             Text(
                 text = pluralStringResource(R.plurals.keyword_counter, keywords.size, keywords.size, maxKeywords),
                 style = MaterialTheme.typography.bodyMedium,
                 color = if (keywords.size >= maxKeywords) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant
             )
-            
+
             Spacer(modifier = Modifier.height(dimensionResource(R.dimen.spacing_sm)))
-            
+
             // List of currently added Keywords
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
