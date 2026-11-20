@@ -37,7 +37,7 @@ class FocusAccessibilityService : AccessibilityService() {
 
     companion object {
         private const val TAG = "SVC_ACCESSIBILITY"
-        
+
         // List of supported browser package names
         private val SUPPORTED_BROWSERS = setOf(
             "com.android.chrome",
@@ -51,7 +51,7 @@ class FocusAccessibilityService : AccessibilityService() {
             "com.kiwibrowser.browser",
             "com.UCMobile.intl"
         )
-        
+
         // List of settings packages to protect
         private val SETTINGS_PACKAGES = setOf(
             "com.android.settings",
@@ -67,7 +67,7 @@ class FocusAccessibilityService : AccessibilityService() {
         )
 
         private const val URL_DEBOUNCE_MILLIS = 500L
-        
+
         @Volatile var instance: FocusAccessibilityService? = null
         private val mainHandler = android.os.Handler(android.os.Looper.getMainLooper())
 
@@ -91,7 +91,7 @@ class FocusAccessibilityService : AccessibilityService() {
     private var lastProcessedAtMillis = 0L
     private var lastSettingsProcessedAtMillis = 0L
     private var pendingSmartScanJob: Job? = null
-    
+
     // Add watchdog broadcast receiver to enable guard mode? Not needed, we will use companion object variables
 
     private lateinit var checkUrlForBlockedContentUseCase: CheckUrlForBlockedContentUseCase
@@ -198,12 +198,31 @@ class FocusAccessibilityService : AccessibilityService() {
         }
     }
 
+    @androidx.annotation.VisibleForTesting
+    internal fun computeWatchedPackages(
+        ownPkg: String,
+        isGuardActive: Boolean,
+        launcherPkg: String? = null
+    ): Array<String> {
+        val enforcementLive = isSessionActive && (isGuardActive || blockedAppPackages.get().isNotEmpty())
+        // Guard mode must keep seeing the launcher: leaving Settings for Home is the
+        // exit signal, and an unwatched launcher delivers no event to exit on.
+        val homePkg = if (isGuardActive) setOfNotNull(launcherPkg) else emptySet()
+        return if (enforcementLive)
+            (SUPPORTED_BROWSERS + SETTINGS_PACKAGES + blockedAppPackages.get() + homePkg + ownPkg).toTypedArray()
+        else (SUPPORTED_BROWSERS + SETTINGS_PACKAGES + homePkg + ownPkg).toTypedArray()
+    }
+
     private fun updateServiceInfoForGuardMode(isGuardActive: Boolean) {
+        val ownPkg = packageName
         val runnable = Runnable {
             val info = serviceInfo ?: return@Runnable
-            // App blocking needs events from blocked packages: listen to all when set is non-empty
-            info.packageNames = if (isGuardActive || blockedAppPackages.get().isNotEmpty()) null
-                else (SUPPORTED_BROWSERS + SETTINGS_PACKAGES).toTypedArray()
+            // Explicit watched set (never null): browsers (URL filtering) + settings
+            // (protection/guard) + blocked apps (foreground intercept) + own package
+            // (explicitly ignored in onAccessibilityEvent, harmless to receive).
+            // A null filter would deliver every installed app's events here only to
+            // be discarded below — pure IPC plus callback plus log overhead.
+            info.packageNames = computeWatchedPackages(ownPkg, isGuardActive, resolveLauncherPackage())
             serviceInfo = info
         }
         if (android.os.Looper.myLooper() == android.os.Looper.getMainLooper()) runnable.run()
@@ -235,7 +254,7 @@ class FocusAccessibilityService : AccessibilityService() {
             )
             val manager = getSystemService(android.app.NotificationManager::class.java)
             manager.createNotificationChannel(channel)
-            
+
             val noOpIntent = android.app.PendingIntent.getActivity(
                 this, 0,
                 Intent(this, com.focuslock.MainActivity::class.java).apply {
@@ -276,7 +295,7 @@ class FocusAccessibilityService : AccessibilityService() {
      */
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
         if (event == null || !isSessionActive) return
-        
+
         // Log sparingly here to avoid extreme log spam, but note the event arrival
         // Timber.tag(TAG).v("onAccessibilityEvent: Received event type %s", event.eventType)
 
@@ -309,8 +328,9 @@ class FocusAccessibilityService : AccessibilityService() {
         }
 
         // 2. App Blocking — hard block on foreground window for blocked packages.
-        // O(1) Set lookup per window-state event; package filter widened only while set non-empty.
-        // ponytail: [widened to all packages during block; upgrade to dynamic per-package filter if event cost matters]
+        // O(1) Set lookup per window-state event; the watched package set names the blocked apps
+        // explicitly while enforcement is live (see computeWatchedPackages) and is never widened to
+        // all packages, so unrelated apps' events never reach this callback.
         if (eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED &&
             packageName != this.packageName &&
             blockedAppPackages.get().contains(packageName)
@@ -382,5 +402,8 @@ class FocusAccessibilityService : AccessibilityService() {
         }
         super.onDestroy()
         serviceScope.cancel()
+        if (::browserEventHandler.isInitialized) {
+            browserEventHandler.dispose()
+        }
     }
 }
