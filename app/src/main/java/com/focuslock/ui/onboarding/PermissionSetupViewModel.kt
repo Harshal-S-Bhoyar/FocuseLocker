@@ -34,7 +34,10 @@ data class PermissionState(
     val allCriticalGranted: Boolean
         get() = accessibilityGranted && deviceAdminGranted && overlayGranted && vpnGranted &&
                 (!hasAutostartIntent || autostartAcknowledged) &&
-                (!hasBatteryOptimizationIntent || batteryOptimizationAcknowledged)
+                // Battery optimization only gates while it is actually still on: an already exempted
+                // device hides the battery row's GRANT button, so the acknowledgement flag can never be
+                // set and Continue deadlocked forever. The real ignored state satisfies the gate.
+                (!hasBatteryOptimizationIntent || batteryOptimizationIgnored || batteryOptimizationAcknowledged)
 }
 
 data class PermissionSetupUiState(

@@ -13,7 +13,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Warning
-// import removed
 import androidx.compose.material3.Card
 import com.focuslock.ui.common.CyberpunkLoadingIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -57,7 +56,6 @@ fun ActiveSessionScreen(
     onNavigateToUnlockRequest: () -> Unit,
     viewModel: ActiveSessionViewModel = hiltViewModel()
 ) {
-    val remainingTimeMillis by viewModel.remainingTimeMillis.collectAsStateWithLifecycle()
     val protectionStatus by viewModel.protectionStatus.collectAsStateWithLifecycle()
     val unlockInfo by viewModel.activeUnlockInfo.collectAsStateWithLifecycle()
     val sessionActive by viewModel.sessionActive.collectAsStateWithLifecycle()
@@ -69,13 +67,6 @@ fun ActiveSessionScreen(
     // Automatically navigate when the session disappears (e.g. killed by background worker after cooldown)
     LaunchedEffect(sessionActive) {
         if (sessionActive == false) {
-            onNavigateToSessionComplete()
-        }
-    }
-
-    // Automatically navigate when the timer reaches zero
-    LaunchedEffect(remainingTimeMillis) {
-        if (remainingTimeMillis == 0L) {
             onNavigateToSessionComplete()
         }
     }
@@ -110,24 +101,11 @@ fun ActiveSessionScreen(
             
             Spacer(modifier = Modifier.height(8.dp))
             
-            // Countdown Timer Display
-            if (remainingTimeMillis == -1L) {
-                // Initial loading state
-                CyberpunkLoadingIndicator(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(60.dp)
-                        .padding(horizontal = 32.dp, vertical = 16.dp)
-                )
-            } else {
-                Text(
-                    text = formatTime(remainingTimeMillis),
-                    fontSize = MaterialTheme.typography.displayLarge.fontSize,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onBackground,
-                    textAlign = TextAlign.Center
-                )
-            }
+            // Countdown Timer Display — leaf collects the per-second flow so ticks recompose only the timer text
+            SessionCountdownText(
+                viewModel = viewModel,
+                onTimerFinished = onNavigateToSessionComplete
+            )
             
             Spacer(modifier = Modifier.height(48.dp))
             
@@ -177,67 +155,13 @@ fun ActiveSessionScreen(
             
             Spacer(modifier = Modifier.weight(1f))
             
-            // Cooldown Timer Card (Shows if Cooldown is active)
+            // Cooldown Timer Card (Shows if Cooldown is active) — leaf holds the per-second tick so the parent stays stable
             if (unlockInfo?.status == com.focuslock.domain.model.UnlockRequestStatus.COOLDOWN) {
                 val endsAt = unlockInfo?.cooldownEndsAt ?: 0L
-                var cooldownRemainingMillis by remember(endsAt) {
-                    mutableLongStateOf(maxOf(0L, endsAt - System.currentTimeMillis()))
-                }
-
-                LaunchedEffect(endsAt) {
-                    while (cooldownRemainingMillis > 0L) {
-                        delay(1000L)
-                        cooldownRemainingMillis = maxOf(0L, endsAt - System.currentTimeMillis())
-                    }
-                    if (endsAt > 0L && cooldownRemainingMillis <= 0L) {
-                        viewModel.completeCooldownAndKillSession()
-                    }
-                }
-
-                if (endsAt > 0L) {
-                    val minutes = (cooldownRemainingMillis / 1000) / 60
-                    val seconds = (cooldownRemainingMillis / 1000) % 60
-                    val countdownText = String.format(Locale.ROOT, "%02d:%02d", minutes, seconds)
-                    
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(24.dp),
-                        colors = androidx.compose.material3.CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-                        ),
-                        elevation = androidx.compose.material3.CardDefaults.cardElevation(0.dp)
-                    ) {
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(24.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally
-                        ) {
-                            Icon(
-                                imageVector = com.focuslock.ui.theme.CustomIcons.HourglassEmpty,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.error,
-                                modifier = Modifier.size(32.dp)
-                            )
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Text(
-                                text = "Cooldown Active",
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                            Spacer(modifier = Modifier.height(4.dp))
-                            Text(
-                                text = countdownText,
-                                style = MaterialTheme.typography.displaySmall,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.error
-                            )
-                        }
-                    }
-                    
-                    Spacer(modifier = Modifier.height(24.dp))
-                }
+                CooldownCountdownCard(
+                    endsAt = endsAt,
+                    onCooldownFinished = { viewModel.completeCooldownAndKillSession() }
+                )
             }
             
             // Early Unlock Button
@@ -246,6 +170,112 @@ fun ActiveSessionScreen(
                 onClick = onNavigateToUnlockRequest
             )
         }
+    }
+}
+
+/**
+ * Leaf that owns the per-second timer subscription, so each tick recomposes
+ * only this small Text (or loader) instead of the whole screen.
+ */
+@Composable
+private fun SessionCountdownText(
+    viewModel: ActiveSessionViewModel,
+    onTimerFinished: () -> Unit
+) {
+    val remainingTimeMillis by viewModel.remainingTimeMillis.collectAsStateWithLifecycle()
+
+    // Automatically navigate when the timer reaches zero
+    LaunchedEffect(remainingTimeMillis) {
+        if (remainingTimeMillis == 0L) {
+            onTimerFinished()
+        }
+    }
+
+    if (remainingTimeMillis == -1L) {
+        // Initial loading state
+        CyberpunkLoadingIndicator(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(60.dp)
+                .padding(horizontal = 32.dp, vertical = 16.dp)
+        )
+    } else {
+        Text(
+            text = formatTime(remainingTimeMillis),
+            fontSize = MaterialTheme.typography.displayLarge.fontSize,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.onBackground,
+            textAlign = TextAlign.Center
+        )
+    }
+}
+
+/**
+ * Leaf that owns the per-second cooldown tick, so each tick recomposes
+ * only this card instead of the whole screen.
+ */
+@Composable
+private fun CooldownCountdownCard(
+    endsAt: Long,
+    onCooldownFinished: () -> Unit
+) {
+    var cooldownRemainingMillis by remember(endsAt) {
+        mutableLongStateOf(maxOf(0L, endsAt - System.currentTimeMillis()))
+    }
+
+    LaunchedEffect(endsAt) {
+        while (cooldownRemainingMillis > 0L) {
+            delay(1000L)
+            cooldownRemainingMillis = maxOf(0L, endsAt - System.currentTimeMillis())
+        }
+        if (endsAt > 0L && cooldownRemainingMillis <= 0L) {
+            onCooldownFinished()
+        }
+    }
+
+    if (endsAt > 0L) {
+        val minutes = (cooldownRemainingMillis / 1000) / 60
+        val seconds = (cooldownRemainingMillis / 1000) % 60
+        val countdownText = String.format(Locale.ROOT, "%02d:%02d", minutes, seconds)
+
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(24.dp),
+            colors = androidx.compose.material3.CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+            ),
+            elevation = androidx.compose.material3.CardDefaults.cardElevation(0.dp)
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Icon(
+                    imageVector = com.focuslock.ui.theme.CustomIcons.HourglassEmpty,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.size(32.dp)
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = "Cooldown Active",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = countdownText,
+                    style = MaterialTheme.typography.displaySmall,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.error
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(24.dp))
     }
 }
 
