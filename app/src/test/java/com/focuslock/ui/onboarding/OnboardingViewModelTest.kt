@@ -9,6 +9,8 @@ import io.mockk.coEvery
 import io.mockk.mockk
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.awaitCancellation
+import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
@@ -16,6 +18,7 @@ import kotlinx.coroutines.test.setMain
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Before
 import org.junit.Test
@@ -48,7 +51,7 @@ class OnboardingViewModelTest {
         )
         coEvery { permissionStatusProvider.getStatus() } returns AppPermissionStatus(false, false, false, false, false, false)
 
-        viewModel = OnboardingViewModel(initializeAppUseCase, checkOnboardingStatusUseCase, permissionStatusProvider)
+        viewModel = OnboardingViewModel(initializeAppUseCase, checkOnboardingStatusUseCase, permissionStatusProvider, testDispatcher)
 
         // Verify initial state is loading
         assertEquals(true, viewModel.uiState.value.isLoading)
@@ -64,7 +67,7 @@ class OnboardingViewModelTest {
         )
         coEvery { permissionStatusProvider.getStatus() } returns AppPermissionStatus(true, true, true, true, true, true)
 
-        viewModel = OnboardingViewModel(initializeAppUseCase, checkOnboardingStatusUseCase, permissionStatusProvider)
+        viewModel = OnboardingViewModel(initializeAppUseCase, checkOnboardingStatusUseCase, permissionStatusProvider, testDispatcher)
         testDispatcher.scheduler.advanceUntilIdle()
 
         assertFalse(viewModel.uiState.value.isLoading)
@@ -80,7 +83,7 @@ class OnboardingViewModelTest {
         )
         coEvery { permissionStatusProvider.getStatus() } returns AppPermissionStatus(true, true, true, true, true, true)
 
-        viewModel = OnboardingViewModel(initializeAppUseCase, checkOnboardingStatusUseCase, permissionStatusProvider)
+        viewModel = OnboardingViewModel(initializeAppUseCase, checkOnboardingStatusUseCase, permissionStatusProvider, testDispatcher)
         testDispatcher.scheduler.advanceUntilIdle()
 
         assertFalse(viewModel.uiState.value.isLoading)
@@ -92,7 +95,7 @@ class OnboardingViewModelTest {
         coEvery { checkOnboardingStatusUseCase() } throws RuntimeException("Database error")
         coEvery { permissionStatusProvider.getStatus() } returns AppPermissionStatus(false, false, false, false, false, false)
 
-        viewModel = OnboardingViewModel(initializeAppUseCase, checkOnboardingStatusUseCase, permissionStatusProvider)
+        viewModel = OnboardingViewModel(initializeAppUseCase, checkOnboardingStatusUseCase, permissionStatusProvider, testDispatcher)
         testDispatcher.scheduler.advanceUntilIdle()
 
         assertFalse(viewModel.uiState.value.isLoading)
@@ -108,7 +111,7 @@ class OnboardingViewModelTest {
         )
         coEvery { permissionStatusProvider.getStatus() } returns AppPermissionStatus(true, true, true, true, true, true)
 
-        viewModel = OnboardingViewModel(initializeAppUseCase, checkOnboardingStatusUseCase, permissionStatusProvider)
+        viewModel = OnboardingViewModel(initializeAppUseCase, checkOnboardingStatusUseCase, permissionStatusProvider, testDispatcher)
         testDispatcher.scheduler.advanceUntilIdle()
 
         viewModel.onGetStartedClicked()
@@ -125,7 +128,7 @@ class OnboardingViewModelTest {
         )
         coEvery { permissionStatusProvider.getStatus() } returns AppPermissionStatus(true, true, true, true, true, true)
 
-        viewModel = OnboardingViewModel(initializeAppUseCase, checkOnboardingStatusUseCase, permissionStatusProvider)
+        viewModel = OnboardingViewModel(initializeAppUseCase, checkOnboardingStatusUseCase, permissionStatusProvider, testDispatcher)
         testDispatcher.scheduler.advanceUntilIdle()
 
         viewModel.onGetStartedClicked()
@@ -151,7 +154,7 @@ class OnboardingViewModelTest {
             notificationGranted = true
         )
 
-        viewModel = OnboardingViewModel(initializeAppUseCase, checkOnboardingStatusUseCase, permissionStatusProvider)
+        viewModel = OnboardingViewModel(initializeAppUseCase, checkOnboardingStatusUseCase, permissionStatusProvider, testDispatcher)
         testDispatcher.scheduler.advanceUntilIdle()
 
         assertFalse(viewModel.uiState.value.isLoading)
@@ -174,10 +177,48 @@ class OnboardingViewModelTest {
             notificationGranted = true
         )
 
-        viewModel = OnboardingViewModel(initializeAppUseCase, checkOnboardingStatusUseCase, permissionStatusProvider)
+        viewModel = OnboardingViewModel(initializeAppUseCase, checkOnboardingStatusUseCase, permissionStatusProvider, testDispatcher)
         testDispatcher.scheduler.advanceUntilIdle()
 
         assertFalse(viewModel.uiState.value.isLoading)
         assertEquals(OnboardingEvent.NavigateToPermissionRepair, viewModel.uiState.value.event)
+    }
+
+    @Test
+    fun `when init step times out an error state is shown instead of hanging`() = runTest {
+        coEvery { initializeAppUseCase() } coAnswers { withTimeout(1L) { awaitCancellation() } }
+
+        viewModel = OnboardingViewModel(initializeAppUseCase, checkOnboardingStatusUseCase, permissionStatusProvider, testDispatcher)
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        assertFalse(viewModel.uiState.value.isLoading)
+        assertNull(viewModel.uiState.value.event)
+        assertEquals(
+            "Startup timed out. Check your connection and try again.",
+            viewModel.uiState.value.error
+        )
+    }
+
+    @Test
+    fun `retry after timeout reruns init and routes on success`() = runTest {
+        coEvery { initializeAppUseCase() } coAnswers { withTimeout(1L) { awaitCancellation() } }
+        coEvery { checkOnboardingStatusUseCase() } returns OnboardingStatus(
+            isOnboardingComplete = true,
+            hasVerifiedContact = true,
+            hasActiveSession = false
+        )
+        coEvery { permissionStatusProvider.getStatus() } returns AppPermissionStatus(true, true, true, true, true, true)
+
+        viewModel = OnboardingViewModel(initializeAppUseCase, checkOnboardingStatusUseCase, permissionStatusProvider, testDispatcher)
+        testDispatcher.scheduler.advanceUntilIdle()
+        assertNotNull(viewModel.uiState.value.error)
+
+        coEvery { initializeAppUseCase() } returns Unit
+        viewModel.retry()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        assertFalse(viewModel.uiState.value.isLoading)
+        assertNull(viewModel.uiState.value.error)
+        assertEquals(OnboardingEvent.NavigateToCategorySelection, viewModel.uiState.value.event)
     }
 }
