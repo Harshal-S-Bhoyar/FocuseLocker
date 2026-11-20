@@ -37,23 +37,51 @@ class VpnPacketLoop(
     private val bufferPool = java.util.concurrent.ArrayBlockingQueue<ByteArray>(32)
     private val dohSemaphore = Semaphore(64)
 
+    // ponytail: DNS payload cache, bounded by entry count and keyed by domain + qtype + a
+    // fingerprint of the query's post-header bytes. Stores response payload bytes only; the TUN
+    // response is rebuilt per hit so TXID and ports stay current.
+    private data class CachedDns(val payload: ByteArray, val expiresAt: Long)
+
+    private val dnsCache = com.focuslock.domain.util.SimpleLruCache<String, CachedDns>(MAX_CACHE_ENTRIES)
+
+    companion object {
+        const val MAX_CACHE_TTL_SECONDS = 300L
+
+        // Bounds memory independently of elapsed time: without a cap, a page resolving many unique
+        // names (trackers, ad hosts) grows the cache without limit inside one live session. Expired
+        // entries are dropped lazily when they are read, so no sweeper is needed to hold the bound.
+        const val MAX_CACHE_ENTRIES = 2048
+
+        // DNS header length; the header is excluded from the query fingerprint because it holds the
+        // per-query transaction ID.
+        const val DNS_HEADER_LENGTH = 12
+
+        // Size of the buffers the pool recycles; releaseBuffer refuses anything else.
+        const val POOL_BUFFER_SIZE = 32767
+    }
+
     private fun getBuffer(): ByteArray {
-        return bufferPool.poll() ?: ByteArray(32767)
+        return bufferPool.poll() ?: ByteArray(POOL_BUFFER_SIZE)
     }
 
     private fun releaseBuffer(buffer: ByteArray) {
-        bufferPool.offer(buffer)
+        // Only recycle pool-sized buffers: buildTunDnsResponse allocates a larger array when a
+        // response exceeds the pool size, and returning that would defeat the pool by handing out
+        // blocks bigger than every caller expects.
+        if (buffer.size == POOL_BUFFER_SIZE) {
+            bufferPool.offer(buffer)
+        }
     }
 
     suspend fun runLoop() = withContext(Dispatchers.IO) {
         val inputStream = injectedInputStream ?: FileInputStream(vpnInterface.fileDescriptor)
         val outputStream = injectedOutputStream ?: FileOutputStream(vpnInterface.fileDescriptor)
-        
+
         // ponytail: reuse single backing array; ByteBuffer is a lightweight view, not an allocation per iteration
         val packetArray = ByteArray(32767)
         val packet = ByteBuffer.wrap(packetArray)
         val nxBuffer = ByteArray(32767)
-        
+
         try {
             while (isActive) {
                 yield()
@@ -63,7 +91,7 @@ class VpnPacketLoop(
                         length > 0 -> {
                             packet.limit(length)
                             packet.position(0)
-                            
+
                             val version = packet.get(0).toInt() ushr 4
                             var isUdp = false
                             var udpOffset = 0
@@ -114,35 +142,44 @@ class VpnPacketLoop(
                                     val dnsOffset = udpOffset + 8
                                     val dnsPayloadLength = length - dnsOffset
 
-                                    dohSemaphore.acquire()
-                                    val packetBytes = getBuffer()
-                                    var launched = false
-                                    try {
-                                        packet.position(0)
-                                        packet.get(packetBytes, 0, length)
+                                    val qtype = DnsTtlParser.queryType(packetArray, dnsOffset, dnsPayloadLength)
+                                    if (qtype != null && serveCachedResponse(
+                                            domain, qtype, packetArray, length, dnsOffset,
+                                            ipHeaderLength, udpOffset, isIpv6, outputStream
+                                        )
+                                    ) {
+                                        Timber.tag(TAG).v("DNS CACHE HIT: $domain")
+                                    } else {
+                                        dohSemaphore.acquire()
+                                        val packetBytes = getBuffer()
+                                        var launched = false
+                                        try {
+                                            packet.position(0)
+                                            packet.get(packetBytes, 0, length)
 
-                                        loopScope.launch {
-                                            try {
-                                                forwardDnsViaDoH(
-                                                    packetBytes = packetBytes,
-                                                    outputStream = outputStream,
-                                                    domain = domain,
-                                                    dnsPayloadLength = dnsPayloadLength,
-                                                    isIpv6 = isIpv6,
-                                                    ipHeaderLength = ipHeaderLength,
-                                                    udpOffset = udpOffset,
-                                                    dnsOffset = dnsOffset
-                                                )
-                                            } finally {
+                                            loopScope.launch {
+                                                try {
+                                                    forwardDnsViaDoH(
+                                                        packetBytes = packetBytes,
+                                                        outputStream = outputStream,
+                                                        domain = domain,
+                                                        dnsPayloadLength = dnsPayloadLength,
+                                                        isIpv6 = isIpv6,
+                                                        ipHeaderLength = ipHeaderLength,
+                                                        udpOffset = udpOffset,
+                                                        dnsOffset = dnsOffset
+                                                    )
+                                                } finally {
+                                                    releaseBuffer(packetBytes)
+                                                    dohSemaphore.release()
+                                                }
+                                            }
+                                            launched = true
+                                        } finally {
+                                            if (!launched) {
                                                 releaseBuffer(packetBytes)
                                                 dohSemaphore.release()
                                             }
-                                        }
-                                        launched = true
-                                    } finally {
-                                        if (!launched) {
-                                            releaseBuffer(packetBytes)
-                                            dohSemaphore.release()
                                         }
                                     }
                                 }
@@ -174,7 +211,94 @@ class VpnPacketLoop(
             loopScope.cancel()
         }
     }
-    
+
+    private fun cacheKey(domain: String, qtype: Int, packetBytes: ByteArray, dnsOffset: Int, dnsPayloadLength: Int) =
+        "${domain.lowercase()}|$qtype|${queryFingerprint(packetBytes, dnsOffset, dnsPayloadLength)}"
+
+    /**
+     * Fingerprint of the query's bytes after the DNS header: the question section plus any
+     * additional records. Keying on it means a stored answer is only replayed to a query that
+     * matches it, including question casing and EDNS options, without modelling either.
+     * The CD (checking disabled) flag lives in the header but changes the answer, so it is
+     * folded in: cached responses are never replayed across differing validation requests.
+     */
+    private fun queryFingerprint(packetBytes: ByteArray, dnsOffset: Int, dnsPayloadLength: Int): Int {
+        val start = dnsOffset + DNS_HEADER_LENGTH
+        val end = dnsOffset + dnsPayloadLength
+        if (start >= end || end > packetBytes.size) return 0
+        var hash = packetBytes[dnsOffset + 3].toInt() and 0x10
+        for (i in start until end) {
+            hash = 31 * hash + packetBytes[i]
+        }
+        return hash
+    }
+
+    private fun cacheDnsPayload(
+        domain: String,
+        packetBytes: ByteArray,
+        dnsOffset: Int,
+        dnsPayloadLength: Int,
+        responseData: ByteArray
+    ) {
+        val qtype = DnsTtlParser.queryType(packetBytes, dnsOffset, dnsPayloadLength) ?: return
+        val ttl = DnsTtlParser.minAnswerTtl(responseData, 0, responseData.size) ?: return
+        // Zero-TTL answers are single-use: never cache them. Short TTLs keep their
+        // actual duration so refresh happens on time; the ceiling still bounds memory.
+        if (ttl <= 0) return
+        val clamped = ttl.coerceAtMost(MAX_CACHE_TTL_SECONDS)
+        dnsCache.put(
+            cacheKey(domain, qtype, packetBytes, dnsOffset, dnsPayloadLength),
+            CachedDns(responseData.copyOf(), System.currentTimeMillis() + clamped * 1000L)
+        )
+    }
+
+    private fun serveCachedResponse(
+        domain: String,
+        qtype: Int,
+        packetArray: ByteArray,
+        length: Int,
+        dnsOffset: Int,
+        ipHeaderLength: Int,
+        udpOffset: Int,
+        isIpv6: Boolean,
+        outputStream: java.io.OutputStream
+    ): Boolean {
+        val key = cacheKey(domain, qtype, packetArray, dnsOffset, length - dnsOffset)
+        val entry = dnsCache.get(key) ?: return false
+        if (System.currentTimeMillis() >= entry.expiresAt) {
+            dnsCache.remove(key)
+            return false
+        }
+        // Answers go out with their remaining lifetime, not the stale original: rebuild
+        // each answer record's TTL from the elapsed time since caching. The UDP checksum
+        // below runs after this payload is prepared, so it covers the adjusted bytes.
+        val remainingSecs = ((entry.expiresAt - System.currentTimeMillis()) / 1000L).coerceAtLeast(0L)
+        val agedPayload = DnsTtlParser.withCappedAnswerTtls(entry.payload, 0, entry.payload.size, remainingSecs)
+            ?: entry.payload
+        val (responseArray, responseLen) = buildTunDnsResponse(
+            packetBytes = packetArray,
+            dnsOffset = dnsOffset,
+            ipHeaderLength = ipHeaderLength,
+            udpOffset = udpOffset,
+            responseData = agedPayload,
+            isIpv6 = isIpv6
+        )
+        // Cached payload carries the old query TXID — patch to the current one.
+        responseArray[dnsOffset] = packetArray[dnsOffset]
+        responseArray[dnsOffset + 1] = packetArray[dnsOffset + 1]
+        val udpChecksum = computeUdpChecksum(responseArray, ipHeaderLength, udpOffset, isIpv6)
+        responseArray[udpOffset + 6] = (udpChecksum shr 8).toByte()
+        responseArray[udpOffset + 7] = udpChecksum.toByte()
+        try {
+            synchronized(outputLock) {
+                outputStream.write(responseArray, 0, responseLen)
+            }
+        } finally {
+            releaseBuffer(responseArray)
+        }
+        return true
+    }
+
     private suspend fun forwardDnsViaDoH(
         packetBytes: ByteArray,
         outputStream: java.io.OutputStream,
@@ -213,6 +337,8 @@ class VpnPacketLoop(
 
                         Timber.tag(TAG).v("DoH OK: resp=${responseData.size}B")
 
+                        cacheDnsPayload(domain, packetBytes, dnsOffset, dnsPayloadLength, responseData)
+
                         val (responseArray, responseLen) = buildTunDnsResponse(
                             packetBytes = packetBytes,
                             dnsOffset = dnsOffset,
@@ -249,7 +375,7 @@ class VpnPacketLoop(
     private val outputLock = Any()
 
     // ponytail: returns (responseArray, responseLength) using pooled buffer
-    // ceiling: pool capped at 10; if exhausted, falls back to fresh alloc (same as before)
+    // ceiling: pool holds 32 buffers; if exhausted, falls back to a fresh alloc (same as before)
     private fun buildTunDnsResponse(
         packetBytes: ByteArray,
         dnsOffset: Int,
@@ -306,12 +432,12 @@ class VpnPacketLoop(
     private fun buildNxDomainResponse(packetBuffer: ByteBuffer, length: Int, response: ByteArray): Int {
         packetBuffer.position(0)
         packetBuffer.get(response, 0, length)
-        
+
         val ipVersionAndIhl = response[0].toInt()
         val version = (ipVersionAndIhl and 0xFF) ushr 4
         var isIpv6 = false
         var ipHeaderLength = 0
-        
+
         if (version == 4) {
             ipHeaderLength = (ipVersionAndIhl and 0x0F) * 4
         } else if (version == 6) {
@@ -320,7 +446,7 @@ class VpnPacketLoop(
         } else {
             return length // Unknown IP version
         }
-        
+
         if (isIpv6) {
             for (i in 0..15) {
                 val temp = response[8 + i]
@@ -336,31 +462,31 @@ class VpnPacketLoop(
             response[10] = 0
             response[11] = 0
         }
-        
+
         val udpOffset = ipHeaderLength
-        
+
         for (i in 0..1) {
             val temp = response[udpOffset + i]
             response[udpOffset + i] = response[udpOffset + 2 + i]
             response[udpOffset + 2 + i] = temp
         }
-        
+
         val dnsOffset = udpOffset + 8
-        
+
         response[dnsOffset + 2] = (response[dnsOffset + 2].toInt() or 0x80).toByte()
         response[dnsOffset + 3] = (response[dnsOffset + 3].toInt() and 0xF0 or 0x03).toByte()
-        
+
         if (!isIpv6) {
             val ipChecksum = calculateChecksum(response, 0, ipHeaderLength, 0)
             val invChecksum = ipChecksum.inv() and 0xFFFF
             response[10] = (invChecksum shr 8).toByte()
             response[11] = invChecksum.toByte()
         }
-        
+
         val udpChecksum = computeUdpChecksum(response, ipHeaderLength, udpOffset, isIpv6)
         response[udpOffset + 6] = (udpChecksum shr 8).toByte()
         response[udpOffset + 7] = udpChecksum.toByte()
-        
+
         return length
     }
 
@@ -387,27 +513,27 @@ class VpnPacketLoop(
             responseArray[udpOffset + 2 + i] = temp
         }
     }
-    
+
     private fun calculateChecksum(data: ByteArray, offset: Int, length: Int, initialSum: Int): Int {
         var sum = initialSum
         var i = offset
         val end = offset + length
-        
+
         while (i < end - 1) {
             val word = ((data[i].toInt() and 0xFF) shl 8) or (data[i + 1].toInt() and 0xFF)
             sum += word
             i += 2
         }
-        
+
         if (i < end) {
             val word = (data[i].toInt() and 0xFF) shl 8
             sum += word
         }
-        
+
         while ((sum shr 16) > 0) {
             sum = (sum and 0xFFFF) + (sum shr 16)
         }
-        
+
         return sum
     }
 
@@ -417,19 +543,19 @@ class VpnPacketLoop(
 
         val udpLength = ((responseArray[udpOffset + 4].toInt() and 0xFF) shl 8) or (responseArray[udpOffset + 5].toInt() and 0xFF)
         var sum = 0
-        
+
         if (isIpv6) {
             sum = calculateChecksum(responseArray, 8, 32, sum)
             sum += udpLength
-            sum += 17 
+            sum += 17
         } else {
             sum = calculateChecksum(responseArray, 12, 8, sum)
-            sum += 17 
+            sum += 17
             sum += udpLength
         }
-        
+
         sum = calculateChecksum(responseArray, udpOffset, udpLength, sum)
-        
+
         val checksum = sum.inv() and 0xFFFF
         return if (checksum == 0) 0xFFFF else checksum
     }

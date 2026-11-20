@@ -22,12 +22,19 @@ class FileLoggingTree(
     private val logExecutor = Executors.newSingleThreadExecutor()
     private val dateFormat = SimpleDateFormat("yyyy_MM_dd", Locale.getDefault())
     private val timeFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS", Locale.getDefault())
-    
+
+    // ponytail: buffer log lines and flush in one open-write-close per interval.
+    // Ceiling: up to 5s of logs lost on hard kill (not crash — flush() covers that).
+    private val logBuffer = java.util.concurrent.ConcurrentLinkedQueue<String>()
+    private val flushLock = Any()
+    private val flushScheduler = Executors.newSingleThreadScheduledExecutor()
+
     init {
         // Clean up old logs on initialization
         logExecutor.execute {
             cleanupOldLogs()
         }
+        flushScheduler.scheduleAtFixedRate({ flushBuffer() }, 5, 5, TimeUnit.SECONDS)
     }
 
     override fun isLoggable(tag: String?, priority: Int): Boolean {
@@ -40,7 +47,6 @@ class FileLoggingTree(
 
         val now = Date()
         val currentTime = timeFormat.format(now)
-        val currentDate = dateFormat.format(now)
         val threadName = Thread.currentThread().name
 
         // ponytail: array lookup over when-block — same result, 1 line.
@@ -48,18 +54,30 @@ class FileLoggingTree(
 
         val logLine = "$currentTime [$threadName] $priorityStr/${tag ?: "FocusLock"}: $message\n"
 
-        logExecutor.execute {
+        logBuffer.offer(logLine)
+    }
+
+    private fun flushBuffer() {
+        // Drain inside the lock: an explicit flush() must wait for a scheduled
+        // batch already in progress instead of racing it on the same file.
+        synchronized(flushLock) {
+            val lines = mutableListOf<String>()
+            while (true) {
+                lines.add(logBuffer.poll() ?: break)
+            }
+            if (lines.isEmpty()) return
+
             try {
                 val logDir = File(context.getExternalFilesDir(null), "log")
                 if (!logDir.exists()) {
                     logDir.mkdirs()
                 }
 
-                val fileName = "app_logs_$currentDate.txt"
-                val logFile = File(logDir, fileName)
+                val currentDate = dateFormat.format(Date())
+                val logFile = File(logDir, "app_logs_$currentDate.txt")
 
                 FileWriter(logFile, true).use { writer ->
-                    writer.append(logLine)
+                    lines.forEach { writer.append(it) }
                 }
             } catch (e: Exception) {
                 // Cannot log this exception to Timber because it would cause an infinite loop
@@ -77,7 +95,7 @@ class FileLoggingTree(
             if (!logDir.exists()) return
 
             val cutoffTime = System.currentTimeMillis() - TimeUnit.DAYS.toMillis(maxDaysToKeep.toLong())
-            
+
             logDir.listFiles()?.forEach { file ->
                 if (file.isFile && file.name.startsWith("app_logs_") && file.name.endsWith(".txt")) {
                     if (file.lastModified() < cutoffTime) {
@@ -89,13 +107,13 @@ class FileLoggingTree(
             Log.e("FileLoggingTree", "Error cleaning up old logs", e)
         }
     }
-    
+
     /**
      * Flush all pending logs to disk. Useful for crash reporting before terminating.
      */
     fun flush() {
         try {
-            logExecutor.submit { /* Empty task to wait for the queue to flush */ }.get(2, TimeUnit.SECONDS)
+            logExecutor.submit { flushBuffer() }.get(2, TimeUnit.SECONDS)
         } catch (e: Exception) {
             Log.e("FileLoggingTree", "Error flushing logs", e)
         }

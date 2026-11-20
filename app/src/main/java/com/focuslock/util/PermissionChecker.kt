@@ -12,6 +12,7 @@ import android.os.PowerManager
 import android.provider.Settings
 import android.view.accessibility.AccessibilityManager
 import androidx.core.content.ContextCompat
+import com.focuslock.service.accessibility.FocusAccessibilityService
 import com.focuslock.service.admin.FocusDeviceAdminReceiver
 
 /**
@@ -22,12 +23,30 @@ object PermissionChecker {
 
     fun isAccessibilityServiceEnabled(context: Context): Boolean {
         val am = context.getSystemService(Context.ACCESSIBILITY_SERVICE) as AccessibilityManager
-        val enabledServices = am.getEnabledAccessibilityServiceList(
+        val running = am.getEnabledAccessibilityServiceList(
             AccessibilityServiceInfo.FEEDBACK_ALL_MASK
-        )
-        return enabledServices.any {
-            it.resolveInfo.serviceInfo.packageName == context.packageName
+        ).any {
+            it.resolveInfo?.serviceInfo?.packageName == context.packageName
         }
+        if (running) return true
+        // Fallback: Secure settings string. Some OEM skins lag or empty the manager
+        // list after the user enables the service, while the committed setting is current.
+        val flat = Settings.Secure.getString(
+            context.contentResolver,
+            Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES
+        ) ?: return false
+        val target = ComponentName(context, FocusAccessibilityService::class.java)
+        return flat.split(':').any { entry ->
+            val component = ComponentName.unflattenFromString(entry) ?: return@any false
+            if (component.packageName != target.packageName) return@any false
+            normalizeClassName(component.packageName, component.className) == target.className
+        }
+    }
+
+    private fun normalizeClassName(pkg: String, cls: String): String = when {
+        cls.startsWith(".") -> pkg + cls
+        "." !in cls -> "$pkg.$cls"
+        else -> cls
     }
 
 
