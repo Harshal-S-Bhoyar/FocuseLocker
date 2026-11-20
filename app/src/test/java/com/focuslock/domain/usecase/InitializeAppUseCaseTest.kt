@@ -7,6 +7,9 @@ import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.coVerifyOrder
 import io.mockk.mockk
+import kotlinx.coroutines.TimeoutCancellationException
+import kotlinx.coroutines.awaitCancellation
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Before
@@ -50,19 +53,18 @@ class InitializeAppUseCaseTest {
     }
 
     @Test
-    fun `when initialization succeeds then cleanup settings seeding and scheduling occur in order`() = runTest {
+    fun `when initialization succeeds then cleanup runs first and settings seeding and scheduling all occur`() = runTest {
         coEvery { appSettingsRepository.isDomainSeeded() } returns false
 
         useCase()
 
         coVerifyOrder {
             cleanupStaleSessionUseCase()
-            appSettingsRepository.initializeDefaultSettings()
-            appSettingsRepository.isDomainSeeded()
-            blockingRepository.seedDomainDataIfNeeded()
-            appSettingsRepository.setDomainSeeded()
-            backgroundSyncScheduler.schedulePeriodicSync()
         }
+        coVerify(exactly = 1) { appSettingsRepository.initializeDefaultSettings() }
+        coVerify(exactly = 1) { blockingRepository.seedDomainDataIfNeeded() }
+        coVerify(exactly = 1) { appSettingsRepository.setDomainSeeded() }
+        coVerify(exactly = 1) { backgroundSyncScheduler.schedulePeriodicSync() }
     }
 
     @Test
@@ -90,9 +92,39 @@ class InitializeAppUseCaseTest {
             useCase()
             throw AssertionError("Expected seed failure")
         } catch (error: IllegalStateException) {
-            assertEquals(failure, error)
+            // Identity is not asserted: exceptions crossing structured-concurrency
+            // boundaries are not guaranteed to be the same instance.
+            assertEquals("seed failed", error.message)
         }
         coVerify(exactly = 0) { appSettingsRepository.setDomainSeeded() }
+        coVerify(exactly = 0) { backgroundSyncScheduler.schedulePeriodicSync() }
+    }
+
+    @Test
+    fun `concurrent invocations seed only once`() = runTest {
+        var seeded = false
+        coEvery { appSettingsRepository.isDomainSeeded() } answers { seeded }
+        coEvery { appSettingsRepository.setDomainSeeded() } answers { seeded = true }
+
+        val first = launch { useCase() }
+        val second = launch { useCase() }
+        first.join()
+        second.join()
+
+        coVerify(exactly = 1) { blockingRepository.seedDomainDataIfNeeded() }
+    }
+
+    @Test
+    fun `wedged settings step fails within the step budget instead of hanging`() = runTest {
+        coEvery { appSettingsRepository.isDomainSeeded() } returns true
+        coEvery { appSettingsRepository.initializeDefaultSettings() } coAnswers { awaitCancellation() }
+
+        try {
+            useCase()
+            throw AssertionError("Expected timeout")
+        } catch (error: TimeoutCancellationException) {
+            // Expected: the step budget fires instead of hanging forever.
+        }
         coVerify(exactly = 0) { backgroundSyncScheduler.schedulePeriodicSync() }
     }
 }

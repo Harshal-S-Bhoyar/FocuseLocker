@@ -3,7 +3,7 @@ package com.focuslock.domain.usecase
 import com.focuslock.domain.model.UnlockRequest
 import com.focuslock.domain.model.UnlockRequestStatus
 import com.focuslock.data.repository.UnlockRepository
-import com.focuslock.data.worker.UnlockWorkerScheduler
+import com.focuslock.data.worker.WorkScheduler
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
@@ -18,16 +18,16 @@ import org.junit.Test
 class StartEmergencyBypassUseCaseTest {
 
     private lateinit var unlockRepository: UnlockRepository
-    private lateinit var unlockWorkerScheduler: UnlockWorkerScheduler
+    private lateinit var workScheduler: WorkScheduler
     private lateinit var useCase: StartEmergencyBypassUseCase
 
     @Before
     fun setup() {
         unlockRepository = mockk(relaxed = true)
-        unlockWorkerScheduler = mockk(relaxed = true)
+        workScheduler = mockk(relaxed = true)
         useCase = StartEmergencyBypassUseCase(
             unlockRepository = unlockRepository,
-            unlockWorkerScheduler = unlockWorkerScheduler
+            workScheduler = workScheduler
         )
     }
 
@@ -47,7 +47,7 @@ class StartEmergencyBypassUseCaseTest {
         coVerify(exactly = 1) { unlockRepository.createRequest(sessionId) }
         coVerify(exactly = 1) { unlockRepository.updateStatus(newRequestId, UnlockRequestStatus.EMERGENCY) }
         coVerify(exactly = 1) { unlockRepository.setCooldownEndsAt(eq(newRequestId), any()) }
-        coVerify(exactly = 1) { unlockWorkerScheduler.scheduleEmergencyBypass(any()) }
+        coVerify(exactly = 1) { workScheduler.scheduleEmergencyBypass(any()) }
     }
 
     @Test
@@ -134,6 +134,6 @@ class StartEmergencyBypassUseCaseTest {
         assertTrue(result.isSuccess)
         coVerify(exactly = 1) { unlockRepository.createRequest(sessionId) }
         coVerify(exactly = 1) { unlockRepository.updateStatus(newRequestId, UnlockRequestStatus.EMERGENCY) }
-        coVerify(exactly = 1) { unlockWorkerScheduler.scheduleEmergencyBypass(any()) }
+        coVerify(exactly = 1) { workScheduler.scheduleEmergencyBypass(any()) }
     }
 }
