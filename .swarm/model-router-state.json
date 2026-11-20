@@ -8,8 +8,8 @@
   },
   "avgComplexity": 0.5,
   "avgConfidence": 0.8,
-  "circuitBreakerTrips": 1,
-  "lastUpdated": "2026-10-02T10:40:39.174Z",
+  "circuitBreakerTrips": 5,
+  "lastUpdated": "2026-10-11T20:22:25.406Z",
   "learningHistory": [
     {
       "task": "Ponytail-review this Android Kotlin diff for OVER-ENGINEERING ONLY (correctness/security/perf out of",
@@ -17,6 +17,34 @@
       "complexity": 0.6041772625280478,
       "outcome": "failure",
       "timestamp": "2026-10-02T10:40:39.169Z"
+    },
+    {
+      "task": "You are verifying Kotlin schedule-domain math for correctness. Analyze ONLY the code below. Return: ",
+      "model": "sonnet",
+      "complexity": 0.5438916256157634,
+      "outcome": "failure",
+      "timestamp": "2026-10-11T20:22:25.229Z"
+    },
+    {
+      "task": "You are verifying a Kotlin WorkManager firing path for correctness. Analyze ONLY code below. Return:",
+      "model": "sonnet",
+      "complexity": 0.5215133171912832,
+      "outcome": "failure",
+      "timestamp": "2026-10-11T20:22:25.285Z"
+    },
+    {
+      "task": "You are verifying that an AUTOMATICALLY fired session behaves IDENTICALLY to a manually started one.",
+      "model": "sonnet",
+      "complexity": 0.6046774193548387,
+      "outcome": "failure",
+      "timestamp": "2026-10-11T20:22:25.347Z"
+    },
+    {
+      "task": "You are verifying setup-flow navigation and save semantics. Analyze ONLY code below. Return: VERDICT",
+      "model": "sonnet",
+      "complexity": 0.598307453416149,
+      "outcome": "failure",
+      "timestamp": "2026-10-11T20:22:25.405Z"
     }
   ],
   "version": 2,
@@ -46,7 +74,7 @@
       },
       "sonnet": {
         "alpha": 1,
-        "beta": 1
+        "beta": 5
       },
       "opus": {
         "alpha": 1,
