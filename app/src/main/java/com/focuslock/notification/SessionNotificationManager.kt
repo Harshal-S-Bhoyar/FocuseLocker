@@ -23,6 +23,9 @@ class SessionNotificationManager @Inject constructor(
     companion object {
         const val CHANNEL_ID = "focuslock_session_channel"
         const val NOTIFICATION_ID = 1001
+        // 1002 is taken by BlockingOverlayService's foreground notification; a
+        // collision there would silently replace the scheduled-start notice.
+        const val SCHEDULE_NOTICE_ID = 1005
     }
 
     private val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
@@ -76,6 +79,24 @@ class SessionNotificationManager @Inject constructor(
 
     fun getForegroundInfo(remainingMillis: Long): ForegroundInfo =
         ForegroundInfo(NOTIFICATION_ID, getNotification(remainingMillis))
+
+    fun notifyScheduleFired(ruleLabel: String) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+            ContextCompat.checkSelfPermission(
+                context,
+                Manifest.permission.POST_NOTIFICATIONS
+            ) != PackageManager.PERMISSION_GRANTED
+        ) {
+            return
+        }
+        val notice = NotificationCompat.Builder(context, CHANNEL_ID)
+            .setSmallIcon(R.drawable.ic_focuslock_secure)
+            .setContentTitle(context.getString(R.string.notification_title))
+            .setContentText(context.getString(R.string.notification_schedule_fired, ruleLabel))
+            .setPriority(NotificationCompat.PRIORITY_LOW)
+            .build()
+        notificationManager.notify(SCHEDULE_NOTICE_ID, notice)
+    }
 
     fun cancelNotification() {
         notificationManager.cancel(NOTIFICATION_ID)

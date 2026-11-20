@@ -5,6 +5,7 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import androidx.hilt.work.HiltWorkerFactory
 import androidx.work.Configuration
+import com.focuslock.data.worker.WorkScheduler
 import com.focuslock.util.FileLoggingTree
 import com.focuslock.util.GlobalExceptionHandler
 import dagger.hilt.android.HiltAndroidApp
@@ -16,6 +17,9 @@ class FocusLockApplication : Application(), Configuration.Provider {
     
     @Inject
     lateinit var workerFactory: HiltWorkerFactory
+
+    @Inject
+    lateinit var workScheduler: WorkScheduler
 
     override val workManagerConfiguration: Configuration
         get() = Configuration.Builder()
@@ -39,6 +43,8 @@ class FocusLockApplication : Application(), Configuration.Provider {
         Timber.i("FocusLockApplication started. Logging system initialized.")
         
         createNotificationChannel()
+
+        workScheduler.scheduleScheduleChecks()
     }
     
     private fun createNotificationChannel() {
