@@ -53,7 +53,7 @@ class CategorySelectionViewModelTest {
         val categoryList = listOf(BlockedCategory(id = 1, categoryKey = CategoryKey.ADULT, isActive = false))
         every { getAllCategoriesUseCase() } returns flowOf(categoryList)
 
-        val viewModel = CategorySelectionViewModel(getAllCategoriesUseCase, toggleCategoryUseCase, AppBlockSelectionStore(), mockContext)
+        val viewModel = CategorySelectionViewModel(getAllCategoriesUseCase, toggleCategoryUseCase, AppBlockSelectionStore(), mockContext, mockk<com.focuslock.data.repository.ScheduleRepository>(relaxed = true))
 
         // Start collecting so SharingStarted.WhileSubscribed triggers
         val collectJob = launch {
@@ -69,7 +69,7 @@ class CategorySelectionViewModelTest {
     @Test
     fun `onCategoryToggled calls use case`() = runTest {
         every { getAllCategoriesUseCase() } returns flowOf(emptyList())
-        val viewModel = CategorySelectionViewModel(getAllCategoriesUseCase, toggleCategoryUseCase, AppBlockSelectionStore(), mockContext)
+        val viewModel = CategorySelectionViewModel(getAllCategoriesUseCase, toggleCategoryUseCase, AppBlockSelectionStore(), mockContext, mockk<com.focuslock.data.repository.ScheduleRepository>(relaxed = true))
 
         viewModel.onCategoryToggled(CategoryKey.ADULT, true)
 
@@ -83,7 +83,7 @@ class CategorySelectionViewModelTest {
             BlockedCategory(id = 2, categoryKey = CategoryKey.GAMING, isActive = false)
         )
         every { getAllCategoriesUseCase() } returns flowOf(categoryList)
-        val viewModel = CategorySelectionViewModel(getAllCategoriesUseCase, toggleCategoryUseCase, AppBlockSelectionStore(), mockContext)
+        val viewModel = CategorySelectionViewModel(getAllCategoriesUseCase, toggleCategoryUseCase, AppBlockSelectionStore(), mockContext, mockk<com.focuslock.data.repository.ScheduleRepository>(relaxed = true))
 
         val collectJob = launch { viewModel.autoMode.collect {} }
         runCurrent()
