@@ -15,11 +15,16 @@ import com.focuslock.ui.common.CyberpunkLoadingIndicator
 import com.focuslock.ui.common.FullScreenBannerLoader
 import androidx.compose.ui.res.painterResource
 import androidx.compose.material3.Icon
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -50,29 +55,30 @@ fun OnboardingScreen(
     val state by viewModel.uiState.collectAsStateWithLifecycle()
 
     val context = androidx.compose.ui.platform.LocalContext.current
-    // Handle one-time navigation events
+    // Handle one-time navigation events: navigate first, then consume, so a
+    // recomposition or recreation between the two cannot drop the navigation.
     LaunchedEffect(state.event) {
         when (state.event) {
             is OnboardingEvent.NavigateToPermissions -> {
-                viewModel.onEventConsumed()
                 onNavigateToPermissions()
+                viewModel.onEventConsumed()
             }
             is OnboardingEvent.NavigateToActiveSession -> {
-                viewModel.onEventConsumed()
                 onNavigateToActiveSession()
+                viewModel.onEventConsumed()
             }
             is OnboardingEvent.NavigateToCategorySelection -> {
-                viewModel.onEventConsumed()
                 onNavigateToCategorySelection()
+                viewModel.onEventConsumed()
             }
             is OnboardingEvent.NavigateToPermissionRepair -> {
-                viewModel.onEventConsumed()
                 onNavigateToPermissions()
+                viewModel.onEventConsumed()
             }
             is OnboardingEvent.StartPermissionEnforcement -> {
-                viewModel.onEventConsumed()
                 com.focuslock.service.overlay.PermissionEnforcementService.start(context)
                 onNavigateToActiveSession()
+                viewModel.onEventConsumed()
             }
             null -> Unit
         }
@@ -80,15 +86,26 @@ fun OnboardingScreen(
 
     OnboardingContent(
         isLoading = state.isLoading,
-        onGetStartedClicked = viewModel::onGetStartedClicked
+        error = state.error,
+        onGetStartedClicked = viewModel::onGetStartedClicked,
+        onRetryClicked = viewModel::retry
     )
 }
 
 @Composable
 private fun OnboardingContent(
     isLoading: Boolean,
-    onGetStartedClicked: () -> Unit
+    error: String?,
+    onGetStartedClicked: () -> Unit,
+    onRetryClicked: () -> Unit
 ) {
+    // Defer heavy first-frame GPU work (radial glow shader, SrcAtop blend, Lottie)
+    // until after the lightweight text + progress paint.
+    var showHeavyVisuals by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) {
+        showHeavyVisuals = true
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -96,47 +113,82 @@ private fun OnboardingContent(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
+        if (error != null) {
+            Text(
+                text = error,
+                style = MaterialTheme.typography.bodyLarge,
+                textAlign = TextAlign.Center,
+                color = MaterialTheme.colorScheme.error
+            )
+            Spacer(modifier = Modifier.height(16.dp))
+            TextButton(onClick = onRetryClicked) {
+                Text(stringResource(R.string.startup_error_retry))
+            }
+            return
+        }
         if (isLoading) {
-            FullScreenBannerLoader(modifier = Modifier.fillMaxSize())
+            Text(
+                text = stringResource(R.string.startup_loading_message),
+                style = MaterialTheme.typography.bodyLarge,
+                textAlign = TextAlign.Center,
+                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f)
+            )
+            Spacer(modifier = Modifier.height(16.dp))
+            LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+            Spacer(modifier = Modifier.height(16.dp))
+            // Lottie composition + first-frame GPU upload deferred until after text + indicator paint.
+            if (showHeavyVisuals) {
+                FullScreenBannerLoader(modifier = Modifier.fillMaxSize())
+            }
             return
         }
 
         Box(contentAlignment = Alignment.Center) {
-            // ponytail: Radial gradient glow replaces heavy RenderEffect blur to prevent first-frame GPU stall
-            Box(
-                modifier = Modifier
-                    .size(130.dp)
-                    .background(
-                        Brush.radialGradient(
-                            colors = listOf(
-                                com.focuslock.ui.theme.GlowCyan.copy(alpha = 0.45f),
-                                Color.Transparent
+            if (showHeavyVisuals) {
+                // ponytail: Radial gradient glow replaces heavy RenderEffect blur to prevent first-frame GPU stall
+                Box(
+                    modifier = Modifier
+                        .size(130.dp)
+                        .background(
+                            Brush.radialGradient(
+                                colors = listOf(
+                                    com.focuslock.ui.theme.GlowCyan.copy(alpha = 0.45f),
+                                    Color.Transparent
+                                )
                             )
                         )
-                    )
-            )
-            // 3D Textured foreground icon
-            Icon(
-                imageVector = Icons.Filled.Lock,
-                contentDescription = null,
-                modifier = Modifier
-                    .size(100.dp)
-                    .graphicsLayer(alpha = 0.99f)
-                    .drawWithCache {
-                        val brush = Brush.linearGradient(
-                            colors = listOf(
-                                Color.White,
-                                com.focuslock.ui.theme.CyanPrimary,
-                                com.focuslock.ui.theme.VioletSecondary
+                )
+                // 3D Textured foreground icon
+                Icon(
+                    imageVector = Icons.Filled.Lock,
+                    contentDescription = null,
+                    modifier = Modifier
+                        .size(100.dp)
+                        .graphicsLayer(alpha = 0.99f)
+                        .drawWithCache {
+                            val brush = Brush.linearGradient(
+                                colors = listOf(
+                                    Color.White,
+                                    com.focuslock.ui.theme.CyanPrimary,
+                                    com.focuslock.ui.theme.VioletSecondary
+                                )
                             )
-                        )
-                        onDrawWithContent {
-                            drawContent()
-                            drawRect(brush, blendMode = BlendMode.SrcAtop)
-                        }
-                    },
-                tint = Color.White
-            )
+                            onDrawWithContent {
+                                drawContent()
+                                drawRect(brush, blendMode = BlendMode.SrcAtop)
+                            }
+                        },
+                    tint = Color.White
+                )
+            } else {
+                // First-frame placeholder: same size/tint, no shader or blend work.
+                Icon(
+                    imageVector = Icons.Filled.Lock,
+                    contentDescription = null,
+                    modifier = Modifier.size(100.dp),
+                    tint = Color.White
+                )
+            }
         }
 
         Spacer(modifier = Modifier.height(32.dp))
