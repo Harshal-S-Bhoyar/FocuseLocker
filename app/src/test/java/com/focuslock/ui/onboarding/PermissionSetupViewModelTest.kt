@@ -207,6 +207,36 @@ class PermissionSetupViewModelTest {
     }
 
     @Test
+    fun `already exempted battery optimization satisfies the gate without acknowledgement`() = runTest(testDispatcher) {
+        // Regression: an exempted device hides the battery GRANT button, so the acknowledgement can
+        // never be set — the gate must accept the real ignored state instead of deadlocking Continue.
+        every { permissionStatusProvider.getStatus() } returns permissionStatus(
+            accessibilityGranted = true,
+            deviceAdminGranted = true,
+            overlayGranted = true,
+            vpnGranted = true,
+            batteryOptimizationIgnored = true,
+            notificationGranted = true
+        )
+        every { OemBatteryOptimizationHelper.getBatteryOptimizationIntentsList(any()) } returns listOf(mockk(relaxed = true))
+        every { appSettingsRepository.getSetting("battery_optimization_acknowledged") } returns flowOf("false")
+
+        viewModel = PermissionSetupViewModel(permissionStatusProvider, appSettingsRepository, context)
+        viewModel.refreshPermissions()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        val permissions = viewModel.uiState.value.permissions
+        assertTrue(permissions.hasBatteryOptimizationIntent)
+        assertFalse(permissions.batteryOptimizationAcknowledged)
+        assertTrue(permissions.batteryOptimizationIgnored)
+        assertTrue(permissions.allCriticalGranted)
+
+        viewModel.onContinueClicked()
+        testDispatcher.scheduler.advanceUntilIdle()
+        assertTrue(viewModel.uiState.value.navigateToTrustedContact)
+    }
+
+    @Test
     fun `refreshPermissions maps autostart intent availability`() = runTest(testDispatcher) {
         every { OemAutostartHelper.getAutostartIntentsList(any()) } returns listOf(mockk(relaxed = true))
         every { appSettingsRepository.getSetting("autostart_acknowledged") } returns flowOf("true")
