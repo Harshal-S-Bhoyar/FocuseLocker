@@ -3,7 +3,7 @@ package com.focuslock.domain.usecase
 import com.focuslock.domain.model.SessionStatus
 import com.focuslock.data.repository.SessionRepository
 import com.focuslock.data.session.SessionRuntimeController
-import com.focuslock.data.worker.SessionWorkerScheduler
+import com.focuslock.data.worker.WorkScheduler
 import kotlinx.coroutines.CancellationException
 import timber.log.Timber
 import javax.inject.Inject
@@ -14,7 +14,7 @@ import javax.inject.Inject
  */
 class DeactivateSessionUseCase @Inject constructor(
     private val sessionRepository: SessionRepository,
-    private val sessionWorkerScheduler: SessionWorkerScheduler,
+    private val workScheduler: WorkScheduler,
     private val sessionRuntimeController: SessionRuntimeController
 ) {
     suspend operator fun invoke(sessionId: Long, status: SessionStatus): Result<Unit> {
@@ -22,7 +22,7 @@ class DeactivateSessionUseCase @Inject constructor(
         return try {
             sessionRepository.endSession(sessionId, status)
             Timber.d("DeactivateSessionUseCase: ended session in repository")
-            sessionWorkerScheduler.cancelSessionTimers()
+            workScheduler.cancelSessionTimers()
             Timber.d("DeactivateSessionUseCase: cancelled session timers")
             sessionRuntimeController.stopRuntime()
             Timber.i("DeactivateSessionUseCase: Session $sessionId deactivated successfully with status $status")
