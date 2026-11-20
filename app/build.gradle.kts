@@ -134,6 +134,12 @@ android {
         unitTests.isIncludeAndroidResources = true
     }
 
+    sourceSets {
+        getByName("debug") {
+            assets.srcDirs("$projectDir/schemas")
+        }
+    }
+
     // GradleDependency is advisory; these versions are pinned as a tested compatibility set.
     lint {
         disable += "GradleDependency"
@@ -213,6 +219,7 @@ dependencies {
     androidTestImplementation("androidx.test:core:1.6.1")
     androidTestImplementation("androidx.test:runner:1.6.2")
     androidTestImplementation("androidx.test.espresso:espresso-core:3.7.0")
+    androidTestImplementation("androidx.work:work-testing:2.10.0")
     androidTestImplementation(platform("androidx.compose:compose-bom:2024.12.01"))
     androidTestImplementation("androidx.compose.ui:ui-test-junit4")
     debugImplementation("androidx.compose.ui:ui-tooling")
