@@ -5,7 +5,7 @@ import android.content.Intent
 import androidx.test.core.app.ApplicationProvider
 import com.focuslock.data.repository.SessionRepository
 import com.focuslock.data.session.SessionRuntimeController
-import com.focuslock.data.worker.SessionWorkerScheduler
+import com.focuslock.data.worker.WorkScheduler
 import com.focuslock.domain.model.Session
 import com.focuslock.domain.model.SessionStatus
 import com.focuslock.util.PermissionChecker
@@ -38,7 +38,7 @@ class BootReceiverTest {
     private lateinit var context: Context
     private lateinit var bootReceiver: BootReceiver
     private lateinit var sessionRepository: SessionRepository
-    private lateinit var sessionWorkerScheduler: SessionWorkerScheduler
+    private lateinit var workScheduler: WorkScheduler
     private lateinit var sessionRuntimeController: SessionRuntimeController
 
     @Before
@@ -47,12 +47,12 @@ class BootReceiverTest {
         Timber.plant(Timber.DebugTree())
         context = ApplicationProvider.getApplicationContext()
         sessionRepository = mockk(relaxed = true)
-        sessionWorkerScheduler = mockk(relaxed = true)
+        workScheduler = mockk(relaxed = true)
         sessionRuntimeController = mockk(relaxed = true)
 
         bootReceiver = spyk(BootReceiver()).apply {
             this.sessionRepository = this@BootReceiverTest.sessionRepository
-            this.sessionWorkerScheduler = this@BootReceiverTest.sessionWorkerScheduler
+            this.workScheduler = this@BootReceiverTest.workScheduler
             this.sessionRuntimeController = this@BootReceiverTest.sessionRuntimeController
             this.ioDispatcher = kotlinx.coroutines.Dispatchers.Unconfined
         }
@@ -89,7 +89,7 @@ class BootReceiverTest {
         bootReceiver.processBootIntent(context, intent)
         advanceUntilIdle()
 
-        verify { sessionWorkerScheduler.scheduleSessionTimers(any()) }
+        verify { workScheduler.scheduleSessionTimers(any()) }
         verify { sessionRuntimeController.startRuntime(any()) }
     }
 
