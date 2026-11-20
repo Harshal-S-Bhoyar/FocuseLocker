@@ -69,7 +69,8 @@ class CategoryIntegrationTest {
             getAllCategoriesUseCase,
             toggleCategoryUseCase,
             AppBlockSelectionStore(),
-            context
+            context,
+            mockk<com.focuslock.data.repository.ScheduleRepository>(relaxed = true)
         )
 
         // Set up DoHQueryUseCase with mocked HTTP response to simulate a clean domain
@@ -120,12 +121,12 @@ class CategoryIntegrationTest {
     @Test
     fun `auto mode state persists and is restored by a recreated view model`() = runTest {
         every { getAllCategoriesUseCase() } returns flowOf(emptyList())
-        val firstViewModel = CategorySelectionViewModel(getAllCategoriesUseCase, toggleCategoryUseCase, AppBlockSelectionStore(), context)
+        val firstViewModel = CategorySelectionViewModel(getAllCategoriesUseCase, toggleCategoryUseCase, AppBlockSelectionStore(), context, mockk<com.focuslock.data.repository.ScheduleRepository>(relaxed = true))
 
         firstViewModel.onAutoModeToggled(true)
         runCurrent()
 
-        val secondViewModel = CategorySelectionViewModel(getAllCategoriesUseCase, toggleCategoryUseCase, AppBlockSelectionStore(), context)
+        val secondViewModel = CategorySelectionViewModel(getAllCategoriesUseCase, toggleCategoryUseCase, AppBlockSelectionStore(), context, mockk<com.focuslock.data.repository.ScheduleRepository>(relaxed = true))
         assertEquals(true, secondViewModel.autoMode.value)
         assertEquals(true, context.getSharedPreferences("focuslock_prefs", Context.MODE_PRIVATE)
             .getBoolean("auto_mode_enabled", false))
@@ -134,7 +135,7 @@ class CategoryIntegrationTest {
     @Test
     fun `user category toggle delegates the requested state`() = runTest {
         every { getAllCategoriesUseCase() } returns flowOf(emptyList())
-        val viewModel = CategorySelectionViewModel(getAllCategoriesUseCase, toggleCategoryUseCase, AppBlockSelectionStore(), context)
+        val viewModel = CategorySelectionViewModel(getAllCategoriesUseCase, toggleCategoryUseCase, AppBlockSelectionStore(), context, mockk<com.focuslock.data.repository.ScheduleRepository>(relaxed = true))
 
         viewModel.onCategoryToggled(CategoryKey.ADULT, false)
         runCurrent()
@@ -149,7 +150,7 @@ class CategoryIntegrationTest {
             BlockedCategory(2L, CategoryKey.GAMING, true)
         )
         every { getAllCategoriesUseCase() } returns flowOf(categories)
-        val viewModel = CategorySelectionViewModel(getAllCategoriesUseCase, toggleCategoryUseCase, AppBlockSelectionStore(), context)
+        val viewModel = CategorySelectionViewModel(getAllCategoriesUseCase, toggleCategoryUseCase, AppBlockSelectionStore(), context, mockk<com.focuslock.data.repository.ScheduleRepository>(relaxed = true))
 
         val collectJob = launch { viewModel.categories.collect {} }
         runCurrent()
@@ -161,7 +162,7 @@ class CategoryIntegrationTest {
     @Test
     fun `disabling auto mode updates state without activating categories`() = runTest {
         every { getAllCategoriesUseCase() } returns flowOf(emptyList())
-        val viewModel = CategorySelectionViewModel(getAllCategoriesUseCase, toggleCategoryUseCase, AppBlockSelectionStore(), context)
+        val viewModel = CategorySelectionViewModel(getAllCategoriesUseCase, toggleCategoryUseCase, AppBlockSelectionStore(), context, mockk<com.focuslock.data.repository.ScheduleRepository>(relaxed = true))
 
         viewModel.onAutoModeToggled(false)
         runCurrent()
