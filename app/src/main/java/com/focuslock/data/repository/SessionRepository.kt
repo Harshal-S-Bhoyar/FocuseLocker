@@ -25,8 +25,25 @@ class SessionRepository @Inject constructor(
     }
 
     suspend fun startSession(expiresAt: Long, categoryKeys: List<String>, appKeys: List<String> = emptyList()): Long {
+        return sessionDao.insertSession(newSession(expiresAt, categoryKeys, appKeys))
+    }
+
+    /**
+     * Atomic variant: returns null when a live session already exists. Two concurrent
+     * activations can no longer both insert ACTIVE.
+     */
+    suspend fun startSessionIfNoneActive(
+        expiresAt: Long,
+        categoryKeys: List<String>,
+        appKeys: List<String> = emptyList()
+    ): Long? {
         val now = System.currentTimeMillis()
-        val entity = SessionEntity(
+        return sessionDao.insertIfNoActiveSession(newSession(expiresAt, categoryKeys, appKeys), now)
+    }
+
+    private fun newSession(expiresAt: Long, categoryKeys: List<String>, appKeys: List<String>): SessionEntity {
+        val now = System.currentTimeMillis()
+        return SessionEntity(
             status = EntityStatus.ACTIVE,
             startedAt = now,
             expiresAt = expiresAt,
@@ -36,11 +53,18 @@ class SessionRepository @Inject constructor(
             selectedCategoryKeys = encodeKeys(categoryKeys),
             selectedAppKeys = encodeKeys(appKeys)
         )
-        return sessionDao.insertSession(entity)
     }
 
     suspend fun endSession(sessionId: Long, status: SessionStatus) {
         sessionDao.updateSessionStatus(sessionId, status.toEntityStatus())
+    }
+
+    /**
+     * Pushes the expiry of a live session later. Used only by strict lock-in reconciliation:
+     * a schedule edit may extend a running session, never shorten or cancel it.
+     */
+    suspend fun extendSession(sessionId: Long, expiresAt: Long) {
+        sessionDao.updateSessionExpiresAt(sessionId, expiresAt)
     }
 
     suspend fun markUnlockRequested(sessionId: Long, timestamp: Long) {

@@ -20,4 +20,6 @@ object AppSettingKey {
     const val VPN_ACTIVE = "vpn_active"
     const val FIRST_INSTALL_DATE = "first_install_date"
     const val DOMAINS_SEEDED = "domains_seeded"
+    const val SCHEDULE_ENABLED = "schedule_enabled"
+    const val SCHEDULE_LAST_FIRED = "schedule_last_fired"
 }

@@ -14,6 +14,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -24,7 +25,8 @@ import com.focuslock.R
 
 @Composable
 fun SessionCompleteScreen(
-    onStartAnotherSession: () -> Unit
+    onStartAnotherSession: () -> Unit,
+    onNavigateToSchedule: () -> Unit = {}
 ) {
     Scaffold { paddingValues ->
         Column(
@@ -59,6 +61,16 @@ fun SessionCompleteScreen(
                 onClick = onStartAnotherSession,
                 modifier = Modifier.fillMaxWidth()
             )
+            Spacer(modifier = Modifier.height(dimensionResource(R.dimen.spacing_sm)))
+            TextButton(
+                onClick = onNavigateToSchedule,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(
+                    text = stringResource(R.string.schedule_manage_entry),
+                    style = MaterialTheme.typography.bodyLarge
+                )
+            }
         }
     }
 }

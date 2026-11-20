@@ -69,10 +69,11 @@ class PageSignalFetcherImpl @Inject constructor(
 
                     response = safeClient.newCall(request).execute()
 
-                    if (!response!!.isSuccessful) {
-                        throw Exception("HTTP error: ${response!!.code}")
+                    val resp = requireNotNull(response) { "Response is null after execute()" }
+                    if (!resp.isSuccessful) {
+                        throw Exception("HTTP error: ${resp.code}")
                     } else {
-                        val inputStream = response!!.body?.byteStream()
+                        val inputStream = resp.body?.byteStream()
                         val reader = inputStream?.bufferedReader()
                         val charBuffer = CharArray(8192)
                         

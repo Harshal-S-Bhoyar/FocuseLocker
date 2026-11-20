@@ -127,3 +127,10 @@ ehthumbs.db
 
 # --- Local Agent Tooling State (never commit: machine-local history) ---
 .claude-flow/
+# Present in the working tree but not previously ignored. Only unambiguously machine-local state is
+# listed here. .opencode/commands, .opencode/skills, .reticle.json, skills-lock.json and
+# .verification/*-LEDGER.md are project config or gate evidence (GATES.md cites them), so they stay
+# visible: ignoring them would silently stop a deliberate file from ever being committed.
+# .opencode/node_modules is already covered by .opencode/.gitignore.
+.verification/*.log
+.gravitas/sessions/

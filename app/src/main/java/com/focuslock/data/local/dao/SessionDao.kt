@@ -4,6 +4,7 @@ import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
+import androidx.room.Transaction
 import androidx.room.Update
 import com.focuslock.data.local.entity.SessionEntity
 import com.focuslock.data.local.entity.SessionStatus
@@ -34,6 +35,9 @@ interface SessionDao {
     
     @Query("UPDATE sessions SET status = :status WHERE id = :sessionId")
     suspend fun updateSessionStatus(sessionId: Long, status: String)
+
+    @Query("UPDATE sessions SET expires_at = :expiresAt WHERE id = :sessionId")
+    suspend fun updateSessionExpiresAt(sessionId: Long, expiresAt: Long)
     
     @Query("UPDATE sessions SET unlock_requested_at = :timestamp WHERE id = :sessionId")
     suspend fun updateUnlockRequestedAt(sessionId: Long, timestamp: Long)
@@ -43,4 +47,16 @@ interface SessionDao {
     
     @Query("SELECT COUNT(*) FROM sessions WHERE status = :status")
     suspend fun countSessionsByStatus(status: String = SessionStatus.ACTIVE): Int
+
+    /**
+     * Atomic single-active-session insert. The transaction serialises concurrent callers
+     * (schedule worker + user tap); the previous read-then-insert could not.
+     * Returns null when a live ACTIVE session already exists.
+     */
+    @Transaction
+    suspend fun insertIfNoActiveSession(session: SessionEntity, now: Long): Long? {
+        val active = getActiveSessionSync()
+        if (active != null && active.expiresAt > now) return null
+        return insertSession(session)
+    }
 }

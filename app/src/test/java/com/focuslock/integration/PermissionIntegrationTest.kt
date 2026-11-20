@@ -5,7 +5,7 @@ import android.content.Intent
 import androidx.test.core.app.ApplicationProvider
 import com.focuslock.data.repository.SessionRepository
 import com.focuslock.data.session.SessionRuntimeController
-import com.focuslock.data.worker.SessionWorkerScheduler
+import com.focuslock.data.worker.WorkScheduler
 import com.focuslock.domain.model.Session
 import com.focuslock.domain.model.SessionStatus
 import com.focuslock.receiver.BootReceiver
@@ -42,7 +42,7 @@ class PermissionIntegrationTest {
     private lateinit var context: Context
     private lateinit var bootReceiver: BootReceiver
     private val sessionRepository: SessionRepository = mockk(relaxed = true)
-    private val sessionWorkerScheduler: SessionWorkerScheduler = mockk(relaxed = true)
+    private val workScheduler: WorkScheduler = mockk(relaxed = true)
     private val sessionRuntimeController: SessionRuntimeController = mockk(relaxed = true)
 
     @Before
@@ -58,7 +58,7 @@ class PermissionIntegrationTest {
         
         bootReceiver = spyk(BootReceiver()).apply {
             this.sessionRepository = this@PermissionIntegrationTest.sessionRepository
-            this.sessionWorkerScheduler = this@PermissionIntegrationTest.sessionWorkerScheduler
+            this.workScheduler = this@PermissionIntegrationTest.workScheduler
             this.sessionRuntimeController = this@PermissionIntegrationTest.sessionRuntimeController
             this.ioDispatcher = testDispatcher
         }
@@ -98,7 +98,7 @@ class PermissionIntegrationTest {
 
         // 3. Verify Functional Cascade
         // A. Verify session timers were rescheduled
-        verify { sessionWorkerScheduler.scheduleSessionTimers(activeSession.expiresAt!!) }
+        verify { workScheduler.scheduleSessionTimers(activeSession.expiresAt!!) }
         
         // B. Verify runtime started
         verify { sessionRuntimeController.startRuntime(any()) }

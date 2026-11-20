@@ -56,7 +56,10 @@ class PermissionEnforcementService : Service(), LifecycleOwner, ViewModelStoreOw
             val intent = Intent(context, PermissionEnforcementService::class.java).apply {
                 action = ACTION_START
             }
-            context.startForegroundService(intent)
+            // Android 12+ throws when a background caller starts an FGS. Swallowing the throw
+            // keeps the caller alive; the watchdog retries on its next tick.
+            runCatching { context.startForegroundService(intent) }
+                .onFailure { Timber.tag(TAG).e(it, "start: foreground service rejected") }
         }
         
         fun stop(context: Context) {

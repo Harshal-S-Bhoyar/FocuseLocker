@@ -37,6 +37,30 @@
     <string name="notification_remaining_minutes">%1$d m</string>
     <string name="notification_remaining_less_than_minute">less than a minute</string>
     <string name="notification_expired">session expired</string>
+    <string name="notification_schedule_fired">Scheduled session started: %1$s</string>
+    <string name="cancel">Cancel</string>
+
+    <!-- Schedule -->
+    <string name="schedule_mode_title">Choose Session Type</string>
+    <string name="schedule_mode_prompt">Run sessions on a weekly schedule or start one right now?</string>
+    <string name="schedule_mode_schedule">Weekly Schedule</string>
+    <string name="schedule_mode_oneshot">One-Time Session</string>
+    <string name="schedule_editor_title">Weekly Schedule</string>
+    <string name="schedule_manage_title">Manage Schedule</string>
+    <string name="schedule_add_window">Add window</string>
+    <string name="schedule_full_day">Full-day block</string>
+    <string name="schedule_save">Save</string>
+    <string name="schedule_done">Done</string>
+    <string name="schedule_delete">Delete window</string>
+    <string name="schedule_no_windows">No windows. This day stays unlocked.</string>
+    <string name="schedule_start_hour">Start hour</string>
+    <string name="schedule_start_minute">Start minute</string>
+    <string name="schedule_end_hour">End hour</string>
+    <string name="schedule_end_minute">End minute</string>
+    <string name="schedule_enable_title">Scheduled sessions</string>
+    <string name="schedule_manage_entry">Schedule</string>
+    <string name="schedule_confirm_title">Schedule Armed</string>
+    <string name="schedule_confirm_description">Your weekly locks start on their own. The phone locks at each window with your current block list.</string>
 
     <!-- Onboarding screen -->
     <string name="onboarding_title">Take back control of your focus</string>
@@ -88,6 +112,8 @@
     <string name="app_block_search">Search apps</string>
     <string name="app_block_loading">Loading apps…</string>
     <string name="app_block_empty">No launchable apps found</string>
+    <string name="startup_loading_message">Getting things ready…</string>
+    <string name="startup_error_retry">Try again</string>
     <string name="auto_mode_title">Automatic Setup</string>
     <string name="auto_mode_description">Let FocusLock select the best settings based on your goals.</string>
     <string name="category_example_domains">e.g., %1$s</string>

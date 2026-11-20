@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.focuslock.domain.model.BlockedKeyword
 import com.focuslock.domain.usecase.AddKeywordUseCase
 import com.focuslock.domain.usecase.GetAllKeywordsUseCase
+import com.focuslock.domain.usecase.HasVerifiedContactUseCase
 import com.focuslock.domain.usecase.RemoveKeywordUseCase
 import com.focuslock.data.repository.MAX_KEYWORDS
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -25,7 +26,8 @@ import javax.inject.Inject
 class KeywordSelectionViewModel @Inject constructor(
     getAllKeywordsUseCase: GetAllKeywordsUseCase,
     private val addKeywordUseCase: AddKeywordUseCase,
-    private val removeKeywordUseCase: RemoveKeywordUseCase
+    private val removeKeywordUseCase: RemoveKeywordUseCase,
+    private val hasVerifiedContactUseCase: HasVerifiedContactUseCase
 ) : ViewModel() {
 
     // Expose the current list of keywords
@@ -42,6 +44,19 @@ class KeywordSelectionViewModel @Inject constructor(
     // Manage error state to show feedback (e.g., limit reached)
     private val _error = MutableStateFlow<String?>(null)
     val error = _error.asStateFlow()
+
+    private val _hasVerifiedContact = MutableStateFlow(false)
+    val hasVerifiedContact: StateFlow<Boolean> = _hasVerifiedContact.asStateFlow()
+
+    private val _isContactLoaded = MutableStateFlow(false)
+    val isContactLoaded: StateFlow<Boolean> = _isContactLoaded.asStateFlow()
+
+    init {
+        viewModelScope.launch {
+            _hasVerifiedContact.value = hasVerifiedContactUseCase()
+            _isContactLoaded.value = true
+        }
+    }
 
     fun addKeyword(keyword: String) {
         viewModelScope.launch {

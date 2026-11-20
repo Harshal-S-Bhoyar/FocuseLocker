@@ -26,6 +26,10 @@ sealed class Screen(val route: String) {
     object CategorySelection : Screen("category_selection")
     object AppBlockSelection : Screen("app_block_selection")
     object KeywordSelection : Screen("keyword_selection")
+    object ScheduleMode : Screen("schedule_mode")
+    object ScheduleEditor : Screen("schedule_editor")
+    object ScheduleConfirm : Screen("schedule_confirm")
+    object ScheduleManage : Screen("schedule_manage")
     object TimerSetup : Screen("timer_setup")
     object SessionConfirmation : Screen("session_confirmation")
 
@@ -42,6 +46,30 @@ sealed class Screen(val route: String) {
     // End (Phase 6)
     object SessionComplete : Screen("session_complete")
 }
+
+// ponytail: pure routing decisions for the first-time flow, unit-tested in FirstTimeFlowTest.
+// -1L denotes pre-chooser contact (0L is the editor-guard path, positive is a one-shot duration).
+internal fun chooserOrContactRoute(hasVerifiedContact: Boolean): String =
+    if (hasVerifiedContact) Screen.ScheduleMode.route
+    else Screen.TrustedContactSetup.route + "/-1"
+
+internal data class VerifyNav(val dest: String, val popUpTo: String)
+
+internal fun verifyNav(durationMillis: Long): VerifyNav = when {
+    durationMillis < 0L -> VerifyNav(Screen.ScheduleMode.route, Screen.KeywordSelection.route)
+    durationMillis == 0L -> VerifyNav(Screen.ScheduleConfirm.route, Screen.CategorySelection.route)
+    else -> VerifyNav(
+        Screen.SessionConfirmation.route + "/$durationMillis",
+        Screen.CategorySelection.route
+    )
+}
+
+// ponytail: pure routing decisions for schedule confirmation and category selection
+// ponytail: live=true marks the schedule hand-off for a window that is already running, so the
+// confirmation screen may enter it instead of activating a second session. Other callers omit it
+// and the route's default (false) applies.
+internal fun scheduleConfirmNav(liveRemainingMillis: Long?): String? =
+    liveRemainingMillis?.let { Screen.SessionConfirmation.route + "/$it?live=true" }
 
 // ── Navigation host ───────────────────────────────────────────────────────────
 
@@ -102,9 +130,10 @@ fun AppNavigation(
             val durationMillis = backStackEntry.arguments?.getLong("durationMillis") ?: 0L
             VerifyContactScreen(
                 onNavigateToSetup = {
-                    // Onboarding complete — go to session confirmation
-                    navController.navigate(Screen.SessionConfirmation.route + "/$durationMillis") {
-                        popUpTo(Screen.CategorySelection.route) { inclusive = true }
+                    // Route by entry path (chooserOrContactRoute documents the sentinels).
+                    val nav = verifyNav(durationMillis)
+                    navController.navigate(nav.dest) {
+                        popUpTo(nav.popUpTo) { inclusive = true }
                     }
                 }
             )
@@ -116,6 +145,11 @@ fun AppNavigation(
             com.focuslock.ui.setup.CategorySelectionScreen(
                 onNavigateNext = {
                     navController.navigate(Screen.AppBlockSelection.route)
+                },
+                onNavigateSchedule = {
+                    // Continue into the weekly editor, whose Done confirms forward. Never the
+                    // manage route: popping back from there is the loop this fixes.
+                    navController.navigate(Screen.ScheduleEditor.route)
                 }
             )
         }
@@ -130,9 +164,57 @@ fun AppNavigation(
 
         composable(Screen.KeywordSelection.route) {
             com.focuslock.ui.setup.KeywordSelectionScreen(
-                onNavigateNext = {
+                onNavigateNext = { hasVerifiedContact ->
+                    // First-time setup: verify contact before choosing session type.
+                    navController.navigate(chooserOrContactRoute(hasVerifiedContact))
+                }
+            )
+        }
+
+        composable(Screen.ScheduleMode.route) {
+            com.focuslock.ui.setup.ScheduleModeScreen(
+                onSchedule = {
+                    navController.navigate(Screen.ScheduleEditor.route)
+                },
+                onOneShot = {
                     navController.navigate(Screen.TimerSetup.route)
                 }
+            )
+        }
+
+        composable(Screen.ScheduleEditor.route) {
+            com.focuslock.ui.setup.ScheduleEditorScreen(
+                onDone = { hasVerifiedContact ->
+                    if (hasVerifiedContact) {
+                        navController.navigate(Screen.ScheduleConfirm.route) {
+                            popUpTo(Screen.ScheduleMode.route) { inclusive = true }
+                        }
+                    } else {
+                        // User needs trusted contact setup first; pass 0L to denote schedule path
+                        navController.navigate(Screen.TrustedContactSetup.route + "/0") {
+                            popUpTo(Screen.ScheduleMode.route) { inclusive = true }
+                        }
+                    }
+                }
+            )
+        }
+
+        composable(Screen.ScheduleConfirm.route) {
+            com.focuslock.ui.setup.ScheduleConfirmScreen(
+                onDone = { liveRemainingMillis ->
+                    // ponytail: a live window hands off to the session confirmation screen; a future
+                    // window leaves dest null and stays on ScheduleConfirmScreen in its armed terminal state.
+                    scheduleConfirmNav(liveRemainingMillis)?.let { dest ->
+                        navController.navigate(dest)
+                    }
+                }
+            )
+        }
+
+        composable(Screen.ScheduleManage.route) {
+            com.focuslock.ui.setup.ScheduleEditorScreen(
+                onDone = { _ -> navController.popBackStack() },
+                showSwitch = true
             )
         }
 
@@ -149,8 +231,15 @@ fun AppNavigation(
         }
 
         composable(
-            route = Screen.SessionConfirmation.route + "/{durationMillis}",
-            arguments = listOf(androidx.navigation.navArgument("durationMillis") { type = androidx.navigation.NavType.LongType })
+            route = Screen.SessionConfirmation.route + "/{durationMillis}?live={live}",
+            arguments = listOf(
+                androidx.navigation.navArgument("durationMillis") { type = androidx.navigation.NavType.LongType },
+                // Optional: routes that omit the query string still resolve and read false.
+                androidx.navigation.navArgument("live") {
+                    type = androidx.navigation.NavType.BoolType
+                    defaultValue = false
+                }
+            )
         ) {
             com.focuslock.ui.setup.SessionConfirmationScreen(
                 onNavigateToActiveSession = {
@@ -260,6 +349,9 @@ fun AppNavigation(
                     navController.navigate(Screen.Onboarding.route) {
                         popUpTo(Screen.SessionComplete.route) { inclusive = true }
                     }
+                },
+                onNavigateToSchedule = {
+                    navController.navigate(Screen.ScheduleManage.route)
                 }
             )
         }

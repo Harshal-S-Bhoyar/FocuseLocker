@@ -62,7 +62,7 @@ fun AppBlockScreen(
             contentPadding = PaddingValues(dimensionResource(R.dimen.spacing_lg)),
             verticalArrangement = Arrangement.spacedBy(dimensionResource(R.dimen.spacing_lg))
         ) {
-            item {
+            item(key = "search", contentType = "search") {
                 OutlinedTextField(
                     value = query,
                     onValueChange = viewModel::onQueryChanged,
@@ -72,11 +72,11 @@ fun AppBlockScreen(
                 )
             }
             if (loading) {
-                item { Text(stringResource(R.string.app_block_loading)) }
+                item(key = "loading", contentType = "status") { Text(stringResource(R.string.app_block_loading)) }
             } else if (items.isEmpty()) {
-                item { Text(stringResource(R.string.app_block_empty)) }
+                item(key = "empty", contentType = "status") { Text(stringResource(R.string.app_block_empty)) }
             } else {
-                items(items, key = { it.app.packageName }) { ui ->
+                items(items, key = { it.app.packageName }, contentType = { "app" }) { ui ->
                     Card(
                         modifier = Modifier.fillMaxWidth(),
                         elevation = CardDefaults.cardElevation(defaultElevation = dimensionResource(R.dimen.card_elevation_medium))

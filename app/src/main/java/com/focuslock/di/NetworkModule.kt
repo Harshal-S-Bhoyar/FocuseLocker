@@ -73,7 +73,7 @@ object NetworkModule {
             .addInterceptor(
                 HttpLoggingInterceptor().apply {
                     level = if (BuildConfig.DEBUG) {
-                        HttpLoggingInterceptor.Level.BODY
+                        HttpLoggingInterceptor.Level.BASIC
                     } else {
                         HttpLoggingInterceptor.Level.NONE
                     }
@@ -88,6 +88,9 @@ object NetworkModule {
         okHttpClient: OkHttpClient,
         json: Json
     ): Retrofit {
+        check(BuildConfig.BACKEND_URL.isNotBlank()) {
+            "BACKEND_URL is empty. Set BACKEND_URL (or DEBUG_BACKEND_URL) via environment or local.properties."
+        }
         val contentType = "application/json".toMediaType()
         return Retrofit.Builder()
             .baseUrl(BuildConfig.BACKEND_URL)

@@ -10,6 +10,7 @@ import com.focuslock.data.local.dao.BlockedCategoryDao
 import com.focuslock.data.local.dao.BlockedDomainDao
 import com.focuslock.data.local.dao.BlockedKeywordDao
 import com.focuslock.data.local.dao.SessionDao
+import com.focuslock.data.local.dao.ScheduleDao
 import com.focuslock.data.local.dao.TrustedContactDao
 import com.focuslock.data.local.dao.UnlockRequestDao
 import com.focuslock.data.local.entity.AppSettingEntity
@@ -17,6 +18,7 @@ import com.focuslock.data.local.entity.BlockedCategoryEntity
 import com.focuslock.data.local.entity.BlockedDomainEntity
 import com.focuslock.data.local.entity.BlockedKeywordEntity
 import com.focuslock.data.local.entity.SessionEntity
+import com.focuslock.data.local.entity.ScheduleWindowEntity
 import com.focuslock.data.local.entity.TrustedContactEntity
 import com.focuslock.data.local.entity.UnlockRequestEntity
 
@@ -28,16 +30,18 @@ import com.focuslock.data.local.entity.UnlockRequestEntity
         BlockedDomainEntity::class,
         TrustedContactEntity::class,
         UnlockRequestEntity::class,
-        AppSettingEntity::class
+        AppSettingEntity::class,
+        ScheduleWindowEntity::class
     ],
-    version = 9,
+    version = 10,
     exportSchema = true,
     autoMigrations = [
         AutoMigration(from = 4, to = 5),
         AutoMigration(from = 5, to = 6),
         AutoMigration(from = 6, to = 7),
         AutoMigration(from = 7, to = 8, spec = FocusDatabase.Migration7To8Spec::class),
-        AutoMigration(from = 8, to = 9, spec = FocusDatabase.Migration8To9Spec::class)
+        AutoMigration(from = 8, to = 9, spec = FocusDatabase.Migration8To9Spec::class),
+        AutoMigration(from = 9, to = 10)
     ]
 )
 abstract class FocusDatabase : RoomDatabase() {
@@ -79,6 +83,7 @@ abstract class FocusDatabase : RoomDatabase() {
     abstract fun trustedContactDao(): TrustedContactDao
     abstract fun unlockRequestDao(): UnlockRequestDao
     abstract fun appSettingDao(): AppSettingDao
+    abstract fun scheduleDao(): ScheduleDao
     
     companion object {
         const val DATABASE_NAME = "focus_lock.db"

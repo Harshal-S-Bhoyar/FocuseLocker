@@ -40,11 +40,13 @@ import com.focuslock.domain.model.BlockedCategory
 @Composable
 fun CategorySelectionScreen(
     onNavigateNext: () -> Unit,
+    onNavigateSchedule: () -> Unit = {},
     viewModel: CategorySelectionViewModel = hiltViewModel()
 ) {
     // Collect the flow of categories as state
     val categories by viewModel.categories.collectAsStateWithLifecycle()
-    val autoMode by viewModel.autoMode.collectAsStateWithLifecycle() // ADD
+    val autoMode by viewModel.autoMode.collectAsStateWithLifecycle()
+    val scheduleEnabled by viewModel.scheduleEnabled.collectAsStateWithLifecycle()
 
     Scaffold(
         topBar = {
@@ -53,13 +55,41 @@ fun CategorySelectionScreen(
             )
         },
         bottomBar = {
-            com.focuslock.ui.components.PrimaryButton(
-                onClick = onNavigateNext,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(dimensionResource(R.dimen.spacing_lg)),
-                label = stringResource(R.string.next)
-            )
+            if (scheduleEnabled) {
+                // Armed schedules offer both paths: the weekly editor for the timetable,
+                // and the normal flow (apps, keywords, one-shot timer) for right now.
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(dimensionResource(R.dimen.spacing_lg)),
+                    verticalArrangement = Arrangement.spacedBy(dimensionResource(R.dimen.spacing_sm))
+                ) {
+                    com.focuslock.ui.components.PrimaryButton(
+                        onClick = {
+                            // ponytail: schedule already armed — continue into the weekly editor instead of
+                            // restarting the wizard, and never into the manage route that popped straight back
+                            onNavigateSchedule()
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        label = stringResource(R.string.schedule_manage_entry)
+                    )
+                    com.focuslock.ui.components.PrimaryButton(
+                        onClick = onNavigateNext,
+                        modifier = Modifier.fillMaxWidth(),
+                        label = stringResource(R.string.next)
+                    )
+                }
+            } else {
+                com.focuslock.ui.components.PrimaryButton(
+                    onClick = {
+                        onNavigateNext()
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(dimensionResource(R.dimen.spacing_lg)),
+                    label = stringResource(R.string.next)
+                )
+            }
         }
     ) { paddingValues ->
         LazyColumn(
@@ -69,8 +99,33 @@ fun CategorySelectionScreen(
             contentPadding = PaddingValues(dimensionResource(R.dimen.spacing_lg)),
             verticalArrangement = Arrangement.spacedBy(dimensionResource(R.dimen.spacing_lg))
         ) {
-            // ADD: Auto Mode card at top
-            item {
+            if (scheduleEnabled) {
+                item(key = "schedule_armed_banner", contentType = "header") {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.secondaryContainer
+                        )
+                    ) {
+                        Column(modifier = Modifier.padding(dimensionResource(R.dimen.spacing_lg))) {
+                            Text(
+                                text = stringResource(R.string.schedule_confirm_title),
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Spacer(modifier = Modifier.height(dimensionResource(R.dimen.spacing_xs)))
+                            Text(
+                                text = stringResource(R.string.schedule_confirm_description),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSecondaryContainer
+                            )
+                        }
+                    }
+                }
+            }
+
+            // Auto Mode card at top
+            item(key = "auto_mode", contentType = "header") {
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     colors = CardDefaults.cardColors(
@@ -92,7 +147,7 @@ fun CategorySelectionScreen(
                 }
             }
 
-            items(categories, key = { it.categoryKey }) { category ->
+            items(categories, key = { it.categoryKey }, contentType = { "category" }) { category ->
                 // Filter out GENERAL and AUTO_BLOCKED from UI — internal categories
                 if (category.categoryKey != "AUTO_BLOCKED" && category.categoryKey != "GENERAL") {
                     CategoryItem(

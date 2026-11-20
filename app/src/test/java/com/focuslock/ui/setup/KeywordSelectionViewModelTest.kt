@@ -4,6 +4,7 @@ import com.focuslock.data.repository.MAX_KEYWORDS
 import com.focuslock.domain.model.BlockedKeyword
 import com.focuslock.domain.usecase.AddKeywordUseCase
 import com.focuslock.domain.usecase.GetAllKeywordsUseCase
+import com.focuslock.domain.usecase.HasVerifiedContactUseCase
 import com.focuslock.domain.usecase.RemoveKeywordUseCase
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -29,6 +30,7 @@ class KeywordSelectionViewModelTest {
     private val getAllKeywordsUseCase = mockk<GetAllKeywordsUseCase>()
     private val addKeywordUseCase = mockk<AddKeywordUseCase>()
     private val removeKeywordUseCase = mockk<RemoveKeywordUseCase>(relaxed = true)
+    private val hasVerifiedContactUseCase = mockk<HasVerifiedContactUseCase>(relaxed = true)
     private val testDispatcher = UnconfinedTestDispatcher()
 
     @Before
@@ -45,7 +47,7 @@ class KeywordSelectionViewModelTest {
     @Test
     fun `addKeyword updates error on failure`() = runTest {
         coEvery { addKeywordUseCase("distraction") } returns Result.failure(Exception("Limit reached"))
-        val viewModel = KeywordSelectionViewModel(getAllKeywordsUseCase, addKeywordUseCase, removeKeywordUseCase)
+        val viewModel = KeywordSelectionViewModel(getAllKeywordsUseCase, addKeywordUseCase, removeKeywordUseCase, hasVerifiedContactUseCase)
 
         viewModel.addKeyword("distraction")
 
@@ -55,7 +57,7 @@ class KeywordSelectionViewModelTest {
     @Test
     fun `addKeyword clears error on success`() = runTest {
         coEvery { addKeywordUseCase("distraction") } returns Result.success(Unit)
-        val viewModel = KeywordSelectionViewModel(getAllKeywordsUseCase, addKeywordUseCase, removeKeywordUseCase)
+        val viewModel = KeywordSelectionViewModel(getAllKeywordsUseCase, addKeywordUseCase, removeKeywordUseCase, hasVerifiedContactUseCase)
         
         // Setup initial error
         coEvery { addKeywordUseCase("error") } returns Result.failure(Exception("Limit reached"))
@@ -71,7 +73,7 @@ class KeywordSelectionViewModelTest {
 
     @Test
     fun `removeKeyword calls use case and clears error`() = runTest {
-        val viewModel = KeywordSelectionViewModel(getAllKeywordsUseCase, addKeywordUseCase, removeKeywordUseCase)
+        val viewModel = KeywordSelectionViewModel(getAllKeywordsUseCase, addKeywordUseCase, removeKeywordUseCase, hasVerifiedContactUseCase)
 
         viewModel.removeKeyword(1L)
 
@@ -83,7 +85,7 @@ class KeywordSelectionViewModelTest {
     fun `keywords flow exposes repository emissions`() = runTest {
         val expected = listOf(BlockedKeyword(1L, "study", true, 10L))
         every { getAllKeywordsUseCase() } returns flowOf(expected)
-        val viewModel = KeywordSelectionViewModel(getAllKeywordsUseCase, addKeywordUseCase, removeKeywordUseCase)
+        val viewModel = KeywordSelectionViewModel(getAllKeywordsUseCase, addKeywordUseCase, removeKeywordUseCase, hasVerifiedContactUseCase)
         val collectJob = launch { viewModel.keywords.collect {} }
 
         runCurrent()
@@ -95,7 +97,7 @@ class KeywordSelectionViewModelTest {
     @Test
     fun `clearError removes an existing add failure`() = runTest {
         coEvery { addKeywordUseCase("blocked") } returns Result.failure(Exception("Limit reached"))
-        val viewModel = KeywordSelectionViewModel(getAllKeywordsUseCase, addKeywordUseCase, removeKeywordUseCase)
+        val viewModel = KeywordSelectionViewModel(getAllKeywordsUseCase, addKeywordUseCase, removeKeywordUseCase, hasVerifiedContactUseCase)
 
         viewModel.addKeyword("blocked")
         assertEquals("Limit reached", viewModel.error.value)
@@ -108,7 +110,7 @@ class KeywordSelectionViewModelTest {
     @Test
     fun `removeKeyword clears a prior error even when removal fails`() = runTest {        coEvery { addKeywordUseCase("blocked") } returns Result.failure(Exception("Limit reached"))
         coEvery { removeKeywordUseCase(9L) } returns Result.failure(Exception("Missing keyword"))
-        val viewModel = KeywordSelectionViewModel(getAllKeywordsUseCase, addKeywordUseCase, removeKeywordUseCase)
+        val viewModel = KeywordSelectionViewModel(getAllKeywordsUseCase, addKeywordUseCase, removeKeywordUseCase, hasVerifiedContactUseCase)
 
         viewModel.addKeyword("blocked")
         viewModel.removeKeyword(9L)
@@ -119,7 +121,7 @@ class KeywordSelectionViewModelTest {
 
     @Test
     fun `ui max matches enforced repository max`() {
-        val viewModel = KeywordSelectionViewModel(getAllKeywordsUseCase, addKeywordUseCase, removeKeywordUseCase)
+        val viewModel = KeywordSelectionViewModel(getAllKeywordsUseCase, addKeywordUseCase, removeKeywordUseCase, hasVerifiedContactUseCase)
 
         assertEquals(MAX_KEYWORDS, viewModel.maxKeywords)
     }

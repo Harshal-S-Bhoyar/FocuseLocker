@@ -6,7 +6,7 @@ import android.os.Build
 import androidx.test.core.app.ApplicationProvider
 import com.focuslock.data.repository.SessionRepository
 import com.focuslock.data.session.SessionRuntimeController
-import com.focuslock.data.worker.SessionWorkerScheduler
+import com.focuslock.data.worker.WorkScheduler
 import com.focuslock.domain.model.Session
 import com.focuslock.domain.model.SessionStatus
 import com.focuslock.receiver.BootReceiver
@@ -36,7 +36,7 @@ class BootSecurityIntegrationTest {
     private lateinit var context: Context
     private lateinit var bootReceiver: BootReceiver
     private lateinit var sessionRepository: SessionRepository
-    private lateinit var sessionWorkerScheduler: SessionWorkerScheduler
+    private lateinit var workScheduler: WorkScheduler
     private lateinit var sessionRuntimeController: SessionRuntimeController
 
     @Before
@@ -46,12 +46,12 @@ class BootSecurityIntegrationTest {
         
         context = ApplicationProvider.getApplicationContext()
         sessionRepository = mockk(relaxed = true)
-        sessionWorkerScheduler = mockk(relaxed = true)
+        workScheduler = mockk(relaxed = true)
         sessionRuntimeController = mockk(relaxed = true)
 
         bootReceiver = spyk(BootReceiver()).apply {
             this.sessionRepository = this@BootSecurityIntegrationTest.sessionRepository
-            this.sessionWorkerScheduler = this@BootSecurityIntegrationTest.sessionWorkerScheduler
+            this.workScheduler = this@BootSecurityIntegrationTest.workScheduler
             this.sessionRuntimeController = this@BootSecurityIntegrationTest.sessionRuntimeController
             this.ioDispatcher = kotlinx.coroutines.Dispatchers.Unconfined
         }
@@ -93,7 +93,7 @@ class BootSecurityIntegrationTest {
         advanceUntilIdle()
 
         // 4. Verify that BootReceiver scheduled the recovery
-        verify { sessionWorkerScheduler.scheduleSessionTimers(activeSession.expiresAt!!) }
+        verify { workScheduler.scheduleSessionTimers(activeSession.expiresAt!!) }
         verify { sessionRuntimeController.startRuntime(any()) }
 
         // 5. Verify the integration link: BootReceiver launched PermissionEnforcementService

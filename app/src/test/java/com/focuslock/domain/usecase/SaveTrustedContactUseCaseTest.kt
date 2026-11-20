@@ -33,7 +33,7 @@ class SaveTrustedContactUseCaseTest {
     fun `cannot save contact during active session`() = runTest {
         coEvery { sessionRepository.hasActiveSession() } returns true
 
-        val result = useCase("+919876543210")
+        val result = useCase("contact@example.com")
 
         assertTrue(result is SaveContactResult.Error)
         val error = result as SaveContactResult.Error
@@ -46,10 +46,10 @@ class SaveTrustedContactUseCaseTest {
         coEvery { trustedContactRepository.saveContact(any()) } returns 1L
         coEvery { trustedContactRepository.sendVerificationOtp(any()) } returns true
 
-        val result = useCase("+919876543210")
+        val result = useCase("contact@example.com")
 
         assertTrue(result is SaveContactResult.OtpSent)
-        coVerify { trustedContactRepository.saveContact("+919876543210") }
+        coVerify { trustedContactRepository.saveContact("contact@example.com") }
     }
 
     @Test
@@ -58,9 +58,17 @@ class SaveTrustedContactUseCaseTest {
         coEvery { trustedContactRepository.saveContact(any()) } returns 1L
         coEvery { trustedContactRepository.sendVerificationOtp(any()) } throws RuntimeException("Network error")
 
+        val result = useCase("contact@example.com")
+
+        assertTrue(result is SaveContactResult.Error)
+    }
+
+    @Test
+    fun `malformed email rejected before save`() = runTest {
         val result = useCase("+919876543210")
 
         assertTrue(result is SaveContactResult.Error)
+        coVerify(exactly = 0) { trustedContactRepository.saveContact(any()) }
     }
 
     @Test
@@ -69,8 +77,8 @@ class SaveTrustedContactUseCaseTest {
         coEvery { trustedContactRepository.saveContact(any()) } returns 1L
         coEvery { trustedContactRepository.sendVerificationOtp(any()) } returns true
 
-        useCase("  +919876543210  ")
+        useCase("  contact@example.com  ")
 
-        coVerify { trustedContactRepository.saveContact("+919876543210") }
+        coVerify { trustedContactRepository.saveContact("contact@example.com") }
     }
 }

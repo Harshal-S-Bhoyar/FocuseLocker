@@ -3,6 +3,7 @@ package com.focuslock.domain.usecase
 import com.focuslock.domain.model.BlockCheckResult
 import com.focuslock.domain.model.BlockReason
 import org.junit.Assert.assertEquals
+import kotlinx.coroutines.test.runTest
 import org.junit.Test
 
 class CheckUrlForBlockedContentUseCaseTest {
@@ -10,7 +11,7 @@ class CheckUrlForBlockedContentUseCaseTest {
     private val useCase = CheckUrlForBlockedContentUseCase()
 
     @Test
-    fun `invoke with blocked keyword in path returns BLOCKED`() {
+    fun `invoke with blocked keyword in path returns BLOCKED`() = runTest {
         val result = useCase(
             url = "https://example.com/gambling-tips.html",
             keywords = listOf("gambling", "social"),
@@ -21,7 +22,7 @@ class CheckUrlForBlockedContentUseCaseTest {
     }
 
     @Test
-    fun `invoke with blocked keyword in query param returns ALLOWED`() {
+    fun `invoke with blocked keyword in query param returns ALLOWED`() = runTest {
         val result = useCase(
             url = "https://google.com/search?q=free+GAMBLING+sites",
             keywords = listOf("gambling"),
@@ -32,7 +33,7 @@ class CheckUrlForBlockedContentUseCaseTest {
     }
 
     @Test
-    fun `invoke with blocked domain returns BLOCKED`() {
+    fun `invoke with blocked domain returns BLOCKED`() = runTest {
         val result = useCase(
             url = "https://m.facebook.com/profile",
             keywords = emptyList(),
@@ -43,7 +44,7 @@ class CheckUrlForBlockedContentUseCaseTest {
     }
 
     @Test
-    fun `invoke with clean url returns ALLOWED`() {
+    fun `invoke with clean url returns ALLOWED`() = runTest {
         val result = useCase(
             url = "https://wikipedia.org/wiki/Kotlin",
             keywords = listOf("gambling"),
@@ -54,7 +55,7 @@ class CheckUrlForBlockedContentUseCaseTest {
     }
     
     @Test
-    fun `invoke is case insensitive`() {
+    fun `invoke is case insensitive`() = runTest {
         val result = useCase(
             url = "https://example.com/GAMBLING",
             keywords = listOf("gambling"),
@@ -65,7 +66,7 @@ class CheckUrlForBlockedContentUseCaseTest {
     }
 
     @Test
-    fun `invoke matches domain exactly or subdomains`() {
+    fun `invoke matches domain exactly or subdomains`() = runTest {
         val result1 = useCase("https://api.facebook.com/v1", emptyList(), listOf("facebook.com"))
         assertEquals(BlockCheckResult.Blocked("facebook.com", BlockReason.DOMAIN_BLOCKED), result1)
         
@@ -74,13 +75,13 @@ class CheckUrlForBlockedContentUseCaseTest {
     }
 
     @Test
-    fun `invoke matches domain without schema`() {
+    fun `invoke matches domain without schema`() = runTest {
         val result = useCase("facebook.com", emptyList(), listOf("facebook.com"))
         assertEquals(BlockCheckResult.Blocked("facebook.com", BlockReason.DOMAIN_BLOCKED), result)
     }
 
     @Test
-    fun `invoke with trailing dot in domain returns BLOCKED`() {
+    fun `invoke with trailing dot in domain returns BLOCKED`() = runTest {
         val result = useCase(
             url = "https://facebook.com./profile",
             keywords = emptyList(),
@@ -91,7 +92,7 @@ class CheckUrlForBlockedContentUseCaseTest {
     }
 
     @Test
-    fun `invoke with no authority returns ALLOWED`() {
+    fun `invoke with no authority returns ALLOWED`() = runTest {
         val result = useCase(
             url = "https:///path/only",
             keywords = listOf("path"),

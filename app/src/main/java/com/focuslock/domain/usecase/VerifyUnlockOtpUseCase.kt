@@ -3,7 +3,7 @@ package com.focuslock.domain.usecase
 import com.focuslock.domain.model.UnlockRequestStatus
 import com.focuslock.data.repository.SessionRepository
 import com.focuslock.data.repository.UnlockRepository
-import com.focuslock.data.worker.UnlockWorkerScheduler
+import com.focuslock.data.worker.WorkScheduler
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
@@ -18,7 +18,7 @@ sealed class VerifyUnlockResult {
 class VerifyUnlockOtpUseCase @Inject constructor(
     private val unlockRepository: UnlockRepository,
     private val sessionRepository: SessionRepository,
-    private val unlockWorkerScheduler: UnlockWorkerScheduler
+    private val workScheduler: WorkScheduler
 ) {
     suspend operator fun invoke(
         requestId: Long,
@@ -49,7 +49,7 @@ class VerifyUnlockOtpUseCase @Inject constructor(
                     
                     unlockRepository.updateStatus(requestId, UnlockRequestStatus.COOLDOWN)
                     unlockRepository.setCooldownEndsAt(requestId, endsAt)
-                    unlockWorkerScheduler.scheduleCooldownTimer(endsAt)
+                    workScheduler.scheduleCooldownTimer(endsAt)
                     VerifyUnlockResult.Valid
                 } else {
                     if (attempts >= 3) {

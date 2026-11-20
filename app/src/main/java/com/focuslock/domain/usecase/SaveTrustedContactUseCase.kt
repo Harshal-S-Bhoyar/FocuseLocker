@@ -25,6 +25,13 @@ class SaveTrustedContactUseCase @Inject constructor(
             return SaveContactResult.Error("Email cannot be empty")
         }
 
+        // ponytail: same regex as TrustedContactSetupViewModel; domain must not
+        // accept malformed email even if UI check is bypassed.
+        val emailRegex = "^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+$".toRegex()
+        if (!emailRegex.matches(trimmed)) {
+            return SaveContactResult.Error("Enter a valid email address (e.g. contact@example.com)")
+        }
+
         // Block update during active session — US-02 acceptance criteria
         if (sessionRepository.hasActiveSession()) {
             return SaveContactResult.Error("Cannot change trusted contact during an active session")
@@ -40,7 +47,7 @@ class SaveTrustedContactUseCase @Inject constructor(
             else SaveContactResult.Error("Failed to send verification email.")
         } catch (e: java.io.IOException) {
             Timber.e(e, "IOException during API call to verifyContact")
-            SaveContactResult.Error("Failed to connect to the server. Check your internet connection. (${e.message})")
+            SaveContactResult.Error("Failed to connect to the server. Check your internet connection.")
         } catch (e: retrofit2.HttpException) {
             Timber.e(e, "HttpException during API call to verifyContact")
             SaveContactResult.Error("Server error (${e.code()}). Failed to send OTP.")

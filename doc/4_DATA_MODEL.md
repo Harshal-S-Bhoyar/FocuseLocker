@@ -151,6 +151,23 @@ value   TEXT    NOT NULL
 | accessibility_active | false | Mirrors actual Accessibility Service state |
 | vpn_active | false | Mirrors actual VPN state |
 | first_install_date | null | Unix timestamp |
+| schedule_enabled | false | Master switch pausing all scheduled fires while keeping rules |
+| schedule_last_fired | null | Dedupe key `windowId:date` of the last fired occurrence |
+
+---
+
+### 1.8 ScheduleWindows
+
+Stores the weekly schedule template. One row per window. `weekday` uses ISO numbers with Monday as 1 and Sunday as 7. Times use minutes from midnight from 0 to 1439. A window with end at or before start crosses midnight into the next morning under start-day ownership.
+
+```
+Table: schedule_windows
+
+id              INTEGER   PRIMARY KEY AUTOINCREMENT
+weekday         INTEGER   NOT NULL    -- 1 Monday to 7 Sunday
+start_minutes   INTEGER   NOT NULL    -- 0 to 1439
+end_minutes     INTEGER   NOT NULL    -- 0 to 1439
+```
 
 ---
 

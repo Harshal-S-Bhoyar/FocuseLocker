@@ -5,10 +5,11 @@ import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import com.focuslock.data.local.FocusDatabase
 import com.focuslock.data.repository.SessionRepository
-import com.focuslock.data.worker.SessionWorkerScheduler
+import com.focuslock.data.worker.WorkScheduler
 import com.focuslock.domain.model.SessionStatus
 import com.focuslock.data.session.SessionRuntimeController
 import com.focuslock.domain.usecase.ActivateSessionUseCase
+import com.focuslock.domain.usecase.ActivationResult
 import com.focuslock.domain.usecase.CleanupStaleSessionUseCase
 import com.focuslock.domain.usecase.DeactivateSessionUseCase
 import com.focuslock.domain.usecase.GetSessionRemainingTimeUseCase
@@ -39,7 +40,7 @@ class SessionManagementFunctionalTest {
     private lateinit var sessionRepository: SessionRepository
     private lateinit var blockingRepository: com.focuslock.data.repository.BlockingRepository
 
-    private lateinit var sessionWorkerScheduler: SessionWorkerScheduler
+    private lateinit var workScheduler: WorkScheduler
     private lateinit var sessionRuntimeController: SessionRuntimeController
 
     private lateinit var activateSessionUseCase: ActivateSessionUseCase
@@ -62,12 +63,12 @@ class SessionManagementFunctionalTest {
         sessionRepository = SessionRepository(database.sessionDao())
         blockingRepository = mockk(relaxed = true)
         
-        sessionWorkerScheduler = mockk(relaxed = true)
+        workScheduler = mockk(relaxed = true)
         sessionRuntimeController = mockk(relaxed = true)
 
         deactivateSessionUseCase = DeactivateSessionUseCase(
             sessionRepository,
-            sessionWorkerScheduler,
+            workScheduler,
             sessionRuntimeController
         )
 
@@ -83,7 +84,7 @@ class SessionManagementFunctionalTest {
 
         activateSessionUseCase = ActivateSessionUseCase(
             sessionRepository,
-            sessionWorkerScheduler,
+            workScheduler,
             sessionRuntimeController,
             cleanupStaleSessionUseCase,
             blockingRepository,
@@ -107,13 +108,12 @@ class SessionManagementFunctionalTest {
         // Step 2: Start a valid session (e.g., 30 minutes)
         val durationMillis = 30 * 60 * 1000L
         val activationResult = activateSessionUseCase(durationMillis)
-        
-        assertTrue("Session activation should succeed", activationResult.isSuccess)
-        val sessionId = activationResult.getOrNull()
-        assertNotNull(sessionId)
+
+        assertTrue("Session activation should succeed", activationResult is ActivationResult.Activated)
+        val sessionId = (activationResult as ActivationResult.Activated).sessionId
 
         // Verify side effects
-        verify(exactly = 1) { sessionWorkerScheduler.scheduleSessionTimers(any()) }
+        verify(exactly = 1) { workScheduler.scheduleSessionTimers(any()) }
         verify(exactly = 1) { sessionRuntimeController.startRuntime(durationMillis) }
 
         // Verify state
@@ -125,14 +125,20 @@ class SessionManagementFunctionalTest {
 
         // Step 3: Attempt to start another session while one is active
         val secondActivationResult = activateSessionUseCase(15 * 60 * 1000L)
-        assertTrue("Should not allow starting a new session while one is active", secondActivationResult.isFailure)
-
+        assertTrue(
+            "A running session must be reported as AlreadyActive, never as an error",
+            secondActivationResult is ActivationResult.AlreadyActive
+        )
+        assertTrue(
+            "AlreadyActive must carry the session that is actually running",
+            (secondActivationResult as ActivationResult.AlreadyActive).session.isActive
+        )
         // Step 4: Deactivate the active session manually
-        val deactivationResult = deactivateSessionUseCase(sessionId!!, SessionStatus.COMPLETED)
+        val deactivationResult = deactivateSessionUseCase(sessionId, SessionStatus.COMPLETED)
         assertTrue("Deactivation should succeed", deactivationResult.isSuccess)
 
         // Verify side effects of deactivation
-        verify(exactly = 1) { sessionWorkerScheduler.cancelSessionTimers() }
+        verify(exactly = 1) { workScheduler.cancelSessionTimers() }
         verify(exactly = 1) { sessionRuntimeController.stopRuntime() }
 
         // Verify state is clean
@@ -145,9 +151,9 @@ class SessionManagementFunctionalTest {
     fun `activation rejects durations below the supported minimum`() = runBlocking {
         val result = activateSessionUseCase(59_999L)
 
-        assertTrue(result.isFailure)
+        assertTrue(result is ActivationResult.Failed)
         assertFalse(isSessionActiveUseCase())
-        verify(exactly = 0) { sessionWorkerScheduler.scheduleSessionTimers(any()) }
+        verify(exactly = 0) { workScheduler.scheduleSessionTimers(any()) }
         verify(exactly = 0) { sessionRuntimeController.startRuntime(any()) }
     }
 
@@ -160,9 +166,9 @@ class SessionManagementFunctionalTest {
 
         val result = activateSessionUseCase(60_000L)
 
-        assertTrue(result.isSuccess)
+        assertTrue(result is ActivationResult.Activated)
         assertTrue(isSessionActiveUseCase())
-        verify(exactly = 1) { sessionWorkerScheduler.scheduleSessionTimers(any()) }
+        verify(exactly = 1) { workScheduler.scheduleSessionTimers(any()) }
         verify(exactly = 1) { sessionRuntimeController.startRuntime(60_000L) }
     }
 
@@ -184,9 +190,9 @@ class SessionManagementFunctionalTest {
 
         val result = activateSessionUseCase(60_000L)
 
-        assertTrue(result.isFailure)
+        assertTrue(result is ActivationResult.Failed)
         assertFalse(isSessionActiveUseCase())
-        verify(exactly = 1) { sessionWorkerScheduler.cancelSessionTimers() }
+        verify(exactly = 1) { workScheduler.cancelSessionTimers() }
         verify(exactly = 1) { sessionRuntimeController.stopRuntime() }
     }
 }

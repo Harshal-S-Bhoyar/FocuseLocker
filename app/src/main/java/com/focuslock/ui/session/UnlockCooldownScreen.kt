@@ -2,7 +2,6 @@ package com.focuslock.ui.session
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
-// import removed
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import java.util.Locale

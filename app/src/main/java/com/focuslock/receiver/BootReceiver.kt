@@ -10,7 +10,7 @@ import timber.log.Timber
 import com.focuslock.util.PermissionChecker
 import com.focuslock.data.repository.SessionRepository
 import com.focuslock.data.session.SessionRuntimeController
-import com.focuslock.data.worker.SessionWorkerScheduler
+import com.focuslock.data.worker.WorkScheduler
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CancellationException
@@ -30,13 +30,19 @@ class BootReceiver : BroadcastReceiver() {
 
     companion object {
         private const val TAG = "RCV_BOOT"
+        private const val ACTION_QUICKBOOT_POWERON = "android.intent.action.QUICKBOOT_POWERON"
     }
+
+    private fun isRearmAction(action: String?): Boolean = action == Intent.ACTION_BOOT_COMPLETED ||
+        action == Intent.ACTION_LOCKED_BOOT_COMPLETED ||
+        action == ACTION_QUICKBOOT_POWERON ||
+        action == Intent.ACTION_MY_PACKAGE_REPLACED
 
     @Inject
     lateinit var sessionRepository: SessionRepository
 
     @Inject
-    lateinit var sessionWorkerScheduler: SessionWorkerScheduler
+    lateinit var workScheduler: WorkScheduler
 
     @Inject
     lateinit var sessionRuntimeController: SessionRuntimeController
@@ -56,10 +62,19 @@ class BootReceiver : BroadcastReceiver() {
     }
 
     internal fun processBootIntent(context: Context?, intent: Intent?) {
-        if (intent?.action == Intent.ACTION_BOOT_COMPLETED && context != null) {
-            Timber.tag(TAG).d("Device reboot completed, checking if active session needs recovery.")
+        val action = intent?.action
+        if (context == null || !isRearmAction(action)) {
+            return
+        }
+        if (action != Intent.ACTION_BOOT_COMPLETED) {
+            Timber.tag(TAG).d("Rearm on %s", action)
+            workScheduler.scheduleScheduleChecks()
+            return
+        }
+        Timber.tag(TAG).d("Device reboot completed, checking if active session needs recovery.")
 
-            val pendingResult = goAsync()
+        workScheduler.scheduleScheduleChecks()
+        val pendingResult = goAsync()
             val receiverScope = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.SupervisorJob() + ioDispatcher)
             receiverScope.launch {
                 try {
@@ -70,7 +85,7 @@ class BootReceiver : BroadcastReceiver() {
                         val remainingMillis = expiresAt - System.currentTimeMillis()
                         if (remainingMillis > 0) {
                             Timber.tag(TAG).d("Active session found. Recovering timers and notification.")
-                            sessionWorkerScheduler.scheduleSessionTimers(expiresAt)
+                            workScheduler.scheduleSessionTimers(expiresAt)
                             sessionRuntimeController.startRuntime(remainingMillis)
                             isActiveSession = true
                         } else {
@@ -80,8 +95,13 @@ class BootReceiver : BroadcastReceiver() {
                         }
                     }
                     
-                    // Start the watchdog service to ensure persistent enforcement
-                    com.focuslock.service.watchdog.PermissionWatchdogService.start(context)
+                    // Start the watchdog only with a live session; with nothing to
+                    // guard it would poll forever (foreground service + DB + logs).
+                    if (isActiveSession) {
+                        com.focuslock.service.watchdog.PermissionWatchdogService.start(context)
+                    } else {
+                        Timber.tag(TAG).d("No active session after boot, skipping watchdog start.")
+                    }
 
                     val isAccessibilityAlive = PermissionChecker.isAccessibilityServiceEnabled(context)
                     val isOverlayGranted = PermissionChecker.isOverlayPermissionGranted(context)
@@ -100,4 +120,3 @@ class BootReceiver : BroadcastReceiver() {
             }
         }
     }
-}
