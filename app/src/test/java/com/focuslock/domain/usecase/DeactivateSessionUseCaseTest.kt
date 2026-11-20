@@ -3,7 +3,7 @@ package com.focuslock.domain.usecase
 import com.focuslock.domain.model.SessionStatus
 import com.focuslock.data.repository.SessionRepository
 import com.focuslock.data.session.SessionRuntimeController
-import com.focuslock.data.worker.SessionWorkerScheduler
+import com.focuslock.data.worker.WorkScheduler
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
@@ -15,9 +15,9 @@ import org.junit.Test
 class DeactivateSessionUseCaseTest {
 
     private val sessionRepository = mockk<SessionRepository>(relaxed = true)
-    private val workerScheduler = mockk<SessionWorkerScheduler>(relaxed = true)
+    private val workScheduler = mockk<WorkScheduler>(relaxed = true)
     private val runtimeController = mockk<SessionRuntimeController>(relaxed = true)
-    private val useCase = DeactivateSessionUseCase(sessionRepository, workerScheduler, runtimeController)
+    private val useCase = DeactivateSessionUseCase(sessionRepository, workScheduler, runtimeController)
 
     @Test
     fun `invoke ends session and cancels workers`() = runTest {
@@ -30,7 +30,7 @@ class DeactivateSessionUseCaseTest {
         // Assert
         assertTrue(result.isSuccess)
         coVerify { sessionRepository.endSession(1L, SessionStatus.COMPLETED) }
-        coVerify { workerScheduler.cancelSessionTimers() }
+        coVerify { workScheduler.cancelSessionTimers() }
         coVerify { runtimeController.stopRuntime() }
     }
 
@@ -43,14 +43,14 @@ class DeactivateSessionUseCaseTest {
 
         assertTrue(result.isFailure)
         assertTrue(result.exceptionOrNull() === failure)
-        coVerify(exactly = 0) { workerScheduler.cancelSessionTimers() }
+        coVerify(exactly = 0) { workScheduler.cancelSessionTimers() }
         coVerify(exactly = 0) { runtimeController.stopRuntime() }
     }
 
     @Test
     fun `worker cancellation failure returns failure and does not stop runtime`() = runTest {
         val failure = IllegalStateException("scheduler unavailable")
-        coEvery { workerScheduler.cancelSessionTimers() } throws failure
+        coEvery { workScheduler.cancelSessionTimers() } throws failure
 
         val result = useCase(3L, SessionStatus.COMPLETED)
 
@@ -70,7 +70,7 @@ class DeactivateSessionUseCaseTest {
         assertTrue(result.isFailure)
         assertTrue(result.exceptionOrNull() === failure)
         coVerify { sessionRepository.endSession(4L, SessionStatus.CANCELLED) }
-        coVerify { workerScheduler.cancelSessionTimers() }
+        coVerify { workScheduler.cancelSessionTimers() }
     }
 
     @Test
@@ -83,7 +83,7 @@ class DeactivateSessionUseCaseTest {
         } catch (error: CancellationException) {
             assertTrue(error.message == "cancelled")
         }
-        coVerify(exactly = 0) { workerScheduler.cancelSessionTimers() }
+        coVerify(exactly = 0) { workScheduler.cancelSessionTimers() }
         coVerify(exactly = 0) { runtimeController.stopRuntime() }
     }
 }
